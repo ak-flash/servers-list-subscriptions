@@ -1,0 +1,23 @@
+{
+  "name": "vpn-subscription-service",
+  "version": "1.0.0",
+  "description": "VPN subscription service with admin panel",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "qrcode": "^1.5.4",
+    "sql.js": "^1.10.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^4.2.2"
+  }
+}

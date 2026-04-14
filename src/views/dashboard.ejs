@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - <%= appName %>
+    </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100">
+    <header class="bg-slate-800 text-white px-8 py-4 flex justify-between items-center">
+        <h1 class="text-xl">
+            <%= appName %> - Админ-панель
+        </h1>
+        <div>
+            <span class="mr-4">Привет, <%= username %></span>
+            <a href="/admin/logout" class="text-gray-300 hover:text-white">Выйти</a>
+        </div>
+    </header>
+    <main class="max-w-6xl mx-auto mt-8 px-4">
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b">
+                <h2 class="text-lg font-semibold text-gray-800">Серверы</h2>
+                <a href="/admin/servers/new" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">+
+                    Добавить сервер</a>
+            </div>
+            <% if (servers.length===0) { %>
+                <p class="text-gray-500 text-center py-8">Нет серверов. Добавьте первый сервер.</p>
+                <% } else { %>
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-gray-600 border-b">
+                                <th class="pb-3">Название</th>
+                                <th class="pb-3">Хост</th>
+                                <th class="pb-3">Порт</th>
+                                <th class="pb-3">Протокол</th>
+                                <th class="pb-3">Статус</th>
+                                <th class="pb-3">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% servers.forEach(function(server) { %>
+                                <tr class="border-b last:border-0">
+                                    <td class="py-3">
+                                        <%= server.name %>
+                                    </td>
+                                    <td class="py-3">
+                                        <%= server.host %>
+                                    </td>
+                                    <td class="py-3">
+                                        <%= server.port %>
+                                    </td>
+                                    <td class="py-3">
+                                        <%= server.protocol ? server.protocol.toUpperCase() : '' %>
+                                    </td>
+                                    <td class="py-3">
+                                        <span
+                                            class="px-2 py-1 text-xs rounded <%= server.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+                                            <%= server.is_active ? 'Активен' : 'Отключен' %>
+                                        </span>
+                                    </td>
+                                    <td class="py-3">
+                                        <div class="flex gap-2 items-center">
+                                            <a href="/admin/servers/<%= server.id %>/edit"
+                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Редактировать</a>
+                                            <form method="POST" action="/admin/servers/<%= server.id %>/delete"
+                                                onsubmit="return confirm('Удалить сервер?')">
+                                                <button type="submit"
+                                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Удалить</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                        </tbody>
+                    </table>
+                    <% } %>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b">
+                <h2 class="text-lg font-semibold text-gray-800">Пользователи</h2>
+                <a href="/admin/users/new" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">+
+                    Добавить пользователя</a>
+            </div>
+            <% if (users.length===0) { %>
+                <p class="text-gray-500 text-center py-8">Нет пользователей. Добавьте первого пользователя.</p>
+                <% } else { %>
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-gray-600 border-b">
+                                <th class="pb-3">Имя пользователя</th>
+                                <th class="pb-3">Статус</th>
+                                <th class="pb-3">Создан</th>
+                                <th class="pb-3">Ссылка подписки</th>
+                                <th class="pb-3">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% users.forEach(function(user) { %>
+                                <tr class="border-b last:border-0">
+                                    <td class="py-3">
+                                        <%= user.username %>
+                                    </td>
+                                    <td class="py-3">
+                                        <span
+                                            class="px-2 py-1 text-xs rounded <%= user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+                                            <%= user.is_active ? 'Активен' : 'Отключен' %>
+                                        </span>
+                                    </td>
+                                    <td class="py-3">
+                                        <%= new Date(user.created_at).toLocaleDateString('ru-RU') %>
+                                    </td>
+                                    <td class="py-3">
+                                        <div class="flex items-center gap-2">
+                                            <a href="/join/<%= user.id %>#Подписка_<%= user.username %>" target="_blank"
+                                                class="bg-blue-50 px-2 py-1 rounded text-sm break-all hover:bg-blue-100 text-blue-600">
+                                                <%= user.id %>
+                                            </a>
+                                            <button onclick="showQrModal('<%= user.id %>', '<%= user.username %>')"
+                                                class="bg-green-600 text-white px-2 py-1 rounded text-sm hover:bg-green-700">
+                                                QR
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td class="py-3">
+                                        <div class="flex gap-2 items-center">
+                                            <a href="/admin/users/<%= user.id %>/servers"
+                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Серверы</a>
+                                            <a href="/admin/users/<%= user.id %>/edit"
+                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Редактировать</a>
+                                            <form method="POST" action="/admin/users/<%= user.id %>/delete"
+                                                onsubmit="return confirm('Удалить пользователя?')">
+                                                <button type="submit"
+                                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Удалить</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                        </tbody>
+                    </table>
+                    <% } %>
+        </div>
+    </main>
+
+    <div id="qr-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="display: none;">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="qr-modal-title" class="text-lg font-semibold">QR код</h3>
+                <button onclick="closeQrModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div class="flex justify-center">
+                <img id="qr-modal-img" src="" alt="QR код" class="rounded">
+            </div>
+            <p class="text-center text-sm text-gray-500 mt-3">Сканируйте QR код приложением</p>
+        </div>
+    </div>
+
+    <script>
+        async function showQrModal(userId, username) {
+            try {
+                const response = await fetch('/join/' + userId + '/qr-img');
+                const data = await response.json();
+                document.getElementById('qr-modal-title').textContent = 'QR код - ' + data.username;
+                document.getElementById('qr-modal-img').src = data.qrCode;
+                document.getElementById('qr-modal').style.display = 'flex';
+            } catch (err) {
+                alert('Ошибка загрузки QR кода');
+            }
+        }
+
+        function closeQrModal() {
+            document.getElementById('qr-modal').style.display = 'none';
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeQrModal();
+        });
+
+        document.getElementById('qr-modal').addEventListener('click', function (e) {
+            if (e.target === this) closeQrModal();
+        });
+    </script>
+</body>
+
+</html>
