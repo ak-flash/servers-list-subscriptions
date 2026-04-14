@@ -349,8 +349,15 @@ app.get('/join/:id/qr', async (req, res) => {
 
     recordSubscriptionRequest(user.id, req);
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.headers['x-forwarded-host'] || req.get('host');
+    let protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    let host = req.headers['x-forwarded-host'] || req.get('host');
+
+    // Use configured domain if available
+    if (process.env.PUBLIC_DOMAIN) {
+        host = process.env.PUBLIC_DOMAIN;
+        protocol = 'https'; // Assume HTTPS for custom domains
+    }
+
     const subscriptionUrl = `${protocol}://${host}/join/${user.id}#Подписка_${user.username}`;
 
     try {
@@ -384,8 +391,15 @@ app.get('/join/:id/qr-img', async (req, res) => {
 
     recordSubscriptionRequest(user.id, req);
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.headers['x-forwarded-host'] || req.get('host');
+    let protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    let host = req.headers['x-forwarded-host'] || req.get('host');
+
+    // Use configured domain if available
+    if (process.env.PUBLIC_DOMAIN) {
+        host = process.env.PUBLIC_DOMAIN;
+        protocol = 'https'; // Assume HTTPS for custom domains
+    }
+
     const subscriptionUrl = `${protocol}://${host}/join/${user.id}#Подписка_${user.username}`;
 
     try {
