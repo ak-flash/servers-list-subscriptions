@@ -5,8 +5,9 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const { initDb, getDb, saveDb } = require('./db/database');
+const { initDb, getDb, saveDb, getUserTraffic, updateUserTraffic, getAllUsersTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName, updateLinkRemark, buildFullSubscription } = require('./utils/linkBuilder');
+const { checkServer, checkMultipleServers } = require('./utils/serverChecker');
 
 function generateShortId(length = 6) {
     return crypto.randomBytes(length).toString('base64url').slice(0, length);
@@ -67,6 +68,26 @@ function dbRun(sql, params = []) {
     saveDb();
 }
 
+function recordSubscriptionRequest(userId, req) {
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || '';
+
+    dbRun(`
+        INSERT INTO subscription_requests (user_id, requested_at, ip_address, user_agent)
+        VALUES (?, datetime('now'), ?, ?)
+    `, [userId, ipAddress, userAgent]);
+
+    const user = dbGet('SELECT * FROM users WHERE id = ?', [userId]);
+    if (user) {
+        const firstRequestAt = user.first_request_at;
+        if (!firstRequestAt) {
+            dbRun(`UPDATE users SET first_request_at = datetime('now'), last_request_at = datetime('now') WHERE id = ?`, [userId]);
+        } else {
+            dbRun(`UPDATE users SET last_request_at = datetime('now') WHERE id = ?`, [userId]);
+        }
+    }
+}
+
 app.get('/admin/login', (req, res) => {
     res.render('login', { error: null, appName: APP_NAME });
 });
@@ -89,6 +110,15 @@ app.get('/admin/logout', (req, res) => {
     res.redirect('/admin/login');
 });
 
+// Helper function to format bytes
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 app.get('/admin', requireAuth, (req, res) => {
     const servers = dbAll('SELECT * FROM servers ORDER BY created_at DESC');
     const serversWithInfo = servers.map(server => {
@@ -96,7 +126,22 @@ app.get('/admin', requireAuth, (req, res) => {
         return { ...server, ...info };
     });
     const users = dbAll('SELECT * FROM users ORDER BY created_at DESC');
-    res.render('dashboard', { servers: serversWithInfo, users, username: req.session.username, appName: APP_NAME });
+
+    // Add traffic data to users
+    const usersWithTraffic = users.map(user => {
+        const traffic = getUserTraffic(user.id);
+        return {
+            ...user,
+            total_upload: traffic.total_upload || 0,
+            total_download: traffic.total_download || 0,
+            total_traffic: traffic.total_traffic || 0,
+            formatted_upload: formatBytes(traffic.total_upload || 0),
+            formatted_download: formatBytes(traffic.total_download || 0),
+            formatted_total: formatBytes(traffic.total_traffic || 0)
+        };
+    });
+
+    res.render('dashboard', { servers: serversWithInfo, users: usersWithTraffic, username: req.session.username, appName: APP_NAME });
 });
 
 app.get('/admin/servers/new', requireAuth, (req, res) => {
@@ -265,12 +310,23 @@ app.get('/join/:id', (req, res) => {
         return res.status(404).send('Нет доступных серверов для этого пользователя');
     }
 
+    recordSubscriptionRequest(user.id, req);
+
     const subscription = buildFullSubscription(servers, user.id, user.username);
+
+    // Get user traffic data
+    const traffic = getUserTraffic(user.id);
+    const uploadBytes = traffic.total_upload || 0;
+    const downloadBytes = traffic.total_download || 0;
+    const totalBytes = traffic.total_traffic || 0;
+
+    // Set default expiration (30 days from now) if not set
+    const expireTimestamp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
 
     res.set('Content-Type', 'text/plain; charset=utf-8');
     res.set('profile-title', `base64:${Buffer.from('Подписка ' + user.username).toString('base64')}`);
     res.set('profile-update-interval', '24');
-    res.set('subscription-userinfo', `upload=0; download=0; total=0; expire=0`);
+    res.set('subscription-userinfo', `upload=${uploadBytes}; download=${downloadBytes}; total=${totalBytes}; expire=${expireTimestamp}`);
     res.send(subscription);
 });
 
@@ -290,6 +346,8 @@ app.get('/join/:id/qr', async (req, res) => {
     if (servers.length === 0) {
         return res.status(404).send('Нет доступных серверов для этого пользователя');
     }
+
+    recordSubscriptionRequest(user.id, req);
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers['x-forwarded-host'] || req.get('host');
@@ -324,6 +382,8 @@ app.get('/join/:id/qr-img', async (req, res) => {
         return res.status(404).json({ error: 'Нет серверов' });
     }
 
+    recordSubscriptionRequest(user.id, req);
+
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const host = req.headers['x-forwarded-host'] || req.get('host');
     const subscriptionUrl = `${protocol}://${host}/join/${user.id}#Подписка_${user.username}`;
@@ -357,6 +417,8 @@ app.get('/join/:id/json', (req, res) => {
         return res.status(404).json({ error: 'Нет доступных серверов' });
     }
 
+    recordSubscriptionRequest(user.id, req);
+
     const subscription = buildFullSubscription(servers, user.id, user.username);
 
     res.json({
@@ -376,6 +438,79 @@ app.get('/join/:id/json', (req, res) => {
         })),
         raw: subscription
     });
+});
+
+app.post('/api/servers/check', requireAuth, async (req, res) => {
+    const servers = dbAll('SELECT * FROM servers');
+
+    if (servers.length === 0) {
+        return res.json({ results: [] });
+    }
+
+    const serversToCheck = servers.map(server => {
+        const info = extractHostPortFromLink(server.link);
+        return { id: server.id, name: server.name, host: info.host, port: info.port };
+    });
+
+    const results = await checkMultipleServers(serversToCheck);
+
+    const resultsWithId = results.map((result, index) => ({
+        ...result,
+        id: serversToCheck[index].id,
+        name: serversToCheck[index].name
+    }));
+
+    res.json({ results: resultsWithId });
+});
+
+app.post('/api/servers/:id/check', requireAuth, async (req, res) => {
+    const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
+
+    if (!server) {
+        return res.status(404).json({ error: 'Сервер не найден' });
+    }
+
+    const info = extractHostPortFromLink(server.link);
+    const result = await checkServer(info.host, info.port);
+
+    res.json({
+        id: server.id,
+        name: server.name,
+        ...result
+    });
+});
+
+// Traffic reporting API endpoints
+app.post('/api/traffic/report', (req, res) => {
+    const { user_id, server_id, upload_bytes, download_bytes } = req.body;
+
+    if (!user_id || !server_id || upload_bytes === undefined || download_bytes === undefined) {
+        return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    try {
+        updateUserTraffic(user_id, server_id, upload_bytes, download_bytes);
+        res.json({ success: true, message: 'Traffic data updated' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update traffic data' });
+    }
+});
+
+app.get('/api/traffic/user/:userId', requireAuth, (req, res) => {
+    const userId = req.params.userId;
+    const traffic = getUserTraffic(userId);
+
+    res.json({
+        user_id: userId,
+        upload_bytes: traffic.total_upload || 0,
+        download_bytes: traffic.total_download || 0,
+        total_bytes: traffic.total_traffic || 0
+    });
+});
+
+app.get('/api/traffic/all', requireAuth, (req, res) => {
+    const allTraffic = getAllUsersTraffic();
+    res.json({ users: allTraffic });
 });
 
 async function startServer() {
@@ -400,5 +535,95 @@ async function startServer() {
         console.log(`Подписка: http://localhost:${PORT}/join/{user_id}`);
     });
 }
+
+// Helper function to format bytes
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+app.get('/admin/stats', requireAuth, (req, res) => {
+    const totalUsers = dbGet('SELECT COUNT(*) as count FROM users')?.count || 0;
+    const activeUsers = dbGet('SELECT COUNT(*) as count FROM users WHERE is_active = 1')?.count || 0;
+
+    const totalRequests = dbGet('SELECT COUNT(*) as count FROM subscription_requests')?.count || 0;
+    const todayRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE date(requested_at) = date('now')`)?.count || 0;
+    const weekRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-7 days')`)?.count || 0;
+    const monthRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-30 days')`)?.count || 0;
+
+    // Get traffic statistics
+    const allTraffic = getAllUsersTraffic();
+    const totalTraffic = allTraffic.reduce((sum, user) => sum + (user.total_traffic || 0), 0);
+    const activeTrafficUsers = allTraffic.filter(user => user.total_traffic > 0).length;
+    const formattedTotalTraffic = formatBytes(totalTraffic);
+
+    const lastRequests = dbAll(`
+        SELECT sr.*, u.username 
+        FROM subscription_requests sr 
+        LEFT JOIN users u ON sr.user_id = u.id 
+        ORDER BY sr.requested_at DESC 
+        LIMIT 50
+    `);
+
+    const topUsers = dbAll(`
+        SELECT u.username, u.id, COUNT(*) as request_count, MAX(sr.requested_at) as last_request
+        FROM subscription_requests sr
+        LEFT JOIN users u ON sr.user_id = u.id
+        GROUP BY sr.user_id
+        ORDER BY request_count DESC
+        LIMIT 10
+    `);
+
+    // Format traffic data for top users
+    const topTrafficUsers = allTraffic.slice(0, 10).map(user => ({
+        ...user,
+        formatted_upload: formatBytes(user.total_upload || 0),
+        formatted_download: formatBytes(user.total_download || 0),
+        formatted_total: formatBytes(user.total_traffic || 0)
+    }));
+
+    const requestsByDay = dbAll(`
+        SELECT date(requested_at) as day, COUNT(*) as count
+        FROM subscription_requests
+        WHERE requested_at >= datetime('now', '-30 days')
+        GROUP BY date(requested_at)
+        ORDER BY day DESC
+    `);
+
+    res.render('stats', {
+        totalUsers,
+        activeUsers,
+        totalRequests,
+        todayRequests,
+        weekRequests,
+        monthRequests,
+        totalTraffic,
+        formattedTotalTraffic,
+        activeTrafficUsers,
+        lastRequests,
+        topUsers,
+        topTrafficUsers,
+        requestsByDay,
+        username: req.session.username,
+        appName: APP_NAME
+    });
+});
+
+app.post('/admin/stats/clear', requireAuth, (req, res) => {
+    try {
+        // Clear all subscription requests
+        dbRun('DELETE FROM subscription_requests');
+
+        // Reset user request tracking
+        dbRun('UPDATE users SET first_request_at = NULL, last_request_at = NULL');
+
+        res.json({ success: true, message: 'Статистика успешно очищена' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Ошибка при очистке статистики: ' + error.message });
+    }
+});
 
 startServer();

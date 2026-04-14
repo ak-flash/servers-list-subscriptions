@@ -14,6 +14,8 @@ async function initDb() {
     db = new SQL.Database(fileBuffer);
 
     migrateServersTable(db);
+    migrateUsersTable(db);
+    migrateSubscriptionRequestsTable(db);
   } else {
     db = new SQL.Database();
   }
@@ -24,7 +26,9 @@ async function initDb() {
             username TEXT UNIQUE NOT NULL,
             password TEXT,
             is_active INTEGER DEFAULT 1,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            first_request_at TEXT,
+            last_request_at TEXT
         )
     `);
 
@@ -44,6 +48,46 @@ async function initDb() {
             user_id TEXT NOT NULL,
             server_id TEXT NOT NULL,
             PRIMARY KEY (user_id, server_id),
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (server_id) REFERENCES servers(id)
+        )
+    `);
+
+  db.run(`
+        CREATE TABLE IF NOT EXISTS subscription_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            requested_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            user_agent TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    `);
+
+  db.run(`
+        CREATE TABLE IF NOT EXISTS user_traffic (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            server_id TEXT NOT NULL,
+            upload_bytes INTEGER DEFAULT 0,
+            download_bytes INTEGER DEFAULT 0,
+            total_bytes INTEGER DEFAULT 0,
+            recorded_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (server_id) REFERENCES servers(id)
+        )
+    `);
+
+  db.run(`
+        CREATE TABLE IF NOT EXISTS traffic_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            server_id TEXT NOT NULL,
+            upload_bytes INTEGER DEFAULT 0,
+            download_bytes INTEGER DEFAULT 0,
+            total_bytes INTEGER DEFAULT 0,
+            snapshot_date TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (server_id) REFERENCES servers(id)
         )
@@ -121,6 +165,36 @@ function migrateServersTable(db) {
   }
 }
 
+function migrateUsersTable(db) {
+  try {
+    db.exec("SELECT first_request_at FROM users LIMIT 1");
+    return;
+  } catch (e) {
+    db.run("ALTER TABLE users ADD COLUMN first_request_at TEXT");
+    db.run("ALTER TABLE users ADD COLUMN last_request_at TEXT");
+    saveDb();
+  }
+}
+
+function migrateSubscriptionRequestsTable(db) {
+  try {
+    db.exec("SELECT id FROM subscription_requests LIMIT 1");
+    return;
+  } catch (e) {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS subscription_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        requested_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        ip_address TEXT,
+        user_agent TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
+    saveDb();
+  }
+}
+
 function saveDb() {
   if (db) {
     const data = db.export();
@@ -137,4 +211,119 @@ function getDb() {
   return db;
 }
 
-module.exports = { initDb, getDb, saveDb };
+// Traffic management functions
+function getUserTraffic(userId, serverId = null) {
+  let sql = `
+    SELECT 
+      COALESCE(SUM(upload_bytes), 0) as total_upload,
+      COALESCE(SUM(download_bytes), 0) as total_download,
+      COALESCE(SUM(total_bytes), 0) as total_traffic
+    FROM user_traffic 
+    WHERE user_id = ?
+  `;
+  let params = [userId];
+
+  if (serverId) {
+    sql += ' AND server_id = ?';
+    params.push(serverId);
+  }
+
+  // Use local dbGet function
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  if (stmt.step()) {
+    const row = stmt.getAsObject();
+    stmt.free();
+    return row;
+  }
+  stmt.free();
+  return { total_upload: 0, total_download: 0, total_traffic: 0 };
+}
+
+function updateUserTraffic(userId, serverId, uploadBytes, downloadBytes) {
+  const totalBytes = uploadBytes + downloadBytes;
+
+  // Update current traffic record
+  const existingStmt = db.prepare(
+    'SELECT id FROM user_traffic WHERE user_id = ? AND server_id = ? AND date(recorded_at) = date(\'now\')'
+  );
+  existingStmt.bind([userId, serverId]);
+  const existing = existingStmt.step() ? existingStmt.getAsObject() : null;
+  existingStmt.free();
+
+  if (existing) {
+    const updateStmt = db.prepare(
+      'UPDATE user_traffic SET upload_bytes = ?, download_bytes = ?, total_bytes = ?, recorded_at = datetime(\'now\') WHERE id = ?'
+    );
+    updateStmt.run([uploadBytes, downloadBytes, totalBytes, existing.id]);
+    updateStmt.free();
+  } else {
+    const insertStmt = db.prepare(
+      'INSERT INTO user_traffic (user_id, server_id, upload_bytes, download_bytes, total_bytes, recorded_at) VALUES (?, ?, ?, ?, ?, datetime(\'now\'))'
+    );
+    insertStmt.run([userId, serverId, uploadBytes, downloadBytes, totalBytes]);
+    insertStmt.free();
+  }
+
+  saveDb();
+}
+
+function getTrafficSnapshots(userId, days = 30) {
+  const stmt = db.prepare(
+    'SELECT * FROM traffic_snapshots WHERE user_id = ? AND snapshot_date >= date(\'now\', ? || \' days\') ORDER BY snapshot_date DESC'
+  );
+  stmt.bind([userId, `-${days}`]);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return rows;
+}
+
+function createTrafficSnapshot(userId, serverId) {
+  const traffic = getUserTraffic(userId, serverId);
+  const today = new Date().toISOString().split('T')[0];
+
+  const stmt = db.prepare(
+    'INSERT OR REPLACE INTO traffic_snapshots (user_id, server_id, upload_bytes, download_bytes, total_bytes, snapshot_date) VALUES (?, ?, ?, ?, ?, ?)'
+  );
+  stmt.run([userId, serverId, traffic.total_upload, traffic.total_download, traffic.total_traffic, today]);
+  stmt.free();
+
+  saveDb();
+}
+
+function getAllUsersTraffic() {
+  const stmt = db.prepare(`
+    SELECT 
+      u.id,
+      u.username,
+      COALESCE(SUM(ut.upload_bytes), 0) as total_upload,
+      COALESCE(SUM(ut.download_bytes), 0) as total_download,
+      COALESCE(SUM(ut.total_bytes), 0) as total_traffic,
+      MAX(ut.recorded_at) as last_traffic_update
+    FROM users u
+    LEFT JOIN user_traffic ut ON u.id = ut.user_id
+    GROUP BY u.id, u.username
+    ORDER BY total_traffic DESC
+  `);
+
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return rows;
+}
+
+module.exports = {
+  initDb,
+  getDb,
+  saveDb,
+  getUserTraffic,
+  updateUserTraffic,
+  getTrafficSnapshots,
+  createTrafficSnapshot,
+  getAllUsersTraffic
+};

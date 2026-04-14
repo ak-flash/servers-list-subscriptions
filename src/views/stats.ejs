@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статистика - <%= appName %>
+    </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100">
+    <header
+        class="bg-slate-800 text-white px-4 md:px-8 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <h1 class="text-lg md:text-xl">
+            <%= appName %> - Статистика
+        </h1>
+        <div class="flex items-center gap-4 text-sm md:text-base">
+            <a href="/admin" class="text-gray-300 hover:text-white">← Назад</a>
+            <button onclick="clearStatistics()"
+                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">🗑️ Очистить</button>
+            <span>Привет, <%= username %></span>
+            <a href="/admin/logout" class="text-gray-300 hover:text-white">Выйти</a>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto mt-8 px-4">
+        <div class="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Общая статистика</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-blue-600">
+                        <%= totalRequests %>
+                    </div>
+                    <div class="text-sm text-gray-600">Всего запросов</div>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-green-600">
+                        <%= todayRequests %>
+                    </div>
+                    <div class="text-sm text-gray-600">Сегодня</div>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-purple-600">
+                        <%= weekRequests %>
+                    </div>
+                    <div class="text-sm text-gray-600">За неделю</div>
+                </div>
+                <div class="bg-indigo-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-indigo-600">
+                        <%= monthRequests %>
+                    </div>
+                    <div class="text-sm text-gray-600">За месяц</div>
+                </div>
+                <div class="bg-teal-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-teal-600">
+                        <%= totalUsers %>
+                    </div>
+                    <div class="text-sm text-gray-600">Всего пользователей</div>
+                </div>
+                <div class="bg-emerald-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-emerald-600">
+                        <%= activeUsers %>
+                    </div>
+                    <div class="text-sm text-gray-600">Активных</div>
+                </div>
+                <div class="bg-orange-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-orange-600">
+                        <%= formattedTotalTraffic %>
+                    </div>
+                    <div class="text-sm text-gray-600">Общий трафик</div>
+                </div>
+                <div class="bg-cyan-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-cyan-600">
+                        <%= activeTrafficUsers %>
+                    </div>
+                    <div class="text-sm text-gray-600">С трафиком</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow p-4 md:p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ пользователей</h2>
+                <% if (topUsers.length===0) { %>
+                    <p class="text-gray-500 text-center py-4">Нет данных</p>
+                    <% } else { %>
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-600 border-b">
+                                    <th class="pb-2">#</th>
+                                    <th class="pb-2">Пользователь</th>
+                                    <th class="pb-2">Запросов</th>
+                                    <th class="pb-2">Последний</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% topUsers.forEach(function(user, index) { %>
+                                    <tr class="border-b last:border-0">
+                                        <td class="py-2 text-gray-500">
+                                            <%= index + 1 %>
+                                        </td>
+                                        <td class="py-2 font-medium">
+                                            <%= user.username %>
+                                        </td>
+                                        <td class="py-2">
+                                            <%= user.request_count %>
+                                        </td>
+                                        <td class="py-2 text-sm text-gray-500">
+                                            <%= user.last_request ? new
+                                                Date(user.last_request).toLocaleDateString('ru-RU') : '—' %>
+                                        </td>
+                                    </tr>
+                                    <% }); %>
+                            </tbody>
+                        </table>
+                        <% } %>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-4 md:p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ по трафику</h2>
+                <% if (topTrafficUsers.length===0) { %>
+                    <p class="text-gray-500 text-center py-4">Нет данных о трафике</p>
+                    <% } else { %>
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-600 border-b">
+                                    <th class="pb-2">#</th>
+                                    <th class="pb-2">Пользователь</th>
+                                    <th class="pb-2">Загрузка</th>
+                                    <th class="pb-2">Отдача</th>
+                                    <th class="pb-2">Всего</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% topTrafficUsers.forEach(function(user, index) { %>
+                                    <tr class="border-b last:border-0">
+                                        <td class="py-2 text-gray-500">
+                                            <%= index + 1 %>
+                                        </td>
+                                        <td class="py-2 font-medium">
+                                            <%= user.username %>
+                                        </td>
+                                        <td class="py-2 text-sm">
+                                            <span class="text-blue-600">
+                                                <%= user.formatted_download %>
+                                            </span>
+                                        </td>
+                                        <td class="py-2 text-sm">
+                                            <span class="text-green-600">
+                                                <%= user.formatted_upload %>
+                                            </span>
+                                        </td>
+                                        <td class="py-2 text-sm font-medium">
+                                            <%= user.formatted_total %>
+                                        </td>
+                                    </tr>
+                                    <% }); %>
+                            </tbody>
+                        </table>
+                        <% } %>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-4 md:p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Запросов по дням (30 дней)</h2>
+                <% if (requestsByDay.length===0) { %>
+                    <p class="text-gray-500 text-center py-4">Нет данных</p>
+                    <% } else { %>
+                        <div class="space-y-2 max-h-80 overflow-y-auto">
+                            <% requestsByDay.forEach(function(day) { %>
+                                <div class="flex items-center justify-between py-1 border-b border-gray-100">
+                                    <span class="text-sm text-gray-600">
+                                        <%= new Date(day.day).toLocaleDateString('ru-RU') %>
+                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        <div class="bg-blue-500 rounded"
+                                            style="width: <%= Math.min(day.count * 5, 100) %>px; height: 8px;"></div>
+                                        <span class="text-sm font-medium">
+                                            <%= day.count %>
+                                        </span>
+                                    </div>
+                                </div>
+                                <% }); %>
+                        </div>
+                        <% } %>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4 md:p-6 mb-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Последние запросы</h2>
+            <% if (lastRequests.length===0) { %>
+                <p class="text-gray-500 text-center py-8">Нет запросов подписок</p>
+                <% } else { %>
+                    <table class="w-full hidden md:table">
+                        <thead>
+                            <tr class="text-left text-gray-600 border-b">
+                                <th class="pb-3">ID</th>
+                                <th class="pb-3">Пользователь</th>
+                                <th class="pb-3">Дата и время</th>
+                                <th class="pb-3">IP адрес</th>
+                                <th class="pb-3">User Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% lastRequests.forEach(function(req) { %>
+                                <tr class="border-b last:border-0">
+                                    <td class="py-3 text-sm text-gray-500">
+                                        <%= req.id %>
+                                    </td>
+                                    <td class="py-3 font-medium">
+                                        <%= req.username || 'Неизвестен' %>
+                                    </td>
+                                    <td class="py-3 text-sm">
+                                        <%= new Date(req.requested_at).toLocaleDateString('ru-RU') %>
+                                            <%= new Date(req.requested_at).toLocaleTimeString('ru-RU') %>
+                                    </td>
+                                    <td class="py-3 text-sm font-mono">
+                                        <%= req.ip_address || '—' %>
+                                    </td>
+                                    <td class="py-3 text-sm text-gray-500 truncate max-w-xs"
+                                        title="<%= req.user_agent %>">
+                                        <%= req.user_agent ? req.user_agent.substring(0, 50) + '...' : '—' %>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                        </tbody>
+                    </table>
+                    <div class="md:hidden space-y-3">
+                        <% lastRequests.forEach(function(req) { %>
+                            <div class="border border-gray-200 rounded-lg p-3">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="font-medium">
+                                        <%= req.username || 'Неизвестен' %>
+                                    </span>
+                                    <span class="text-xs text-gray-500">#<%= req.id %></span>
+                                </div>
+                                <div class="text-sm text-gray-500 mb-1">
+                                    <%= new Date(req.requested_at).toLocaleDateString('ru-RU') %>
+                                        <%= new Date(req.requested_at).toLocaleTimeString('ru-RU') %>
+                                </div>
+                                <div class="text-xs font-mono text-gray-400 truncate">
+                                    <%= req.ip_address || '—' %>
+                                </div>
+                            </div>
+                            <% }); %>
+                    </div>
+                    <% } %>
+        </div>
+    </main>
+
+    <script>
+        function clearStatistics() {
+            if (confirm('Вы уверены, что хотите очистить всю статистику? Это действие нельзя отменить.')) {
+                fetch('/admin/stats/clear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            // Reload the page to show updated statistics
+                            window.location.reload();
+                        } else {
+                            alert('Ошибка: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Ошибка при очистке статистики: ' + error.message);
+                    });
+            }
+        }
+    </script>
+</body>
+
+</html>

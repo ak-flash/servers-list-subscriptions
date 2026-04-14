@@ -47,7 +47,7 @@ npm start
 
 ## Админ-панель
 
-- URL: http://localhost:2096/admin
+- URL: http://localhost:port/admin
 - Логин по умолчанию: `admin`
 - Пароль по умолчанию: `admin123`
 
@@ -94,7 +94,7 @@ http://your-domain.com/join/{user_id}
 Добавьте в `Caddyfile` (замените `2096` на ваш PORT из `.env`):
 
 ```caddy
-# 3X-UI подписки
+# подписки
 @sub path /join*
 handle @sub {
     reverse_proxy http://[::]:${PORT} {
@@ -103,6 +103,35 @@ handle @sub {
     }
 }
 ```
+
+## Запуск на сервере (постоянный)
+
+### Вариант 1: PM2 (рекомендуется)
+
+PM2 — менеджер процессов для Node.js, который автоматически перезапускает приложение при сбоях и после перезагрузки сервера.
+
+```bash
+# Установите PM2 глобально
+npm install -g pm2
+
+# Запустите приложение
+pm2 start src/index.js --name vpn-subscriptions
+
+# Сохраните список процессов для автозапуска после перезагрузки
+pm2 save
+
+# Настройте автозапуск при загрузке системы
+pm2 startup
+```
+
+**Полезные команды PM2:**
+```bash
+pm2 status              # Посмотреть статус
+pm2 logs vpn-subscriptions  # Посмотреть логи
+pm2 restart vpn-subscriptions  # Перезапустить
+pm2 stop vpn-subscriptions    # Остановить
+```
+
 
 ## API эндпоинты
 

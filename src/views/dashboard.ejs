@@ -10,26 +10,35 @@
 </head>
 
 <body class="bg-gray-100">
-    <header class="bg-slate-800 text-white px-8 py-4 flex justify-between items-center">
-        <h1 class="text-xl">
+    <header
+        class="bg-slate-800 text-white px-4 md:px-8 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <h1 class="text-lg md:text-xl">
             <%= appName %> - Админ-панель
         </h1>
-        <div>
-            <span class="mr-4">Привет, <%= username %></span>
+        <div class="flex items-center gap-4 text-sm md:text-base">
+
+            <span>Привет, <%= username %></span>
             <a href="/admin/logout" class="text-gray-300 hover:text-white">Выйти</a>
         </div>
     </header>
     <main class="max-w-6xl mx-auto mt-8 px-4">
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <div class="flex justify-between items-center mb-4 pb-4 border-b">
+        <div class="bg-white rounded-lg shadow p-4 md:p-6 mb-6 w-full">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b">
                 <h2 class="text-lg font-semibold text-gray-800">Серверы</h2>
-                <a href="/admin/servers/new" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">+
-                    Добавить сервер</a>
+                <div class="flex gap-2 w-full sm:w-auto">
+
+                    <button id="checkAllBtn" onclick="checkAllServers()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto">Проверить
+                        все</button>
+                    <a href="/admin/servers/new"
+                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto text-center">+
+                        Добавить сервер</a>
+                </div>
             </div>
             <% if (servers.length===0) { %>
                 <p class="text-gray-500 text-center py-8">Нет серверов. Добавьте первый сервер.</p>
                 <% } else { %>
-                    <table class="w-full">
+                    <table class="w-full hidden md:table">
                         <thead>
                             <tr class="text-left text-gray-600 border-b">
                                 <th class="pb-3">Название</th>
@@ -37,38 +46,48 @@
                                 <th class="pb-3">Порт</th>
                                 <th class="pb-3">Протокол</th>
                                 <th class="pb-3">Статус</th>
-                                <th class="pb-3">Действия</th>
+                                <th class="pb-3 text-right">Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             <% servers.forEach(function(server) { %>
-                                <tr class="border-b last:border-0">
-                                    <td class="py-3">
+                                <tr class="border-b last:border-0 w-full">
+                                    <td class="py-3 px-2 font-semibold">
+                                        <span
+                                            class="inline-block w-2 h-2 rounded-full mr-2 <%= server.is_active ? 'bg-green-500' : 'bg-red-500' %>"></span>
                                         <%= server.name %>
                                     </td>
                                     <td class="py-3">
                                         <%= server.host %>
                                     </td>
-                                    <td class="py-3">
+                                    <td class="py-3 px-2">
                                         <%= server.port %>
                                     </td>
                                     <td class="py-3">
                                         <%= server.protocol ? server.protocol.toUpperCase() : '' %>
                                     </td>
                                     <td class="py-3">
-                                        <span
-                                            class="px-2 py-1 text-xs rounded <%= server.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
-                                            <%= server.is_active ? 'Активен' : 'Отключен' %>
-                                        </span>
+                                        <span id="status-<%= server.id %>"
+                                            class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">Не
+                                            проверен</span>
                                     </td>
-                                    <td class="py-3">
-                                        <div class="flex gap-2 items-center">
+                                    <td class="py-3 text-right">
+                                        <div class="flex gap-2 items-center justify-end">
+                                            <button onclick="checkServer('<%= server.id %>')"
+                                                class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">Проверить</button>
                                             <a href="/admin/servers/<%= server.id %>/edit"
                                                 class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Редактировать</a>
                                             <form method="POST" action="/admin/servers/<%= server.id %>/delete"
                                                 onsubmit="return confirm('Удалить сервер?')">
                                                 <button type="submit"
-                                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Удалить</button>
+                                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 flex items-center justify-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
                                             </form>
                                         </div>
                                     </td>
@@ -76,24 +95,71 @@
                                 <% }); %>
                         </tbody>
                     </table>
+                    <div class="md:hidden space-y-3">
+                        <% servers.forEach(function(server) { %>
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            class="inline-block w-2 h-2 rounded-full flex-shrink-0 <%= server.is_active ? 'bg-green-500' : 'bg-red-500' %>"></span>
+                                        <div>
+                                            <div class="font-medium text-gray-800">
+                                                <%= server.name %>
+                                            </div>
+                                            <div class="text-sm text-gray-500">
+                                                <%= server.host %>:<%= server.port %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span id="status-mobile-<%= server.id %>"
+                                        class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">Не
+                                        проверен</span>
+                                </div>
+                                <div class="text-xs text-gray-400 mb-3">
+                                    <%= server.protocol ? server.protocol.toUpperCase() : '' %>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="checkServer('<%= server.id %>')"
+                                        class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 flex-1 text-center">Проверить</button>
+                                    <a href="/admin/servers/<%= server.id %>/edit"
+                                        class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 flex-1 text-center">Редактировать</a>
+                                    <form method="POST" action="/admin/servers/<%= server.id %>/delete"
+                                        onsubmit="return confirm('Удалить сервер?')">
+                                        <button type="submit"
+                                            class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Удалить</button>
+                                    </form>
+                                </div>
+                            </div>
+                            <% }); %>
+                    </div>
                     <% } %>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-4 pb-4 border-b">
+        <div class="bg-white rounded-lg shadow p-4 md:p-6 w-full mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b">
                 <h2 class="text-lg font-semibold text-gray-800">Пользователи</h2>
-                <a href="/admin/users/new" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">+
-                    Добавить пользователя</a>
+                <div>
+                    <a href="/admin/stats"
+                        class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 w-full sm:w-auto text-center">📊
+                        Статистика</a>
+
+                    <a href="/admin/users/new"
+                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto text-center">+
+                        Добавить пользователя</a>
+                </div>
+
             </div>
             <% if (users.length===0) { %>
                 <p class="text-gray-500 text-center py-8">Нет пользователей. Добавьте первого пользователя.</p>
                 <% } else { %>
-                    <table class="w-full">
+                    <table class="w-full hidden md:table">
                         <thead>
                             <tr class="text-left text-gray-600 border-b">
                                 <th class="pb-3">Имя пользователя</th>
                                 <th class="pb-3">Статус</th>
+                                <th class="pb-3">Трафик</th>
                                 <th class="pb-3">Создан</th>
+                                <th class="pb-3">Последний запрос</th>
                                 <th class="pb-3">Ссылка подписки</th>
                                 <th class="pb-3">Действия</th>
                             </tr>
@@ -111,7 +177,28 @@
                                         </span>
                                     </td>
                                     <td class="py-3">
+                                        <% if (user.total_traffic> 0) { %>
+                                            <div class="text-sm">
+                                                <div class="text-blue-600">
+                                                    <%= user.formatted_download %> ↓
+                                                </div>
+                                                <div class="text-green-600">
+                                                    <%= user.formatted_upload %> ↑
+                                                </div>
+                                                <div class="text-gray-500 text-xs">
+                                                    <%= user.formatted_total %> всего
+                                                </div>
+                                            </div>
+                                            <% } else { %>
+                                                <span class="text-gray-400 text-sm">—</span>
+                                                <% } %>
+                                    </td>
+                                    <td class="py-3">
                                         <%= new Date(user.created_at).toLocaleDateString('ru-RU') %>
+                                    </td>
+                                    <td class="py-3 font-semibold">
+                                        <%= user.last_request_at ? new
+                                            Date(user.last_request_at).toLocaleDateString('ru-RU') : '—' %>
                                     </td>
                                     <td class="py-3">
                                         <div class="flex items-center gap-2">
@@ -142,6 +229,60 @@
                                 <% }); %>
                         </tbody>
                     </table>
+                    <div class="md:hidden space-y-3">
+                        <% users.forEach(function(user) { %>
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="font-medium text-gray-800">
+                                        <%= user.username %>
+                                    </div>
+                                    <span
+                                        class="px-2 py-1 text-xs rounded <%= user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+                                        <%= user.is_active ? 'Активен' : 'Отключен' %>
+                                    </span>
+                                </div>
+                                <div class="text-sm text-gray-500 mb-2">
+                                    <%= new Date(user.created_at).toLocaleDateString('ru-RU') %>
+                                </div>
+                                <div class="text-xs text-gray-400 mb-3">ID: <%= user.id %>
+                                </div>
+                                <% if (user.total_traffic> 0) { %>
+                                    <div class="text-sm mb-3">
+                                        <div class="text-blue-600">
+                                            <%= user.formatted_download %> ↓ загрузка
+                                        </div>
+                                        <div class="text-green-600">
+                                            <%= user.formatted_upload %> ↑ отдача
+                                        </div>
+                                        <div class="text-gray-500 text-xs">
+                                            <%= user.formatted_total %> всего
+                                        </div>
+                                    </div>
+                                    <% } %>
+                                        <div class="flex flex-wrap gap-2 mb-3">
+                                            <button onclick="showQrModal('<%= user.id %>', '<%= user.username %>')"
+                                                class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                                                QR код
+                                            </button>
+                                            <a href="/join/<%= user.id %>#Подписка_<%= user.username %>" target="_blank"
+                                                class="bg-blue-50 px-3 py-1 rounded text-sm hover:bg-blue-100 text-blue-600">
+                                                Ссылка
+                                            </a>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <a href="/admin/users/<%= user.id %>/servers"
+                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Серверы</a>
+                                            <a href="/admin/users/<%= user.id %>/edit"
+                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Редактировать</a>
+                                            <form method="POST" action="/admin/users/<%= user.id %>/delete"
+                                                onsubmit="return confirm('Удалить пользователя?')">
+                                                <button type="submit"
+                                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Удалить</button>
+                                            </form>
+                                        </div>
+                            </div>
+                            <% }); %>
+                    </div>
                     <% } %>
         </div>
     </main>
@@ -183,6 +324,93 @@
         document.getElementById('qr-modal').addEventListener('click', function (e) {
             if (e.target === this) closeQrModal();
         });
+
+        async function checkServer(serverId) {
+            const statusEl = document.getElementById('status-' + serverId);
+            const statusMobileEl = document.getElementById('status-mobile-' + serverId);
+            const updateStatus = (el) => {
+                if (!el) return;
+                el.textContent = 'Проверка...';
+                el.className = 'px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-600';
+            };
+            updateStatus(statusEl);
+            updateStatus(statusMobileEl);
+
+            try {
+                const response = await fetch('/api/servers/' + serverId + '/check', { method: 'POST' });
+                const data = await response.json();
+
+                const applyResult = (el) => {
+                    if (!el) return;
+                    if (data.status === 'online') {
+                        el.textContent = 'Онлайн';
+                        el.className = 'px-2 py-1 text-xs rounded bg-green-100 text-green-800';
+                    } else if (data.status === 'timeout') {
+                        el.textContent = 'Таймаут';
+                        el.className = 'px-2 py-1 text-xs rounded bg-orange-100 text-orange-800';
+                    } else {
+                        el.textContent = 'Офлайн';
+                        el.className = 'px-2 py-1 text-xs rounded bg-red-100 text-red-800';
+                    }
+                };
+                applyResult(statusEl);
+                applyResult(statusMobileEl);
+            } catch (err) {
+                const applyError = (el) => {
+                    if (!el) return;
+                    el.textContent = 'Ошибка';
+                    el.className = 'px-2 py-1 text-xs rounded bg-red-100 text-red-800';
+                };
+                applyError(statusEl);
+                applyError(statusMobileEl);
+            }
+        }
+
+        async function checkAllServers() {
+            const btn = document.getElementById('checkAllBtn');
+            btn.disabled = true;
+            btn.textContent = 'Проверка...';
+
+            try {
+                const response = await fetch('/api/servers/check', { method: 'POST' });
+                const data = await response.json();
+
+                data.results.forEach(result => {
+                    const statusEl = document.getElementById('status-' + result.id);
+                    const statusMobileEl = document.getElementById('status-mobile-' + result.id);
+                    const applyResult = (el) => {
+                        if (!el) return;
+                        if (result.status === 'online') {
+                            el.textContent = 'Онлайн';
+                            el.className = 'px-2 py-1 text-xs rounded bg-green-100 text-green-800';
+                        } else if (result.status === 'timeout') {
+                            el.textContent = 'Таймаут';
+                            el.className = 'px-2 py-1 text-xs rounded bg-orange-100 text-orange-800';
+                        } else {
+                            el.textContent = 'Офлайн';
+                            el.className = 'px-2 py-1 text-xs rounded bg-red-100 text-red-800';
+                        }
+                    };
+                    applyResult(statusEl);
+                    applyResult(statusMobileEl);
+                });
+            } catch (err) {
+                alert('Ошибка проверки серверов');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Проверить все';
+            }
+        }
+    </script>
+
+    <script>
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
     </script>
 </body>
 
