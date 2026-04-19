@@ -547,7 +547,10 @@ app.get('/api/traffic/all', requireAuth, (req, res) => {
 });
 
 function logWebhook(type, data, ip) {
-    const timestamp = new Date().toISOString();
+    const now = new Date();
+    const offset = 3 * 60;
+    const localTime = new Date(now.getTime() + (now.getTimezoneOffset() + offset) * 60000);
+    const timestamp = localTime.toISOString().replace('T', ' ').slice(0, 19);
     const logEntry = `[${timestamp}] [${type}] [IP: ${ip}]\n${JSON.stringify(data, null, 2)}\n${'='.repeat(80)}\n`;
     try {
         const dir = path.dirname(WEBHOOK_LOG_FILE);
