@@ -30,8 +30,17 @@
                 <% } else { %>
                 <div class="mb-4">
                     <label class="block text-gray-700 font-medium mb-2">Ссылка</label>
-                    <textarea name="link" rows="3" readonly class="w-full px-4 py-2 border rounded bg-gray-50 font-mono text-sm"><%= server ? server.link : '' %></textarea>
-                    <p class="text-gray-500 text-sm mt-1">Ссылка защищена от изменений</p>
+                    <textarea name="link" rows="3" placeholder="vless://..." class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"><%= server ? server.link : '' %></textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-medium mb-2">Тег (для webhook, например inbound-8443)</label>
+                    <input type="text" name="tag" value="<%= server ? (server.tag || '') : '' %>" placeholder="inbound-8443" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-medium mb-2">Лимит трафика (ГБ, 0 = без лимита)</label>
+                    <input type="number" name="traffic_limit" value="<%= server ? (server.traffic_limit || 0) : 0 %>" placeholder="0" min="0" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500">
                 </div>
                 <% } %>
 

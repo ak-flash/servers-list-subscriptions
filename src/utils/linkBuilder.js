@@ -71,20 +71,50 @@ function parseLinkAndExtractName(link) {
 
 function buildFullSubscription(servers, userUuid, username = 'User') {
     const lines = [];
-    // Add metadata headers directly into the body (supported by many clients)
     lines.push(`#profile-title: Подписка ${username}`);
     lines.push(`#profile-update-interval: 24`);
     lines.push(`#subscription-userinfo: upload=0; download=0; total=0; expire=0`);
-    
+
     const links = servers.map(server => {
         if (!server.link) return '';
-        const updatedLink = updateLinkRemark(server.link, server.name);
-        return updatedLink;
+        let remark = server.name;
+        if (server.traffic_limit > 0) {
+            const usedGB = (server.total_traffic || 0) / (1024 * 1024 * 1024);
+            const limitGB = server.traffic_limit;
+            const remainingGB = Math.max(0, limitGB - usedGB);
+            remark = `${server.name} | ${remainingGB.toFixed(1)}/${limitGB} GB`;
+        }
+        let link = updateLinkRemark(server.link, remark);
+        if (server.user_server_uuid) {
+            link = replaceUuidInLink(link, server.user_server_uuid);
+        }
+        return link;
     }).filter(Boolean);
-    
+
     lines.push(...links);
-    
+
     return Buffer.from(lines.join('\n')).toString('base64');
 }
 
-module.exports = { extractNameFromLink, extractHostPortFromLink, updateLinkRemark, parseLinkAndExtractName, buildFullSubscription };
+function replaceUuidInLink(link, newUuid) {
+    if (!link) return '';
+
+    if (link.startsWith('vless://') || link.startsWith('trojan://')) {
+        const protocolLen = link.startsWith('vless://') ? 8 : 9;
+        const withoutProtocol = link.slice(protocolLen);
+        const atIndex = withoutProtocol.indexOf('@');
+
+        if (atIndex === -1) return link;
+
+        const afterAt = withoutProtocol.slice(atIndex + 1);
+        const hashIndex = afterAt.indexOf('#');
+
+        let paramsAndRemark = hashIndex !== -1 ? afterAt.slice(hashIndex) : '';
+
+        return `${link.slice(0, protocolLen)}${newUuid}@${afterAt.slice(0, hashIndex !== -1 ? hashIndex : afterAt.length)}${paramsAndRemark}`;
+    }
+
+    return link;
+}
+
+module.exports = { extractNameFromLink, extractHostPortFromLink, updateLinkRemark, parseLinkAndExtractName, buildFullSubscription, replaceUuidInLink };

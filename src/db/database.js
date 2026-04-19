@@ -16,6 +16,9 @@ async function initDb() {
     migrateServersTable(db);
     migrateUsersTable(db);
     migrateSubscriptionRequestsTable(db);
+    migrateUserServersTable(db);
+    migrateServersTag(db);
+    migrateServersTrafficLimit(db);
   } else {
     db = new SQL.Database();
   }
@@ -38,6 +41,8 @@ async function initDb() {
             name TEXT NOT NULL,
             link TEXT NOT NULL,
             remark TEXT,
+            tag TEXT,
+            traffic_limit INTEGER DEFAULT 0,
             is_active INTEGER DEFAULT 1,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
@@ -47,6 +52,7 @@ async function initDb() {
         CREATE TABLE IF NOT EXISTS user_servers (
             user_id TEXT NOT NULL,
             server_id TEXT NOT NULL,
+            uuid TEXT NOT NULL,
             PRIMARY KEY (user_id, server_id),
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (server_id) REFERENCES servers(id)
@@ -89,6 +95,18 @@ async function initDb() {
             snapshot_date TEXT NOT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (server_id) REFERENCES servers(id)
+        )
+    `);
+
+  db.run(`
+        CREATE TABLE IF NOT EXISTS server_traffic (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id TEXT NOT NULL,
+            upload_bytes INTEGER DEFAULT 0,
+            download_bytes INTEGER DEFAULT 0,
+            total_bytes INTEGER DEFAULT 0,
+            recorded_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (server_id) REFERENCES servers(id)
         )
     `);
@@ -192,6 +210,58 @@ function migrateSubscriptionRequestsTable(db) {
       )
     `);
     saveDb();
+  }
+}
+
+function migrateUserServersTable(db) {
+  try {
+    db.exec("SELECT uuid FROM user_servers LIMIT 1");
+    return;
+  } catch (e) {
+    try {
+      db.run("ALTER TABLE user_servers ADD COLUMN uuid TEXT");
+      const crypto = require('crypto');
+      const rows = db.exec("SELECT user_id, server_id FROM user_servers");
+      if (rows.length > 0) {
+        for (const row of rows[0].values) {
+          const userId = row[0];
+          const serverId = row[1];
+          const newUuid = crypto.randomUUID();
+          db.run("UPDATE user_servers SET uuid = ? WHERE user_id = ? AND server_id = ?", [newUuid, userId, serverId]);
+        }
+      }
+      saveDb();
+    } catch (err) {
+      console.log('Migration user_servers error:', err.message);
+    }
+  }
+}
+
+function migrateServersTag(db) {
+  try {
+    db.exec("SELECT tag FROM servers LIMIT 1");
+    return;
+  } catch (e) {
+    try {
+      db.run("ALTER TABLE servers ADD COLUMN tag TEXT");
+      saveDb();
+    } catch (err) {
+      console.log('Migration servers tag error:', err.message);
+    }
+  }
+}
+
+function migrateServersTrafficLimit(db) {
+  try {
+    db.exec("SELECT traffic_limit FROM servers LIMIT 1");
+    return;
+  } catch (e) {
+    try {
+      db.run("ALTER TABLE servers ADD COLUMN traffic_limit INTEGER DEFAULT 0");
+      saveDb();
+    } catch (err) {
+      console.log('Migration servers traffic_limit error:', err.message);
+    }
   }
 }
 
@@ -317,6 +387,171 @@ function getAllUsersTraffic() {
   return rows;
 }
 
+function getUserServerUuid(userId, serverId) {
+  const stmt = db.prepare('SELECT uuid FROM user_servers WHERE user_id = ? AND server_id = ?');
+  stmt.bind([userId, serverId]);
+  let result = null;
+  if (stmt.step()) {
+    result = stmt.getAsObject().uuid;
+  }
+  stmt.free();
+  return result;
+}
+
+function getUserServersWithUuid(userId) {
+  const stmt = db.prepare(`
+    SELECT s.*, us.uuid as user_server_uuid,
+      COALESCE(SUM(st.upload_bytes), 0) as total_upload,
+      COALESCE(SUM(st.download_bytes), 0) as total_download,
+      COALESCE(SUM(st.total_bytes), 0) as total_traffic
+    FROM servers s
+    INNER JOIN user_servers us ON s.id = us.server_id
+    LEFT JOIN server_traffic st ON s.id = st.server_id
+    WHERE us.user_id = ? AND s.is_active = 1
+    GROUP BY s.id, s.name, s.link, s.remark, s.tag, s.traffic_limit, s.is_active, s.created_at, us.uuid
+  `);
+  stmt.bind([userId]);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return rows;
+}
+
+function getUserServerAssignments(userId) {
+  const stmt = db.prepare('SELECT server_id, uuid FROM user_servers WHERE user_id = ?');
+  stmt.bind([userId]);
+  const rows = [];
+  while (stmt.step()) {
+    const obj = stmt.getAsObject();
+    rows.push({ server_id: obj.server_id, uuid: obj.uuid });
+  }
+  stmt.free();
+  return rows;
+}
+
+function getServerByTag(tag) {
+  const stmt = db.prepare('SELECT * FROM servers WHERE tag = ?');
+  stmt.bind([tag]);
+  let result = null;
+  if (stmt.step()) {
+    result = stmt.getAsObject();
+  }
+  stmt.free();
+  return result;
+}
+
+function updateServerTraffic(serverId, uploadBytes, downloadBytes) {
+  const today = new Date().toISOString().split('T')[0];
+
+  const existingStmt = db.prepare(
+    "SELECT id, upload_bytes, download_bytes FROM server_traffic WHERE server_id = ? AND date(recorded_at) = date('now')"
+  );
+  existingStmt.bind([serverId]);
+  const existing = existingStmt.step() ? existingStmt.getAsObject() : null;
+  existingStmt.free();
+
+  if (existing) {
+    const newUpload = existing.upload_bytes + uploadBytes;
+    const newDownload = existing.download_bytes + downloadBytes;
+    const newTotal = newUpload + newDownload;
+    const updateStmt = db.prepare(
+      "UPDATE server_traffic SET upload_bytes = ?, download_bytes = ?, total_bytes = ?, recorded_at = datetime('now') WHERE id = ?"
+    );
+    updateStmt.run([newUpload, newDownload, newTotal, existing.id]);
+    updateStmt.free();
+  } else {
+    const insertStmt = db.prepare(
+      "INSERT INTO server_traffic (server_id, upload_bytes, download_bytes, total_bytes, recorded_at) VALUES (?, ?, ?, ?, datetime('now'))"
+    );
+    insertStmt.run([serverId, uploadBytes, downloadBytes, uploadBytes + downloadBytes]);
+    insertStmt.free();
+  }
+
+  saveDb();
+}
+
+function getServerTraffic(serverId) {
+  const stmt = db.prepare(`
+    SELECT
+      COALESCE(SUM(upload_bytes), 0) as total_upload,
+      COALESCE(SUM(download_bytes), 0) as total_download,
+      COALESCE(SUM(total_bytes), 0) as total_traffic
+    FROM server_traffic
+    WHERE server_id = ?
+  `);
+  stmt.bind([serverId]);
+  let result = { total_upload: 0, total_download: 0, total_traffic: 0 };
+  if (stmt.step()) {
+    result = stmt.getAsObject();
+  }
+  stmt.free();
+  return result;
+}
+
+function getAllServersTraffic() {
+  const stmt = db.prepare(`
+    SELECT
+      s.id,
+      s.name,
+      s.tag,
+      COALESCE(SUM(st.upload_bytes), 0) as total_upload,
+      COALESCE(SUM(st.download_bytes), 0) as total_download,
+      COALESCE(SUM(st.total_bytes), 0) as total_traffic
+    FROM servers s
+    LEFT JOIN server_traffic st ON s.id = st.server_id
+    GROUP BY s.id, s.name, s.tag
+    ORDER BY total_traffic DESC
+  `);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return rows;
+}
+
+function getAvailableMonths() {
+  const stmt = db.prepare(`
+    SELECT DISTINCT strftime('%Y-%m', recorded_at) as month
+    FROM server_traffic
+    WHERE recorded_at IS NOT NULL
+    ORDER BY month DESC
+    LIMIT 12
+  `);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject().month);
+  }
+  stmt.free();
+  return rows;
+}
+
+function getServersTrafficByMonth(yearMonth) {
+  const stmt = db.prepare(`
+    SELECT
+      s.id,
+      s.name,
+      s.tag,
+      COALESCE(SUM(st.upload_bytes), 0) as total_upload,
+      COALESCE(SUM(st.download_bytes), 0) as total_download,
+      COALESCE(SUM(st.total_bytes), 0) as total_traffic
+    FROM servers s
+    LEFT JOIN server_traffic st ON s.id = st.server_id
+      AND strftime('%Y-%m', st.recorded_at) = ?
+    GROUP BY s.id, s.name, s.tag
+    ORDER BY total_traffic DESC
+  `);
+  stmt.bind([yearMonth]);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+  return rows;
+}
+
 module.exports = {
   initDb,
   getDb,
@@ -325,5 +560,14 @@ module.exports = {
   updateUserTraffic,
   getTrafficSnapshots,
   createTrafficSnapshot,
-  getAllUsersTraffic
+  getAllUsersTraffic,
+  getUserServerUuid,
+  getUserServersWithUuid,
+  getUserServerAssignments,
+  getServerByTag,
+  updateServerTraffic,
+  getServerTraffic,
+  getAllServersTraffic,
+  getAvailableMonths,
+  getServersTrafficByMonth
 };

@@ -26,6 +26,24 @@
 
     <main class="max-w-6xl mx-auto mt-8 px-4">
         <div class="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
+            <div class="flex flex-wrap items-center gap-4 mb-4 pb-4 border-b">
+                <h2 class="text-lg font-semibold text-gray-800">Выберите месяц:</h2>
+                <form method="GET" action="/admin/stats" class="flex items-center gap-2">
+                    <select name="month" onchange="this.form.submit()" class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <option value="">Все время</option>
+                        <% if (typeof availableMonths !== 'undefined' && availableMonths.length > 0) { %>
+                            <% availableMonths.forEach(function(m) { %>
+                                <option value="<%= m %>" <%= selectedMonth === m ? 'selected' : '' %>>
+                                    <%= new Date(m + '-01').toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' }) %>
+                                </option>
+                            <% }); %>
+                        <% } %>
+                    </select>
+                </form>
+                <% if (selectedMonth) { %>
+                    <a href="/admin/stats" class="text-sm text-gray-500 hover:text-gray-700">Сбросить</a>
+                <% } %>
+            </div>
             <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Общая статистика</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-blue-50 rounded-lg p-4">
@@ -118,41 +136,45 @@
             </div>
 
             <div class="bg-white rounded-lg shadow p-4 md:p-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ по трафику</h2>
-                <% if (topTrafficUsers.length===0) { %>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ по трафику (серверы)</h2>
+                <% if (topServersTraffic.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных о трафике</p>
                     <% } else { %>
                         <table class="w-full">
                             <thead>
                                 <tr class="text-left text-gray-600 border-b">
                                     <th class="pb-2">#</th>
-                                    <th class="pb-2">Пользователь</th>
+                                    <th class="pb-2">Сервер</th>
+                                    <th class="pb-2">Тег</th>
                                     <th class="pb-2">Загрузка</th>
                                     <th class="pb-2">Отдача</th>
                                     <th class="pb-2">Всего</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <% topTrafficUsers.forEach(function(user, index) { %>
+                                <% topServersTraffic.forEach(function(server, index) { %>
                                     <tr class="border-b last:border-0">
                                         <td class="py-2 text-gray-500">
                                             <%= index + 1 %>
                                         </td>
                                         <td class="py-2 font-medium">
-                                            <%= user.username %>
+                                            <%= server.name %>
+                                        </td>
+                                        <td class="py-2 text-sm text-gray-500">
+                                            <%= server.tag || '—' %>
                                         </td>
                                         <td class="py-2 text-sm">
                                             <span class="text-blue-600">
-                                                <%= user.formatted_download %>
+                                                <%= server.formatted_download %>
                                             </span>
                                         </td>
                                         <td class="py-2 text-sm">
                                             <span class="text-green-600">
-                                                <%= user.formatted_upload %>
+                                                <%= server.formatted_upload %>
                                             </span>
                                         </td>
                                         <td class="py-2 text-sm font-medium">
-                                            <%= user.formatted_total %>
+                                            <%= server.formatted_total %>
                                         </td>
                                     </tr>
                                     <% }); %>

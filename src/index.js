@@ -5,9 +5,12 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const { initDb, getDb, saveDb, getUserTraffic, updateUserTraffic, getAllUsersTraffic } = require('./db/database');
+const fs = require('fs');
+const { initDb, getDb, saveDb, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getUserServerUuid, getUserServersWithUuid, getUserServerAssignments, getServerByTag, updateServerTraffic, getServerTraffic, getAllServersTraffic, getAvailableMonths, getServersTrafficByMonth } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName, updateLinkRemark, buildFullSubscription } = require('./utils/linkBuilder');
 const { checkServer, checkMultipleServers } = require('./utils/serverChecker');
+
+const WEBHOOK_LOG_FILE = path.join(__dirname, '..', '..', 'data', 'webhook-traffic.log');
 
 function generateShortId(length = 6) {
     return crypto.randomBytes(length).toString('base64url').slice(0, length);
@@ -19,6 +22,7 @@ const APP_NAME = process.env.APP_NAME || 'VPN Подписки';
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -181,24 +185,26 @@ app.get('/admin/servers/:id/edit', requireAuth, (req, res) => {
 });
 
 app.post('/admin/servers/:id', requireAuth, (req, res) => {
-    const { name, is_active } = req.body;
+    const { name, link, tag, traffic_limit, is_active } = req.body;
 
     try {
         const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
         if (!server) return res.redirect('/admin');
 
         const newName = name && name.trim() ? name.trim() : server.name;
-        const updatedLink = updateLinkRemark(server.link, newName);
+        const updatedLink = (link && link.trim()) ? link.trim() : server.link;
+        const newTag = tag && tag.trim() ? tag.trim() : null;
+        const newTrafficLimit = parseInt(traffic_limit) || 0;
 
-        dbRun(`UPDATE servers SET name = ?, link = ?, is_active = ? WHERE id = ?`,
-            [newName, updatedLink, is_active ? 1 : 0, req.params.id]);
+        dbRun(`UPDATE servers SET name = ?, link = ?, tag = ?, traffic_limit = ?, is_active = ? WHERE id = ?`,
+            [newName, updatedLink, newTag, newTrafficLimit, is_active ? 1 : 0, req.params.id]);
 
         res.redirect('/admin');
     } catch (err) {
         const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
         if (!server) return res.redirect('/admin');
         const info = extractHostPortFromLink(server.link);
-        const serverWithInfo = { ...server, ...info, name: name || server.name, is_active: is_active ? 1 : 0 };
+        const serverWithInfo = { ...server, ...info, name: name || server.name, link: link || server.link, tag: tag, traffic_limit: traffic_limit, is_active: is_active ? 1 : 0 };
         res.render('server-form', { server: serverWithInfo, error: 'Ошибка: ' + err.message, appName: APP_NAME });
     }
 });
@@ -269,14 +275,16 @@ app.get('/admin/users/:id/servers', requireAuth, (req, res) => {
         const info = extractHostPortFromLink(server.link);
         return { ...server, ...info };
     });
-    const assignedServers = dbAll('SELECT server_id FROM user_servers WHERE user_id = ?', [req.params.id]);
+    const assignedServers = getUserServerAssignments(req.params.id);
     const assignedIds = assignedServers.map(s => String(s.server_id));
+    const uuidMap = {};
+    assignedServers.forEach(s => { uuidMap[s.server_id] = s.uuid; });
 
-    res.render('user-servers', { user, servers: serversWithInfo, assignedIds, appName: APP_NAME });
+    res.render('user-servers', { user, servers: serversWithInfo, assignedIds, uuidMap, appName: APP_NAME });
 });
 
 app.post('/admin/users/:id/servers', requireAuth, (req, res) => {
-    let { servers } = req.body;
+    let { servers, uuids } = req.body;
 
     if (typeof servers === 'string') {
         servers = servers ? [servers] : [];
@@ -284,10 +292,37 @@ app.post('/admin/users/:id/servers', requireAuth, (req, res) => {
         servers = [];
     }
 
-    dbRun('DELETE FROM user_servers WHERE user_id = ?', [req.params.id]);
+    const existingAssignments = getUserServerAssignments(req.params.id);
+    const existingMap = {};
+    existingAssignments.forEach(s => { existingMap[s.server_id] = s.uuid; });
+
+    const crypto = require('crypto');
+    const serversToKeep = new Set(servers);
 
     for (const serverId of servers) {
-        dbRun('INSERT INTO user_servers (user_id, server_id) VALUES (?, ?)', [req.params.id, serverId]);
+        const existingUuid = existingMap[serverId];
+        let userServerUuid;
+
+        if (uuids && typeof uuids === 'object' && uuids[serverId] && uuids[serverId].trim()) {
+            userServerUuid = uuids[serverId].trim();
+        } else if (existingUuid) {
+            userServerUuid = existingUuid;
+        } else {
+            userServerUuid = crypto.randomUUID();
+        }
+
+        const existing = dbGet('SELECT 1 FROM user_servers WHERE user_id = ? AND server_id = ?', [req.params.id, serverId]);
+        if (existing) {
+            dbRun('UPDATE user_servers SET uuid = ? WHERE user_id = ? AND server_id = ?', [userServerUuid, req.params.id, serverId]);
+        } else {
+            dbRun('INSERT INTO user_servers (user_id, server_id, uuid) VALUES (?, ?, ?)', [req.params.id, serverId, userServerUuid]);
+        }
+    }
+
+    for (const [serverId, existingUuid] of Object.entries(existingMap)) {
+        if (!serversToKeep.has(serverId)) {
+            dbRun('DELETE FROM user_servers WHERE user_id = ? AND server_id = ?', [req.params.id, serverId]);
+        }
     }
 
     res.redirect('/admin');
@@ -300,11 +335,7 @@ app.get('/join/:id', (req, res) => {
         return res.status(404).send('Пользователь не найден или отключен');
     }
 
-    const servers = dbAll(`
-        SELECT s.* FROM servers s
-        INNER JOIN user_servers us ON s.id = us.server_id
-        WHERE us.user_id = ? AND s.is_active = 1
-    `, [user.id]);
+    const servers = getUserServersWithUuid(user.id);
 
     if (servers.length === 0) {
         return res.status(404).send('Нет доступных серверов для этого пользователя');
@@ -337,11 +368,7 @@ app.get('/join/:id/qr', async (req, res) => {
         return res.status(404).send('Пользователь не найден или отключен');
     }
 
-    const servers = dbAll(`
-        SELECT s.* FROM servers s
-        INNER JOIN user_servers us ON s.id = us.server_id
-        WHERE us.user_id = ? AND s.is_active = 1
-    `, [user.id]);
+    const servers = getUserServersWithUuid(user.id);
 
     if (servers.length === 0) {
         return res.status(404).send('Нет доступных серверов для этого пользователя');
@@ -379,11 +406,7 @@ app.get('/join/:id/qr-img', async (req, res) => {
         return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    const servers = dbAll(`
-        SELECT s.* FROM servers s
-        INNER JOIN user_servers us ON s.id = us.server_id
-        WHERE us.user_id = ? AND s.is_active = 1
-    `, [user.id]);
+    const servers = getUserServersWithUuid(user.id);
 
     if (servers.length === 0) {
         return res.status(404).json({ error: 'Нет серверов' });
@@ -421,11 +444,7 @@ app.get('/join/:id/json', (req, res) => {
         return res.status(404).json({ error: 'Пользователь не найден или отключен' });
     }
 
-    const servers = dbAll(`
-        SELECT s.* FROM servers s
-        INNER JOIN user_servers us ON s.id = us.server_id
-        WHERE us.user_id = ? AND s.is_active = 1
-    `, [user.id]);
+    const servers = getUserServersWithUuid(user.id);
 
     if (servers.length === 0) {
         return res.status(404).json({ error: 'Нет доступных серверов' });
@@ -444,7 +463,7 @@ app.get('/join/:id/json', (req, res) => {
             host: s.host,
             port: s.port,
             protocol: s.protocol,
-            uuid: s.uuid,
+            uuid: s.user_server_uuid,
             network: s.network,
             tls: s.tls,
             sni: s.sni,
@@ -527,6 +546,126 @@ app.get('/api/traffic/all', requireAuth, (req, res) => {
     res.json({ users: allTraffic });
 });
 
+function logWebhook(type, data, ip) {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] [${type}] [IP: ${ip}]\n${JSON.stringify(data, null, 2)}\n${'='.repeat(80)}\n`;
+    try {
+        const dir = path.dirname(WEBHOOK_LOG_FILE);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.appendFileSync(WEBHOOK_LOG_FILE, logEntry);
+    } catch (err) {
+        console.error('Webhook logging error:', err.message);
+    }
+}
+
+app.post('/api/webhook/traffic', (req, res) => {
+    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+
+    logWebhook('INCOMING', req.body, ip);
+
+    if (req.body.inboundTraffics && Array.isArray(req.body.inboundTraffics)) {
+        const results = [];
+
+        for (const inbound of req.body.inboundTraffics) {
+            const { Tag, Up = 0, Down = 0 } = inbound;
+
+            if (!Tag) {
+                continue;
+            }
+
+            const server = getServerByTag(Tag);
+
+            if (!server) {
+                logWebhook('SERVER_NOT_FOUND', { tag: Tag, up: Up, down: Down }, ip);
+                results.push({ tag: Tag, status: 'server_not_found' });
+                continue;
+            }
+
+            try {
+                updateServerTraffic(server.id, Up, Down);
+                logWebhook('SUCCESS', { tag: Tag, server_id: server.id, server_name: server.name, upload_bytes: Up, download_bytes: Down }, ip);
+                results.push({ tag: Tag, server_id: server.id, server_name: server.name, status: 'success' });
+            } catch (error) {
+                logWebhook('ERROR', { tag: Tag, message: error.message }, ip);
+                results.push({ tag: Tag, status: 'error', message: error.message });
+            }
+        }
+
+        return res.json({
+            success: true,
+            message: 'Server traffic updated',
+            processed: results.length,
+            results
+        });
+    }
+
+    const {
+        user_id,
+        server_id,
+        upload_bytes = 0,
+        download_bytes = 0
+    } = req.body;
+
+    if (!user_id || !server_id) {
+        logWebhook('ERROR', { message: 'Missing user_id or server_id', received: req.body }, ip);
+        return res.status(400).json({ error: 'Missing user_id or server_id' });
+    }
+
+    try {
+        updateUserTraffic(user_id, server_id, upload_bytes, download_bytes);
+
+        logWebhook('SUCCESS', {
+            user_id,
+            server_id,
+            upload_bytes,
+            download_bytes,
+            total: upload_bytes + download_bytes
+        }, ip);
+
+        res.json({
+            success: true,
+            message: 'Traffic data updated',
+            received: {
+                user_id,
+                server_id,
+                upload_bytes,
+                download_bytes
+            }
+        });
+    } catch (error) {
+        logWebhook('ERROR', { message: error.message, stack: error.stack }, ip);
+        res.status(500).json({ error: 'Failed to update traffic data' });
+    }
+});
+
+app.get('/api/webhook/logs', requireAuth, (req, res) => {
+    try {
+        if (fs.existsSync(WEBHOOK_LOG_FILE)) {
+            const content = fs.readFileSync(WEBHOOK_LOG_FILE, 'utf-8');
+            res.type('text/plain').send(content);
+        } else {
+            res.type('text/plain').send('No webhook logs yet.');
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to read logs: ' + err.message });
+    }
+});
+
+app.delete('/api/webhook/logs', requireAuth, (req, res) => {
+    try {
+        if (fs.existsSync(WEBHOOK_LOG_FILE)) {
+            fs.unlinkSync(WEBHOOK_LOG_FILE);
+            res.json({ success: true, message: 'Logs cleared' });
+        } else {
+            res.json({ success: true, message: 'No logs to clear' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to clear logs: ' + err.message });
+    }
+});
+
 async function startServer() {
     await initDb();
 
@@ -560,6 +699,8 @@ function formatBytes(bytes) {
 }
 
 app.get('/admin/stats', requireAuth, (req, res) => {
+    const selectedMonth = req.query.month || null;
+
     const totalUsers = dbGet('SELECT COUNT(*) as count FROM users')?.count || 0;
     const activeUsers = dbGet('SELECT COUNT(*) as count FROM users WHERE is_active = 1')?.count || 0;
 
@@ -568,17 +709,45 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const weekRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-7 days')`)?.count || 0;
     const monthRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-30 days')`)?.count || 0;
 
-    // Get traffic statistics
-    const allTraffic = getAllUsersTraffic();
-    const totalTraffic = allTraffic.reduce((sum, user) => sum + (user.total_traffic || 0), 0);
-    const activeTrafficUsers = allTraffic.filter(user => user.total_traffic > 0).length;
+    let dateFilter = '';
+    let trafficParams = [];
+    if (selectedMonth) {
+        dateFilter = `AND strftime('%Y-%m', st.recorded_at) = ?`;
+        trafficParams = [selectedMonth];
+    }
+
+    const allServersTraffic = dbAll(`
+        SELECT
+            s.id,
+            s.name,
+            s.tag,
+            COALESCE(SUM(st.upload_bytes), 0) as total_upload,
+            COALESCE(SUM(st.download_bytes), 0) as total_download,
+            COALESCE(SUM(st.total_bytes), 0) as total_traffic
+        FROM servers s
+        LEFT JOIN server_traffic st ON s.id = st.server_id
+        WHERE s.is_active = 1
+        ${dateFilter}
+        GROUP BY s.id, s.name, s.tag
+        ORDER BY total_traffic DESC
+    `, trafficParams);
+
+    const totalTraffic = allServersTraffic.reduce((sum, server) => sum + (server.total_traffic || 0), 0);
+    const activeTrafficUsers = allServersTraffic.filter(server => server.total_traffic > 0).length;
     const formattedTotalTraffic = formatBytes(totalTraffic);
 
+    const topServersTraffic = allServersTraffic.slice(0, 10).map(server => ({
+        ...server,
+        formatted_upload: formatBytes(server.total_upload || 0),
+        formatted_download: formatBytes(server.total_download || 0),
+        formatted_total: formatBytes(server.total_traffic || 0)
+    }));
+
     const lastRequests = dbAll(`
-        SELECT sr.*, u.username 
-        FROM subscription_requests sr 
-        LEFT JOIN users u ON sr.user_id = u.id 
-        ORDER BY sr.requested_at DESC 
+        SELECT sr.*, u.username
+        FROM subscription_requests sr
+        LEFT JOIN users u ON sr.user_id = u.id
+        ORDER BY sr.requested_at DESC
         LIMIT 50
     `);
 
@@ -591,14 +760,6 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         LIMIT 10
     `);
 
-    // Format traffic data for top users
-    const topTrafficUsers = allTraffic.slice(0, 10).map(user => ({
-        ...user,
-        formatted_upload: formatBytes(user.total_upload || 0),
-        formatted_download: formatBytes(user.total_download || 0),
-        formatted_total: formatBytes(user.total_traffic || 0)
-    }));
-
     const requestsByDay = dbAll(`
         SELECT date(requested_at) as day, COUNT(*) as count
         FROM subscription_requests
@@ -606,6 +767,16 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         GROUP BY date(requested_at)
         ORDER BY day DESC
     `);
+
+    const availableMonths = dbAll(`
+        SELECT DISTINCT strftime('%Y-%m', recorded_at) as month
+        FROM server_traffic
+        WHERE recorded_at IS NOT NULL
+        ORDER BY month DESC
+        LIMIT 12
+    `).map(row => row.month);
+
+    const topTrafficUsers = [];
 
     res.render('stats', {
         totalUsers,
@@ -620,7 +791,10 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         lastRequests,
         topUsers,
         topTrafficUsers,
+        topServersTraffic,
         requestsByDay,
+        availableMonths,
+        selectedMonth,
         username: req.session.username,
         appName: APP_NAME
     });
