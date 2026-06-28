@@ -3,25 +3,122 @@ const path = require('path');
 const fs = require('fs');
 
 const dbPath = path.join(__dirname, '..', '..', 'data', 'subscription.db');
+const backupDir = path.join(__dirname, '..', '..', 'data', 'backups');
 
 let db;
+
+function createBackup() {
+  if (!fs.existsSync(dbPath)) {
+    return null;
+  }
+
+  try {
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(backupDir, `subscription_${timestamp}.db`);
+
+    fs.copyFileSync(dbPath, backupPath);
+    console.log(`Резервная копия создана: ${backupPath}`);
+
+    // Оставляем только последние 10 резервных копий
+    const backups = fs.readdirSync(backupDir)
+      .filter(file => file.startsWith('subscription_') && file.endsWith('.db'))
+      .map(file => ({
+        name: file,
+        time: fs.statSync(path.join(backupDir, file)).mtime.getTime()
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    if (backups.length > 10) {
+      backups.slice(10).forEach(backup => {
+        fs.unlinkSync(path.join(backupDir, backup.name));
+        console.log(`Старая резервная копия удалена: ${backup.name}`);
+      });
+    }
+
+    return backupPath;
+  } catch (error) {
+    console.error('Ошибка создания резервной копии:', error.message);
+    return null;
+  }
+}
+
+function getLatestBackup() {
+  if (!fs.existsSync(backupDir)) {
+    return null;
+  }
+
+  try {
+    const backups = fs.readdirSync(backupDir)
+      .filter(file => file.startsWith('subscription_') && file.endsWith('.db'))
+      .map(file => ({
+        name: file,
+        path: path.join(backupDir, file),
+        time: fs.statSync(path.join(backupDir, file)).mtime.getTime()
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    return backups.length > 0 ? backups[0] : null;
+  } catch (error) {
+    console.error('Ошибка получения последней резервной копии:', error.message);
+    return null;
+  }
+}
 
 async function initDb() {
   const SQL = await initSqlJs();
 
-  if (fs.existsSync(dbPath)) {
-    const fileBuffer = fs.readFileSync(dbPath);
-    db = new SQL.Database(fileBuffer);
+  let fileBuffer = null;
+  let dbLoaded = false;
+  let dbPathToUse = dbPath;
 
-    migrateServersTable(db);
-    migrateUsersTable(db);
-    migrateSubscriptionRequestsTable(db);
-    migrateUserServersTable(db);
-    migrateServersTag(db);
-    migrateServersTrafficLimit(db);
+  // Проверяем существующую базу данных
+  if (fs.existsSync(dbPath)) {
+    const stats = fs.statSync(dbPath);
+    if (stats.size === 0) {
+      console.warn('⚠️ База данных пуста! Попытка восстановления из резервной копии...');
+
+      const latestBackup = getLatestBackup();
+      if (latestBackup) {
+        console.log(`Найдена резервная копия: ${latestBackup.name}`);
+        try {
+          fileBuffer = fs.readFileSync(latestBackup.path);
+          dbPathToUse = latestBackup.path;
+          dbLoaded = true;
+          console.log('✅ База данных восстановлена из резервной копии');
+        } catch (error) {
+          console.error('❌ Ошибка восстановления из резервной копии:', error.message);
+        }
+      }
+
+      if (!dbLoaded) {
+        console.log('⚠️ Нет доступных резервных копий. Создаем новую базу данных.');
+      }
+    } else {
+      try {
+        fileBuffer = fs.readFileSync(dbPath);
+        dbLoaded = true;
+      } catch (error) {
+        console.error('❌ Ошибка чтения базы данных:', error.message);
+      }
+    }
+  }
+
+  if (dbLoaded && fileBuffer) {
+    db = new SQL.Database(fileBuffer);
   } else {
     db = new SQL.Database();
   }
+
+  migrateServersTable(db);
+  migrateUsersTable(db);
+  migrateSubscriptionRequestsTable(db);
+  migrateUserServersTable(db);
+  migrateServersTag(db);
+  migrateServersTrafficLimit(db);
 
   db.run(`
         CREATE TABLE IF NOT EXISTS users (
@@ -267,6 +364,9 @@ function migrateServersTrafficLimit(db) {
 
 function saveDb() {
   if (db) {
+    // Создаем резервную копию перед сохранением
+    createBackup();
+
     const data = db.export();
     const buffer = Buffer.from(data);
     const dataDir = path.dirname(dbPath);
