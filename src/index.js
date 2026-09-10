@@ -6,11 +6,12 @@ const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const fs = require('fs');
-const { initDb, getDb, saveDb, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getUserServerUuid, getUserServersWithUuid, getUserServerAssignments, getServerByTag, updateServerTraffic, getServerTraffic, getAllServersTraffic, getAvailableMonths, getServersTrafficByMonth } = require('./db/database');
+const { initDb, getDb, saveDb, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getUserServerUuid, getUserServersWithUuid, getUserServerAssignments, getServerByTag, updateServerTraffic, getServerTraffic, getAllServersTraffic, getAvailableMonths, getServersTrafficByMonth, resetAllTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName, updateLinkRemark, buildFullSubscription } = require('./utils/linkBuilder');
 const { checkServer, checkMultipleServers } = require('./utils/serverChecker');
 
-const WEBHOOK_LOG_FILE = path.join(__dirname, '..', '..', 'data', 'webhook-traffic.log');
+const WEBHOOK_LOG_FILE = path.join(__dirname, '..', 'data', 'webhook-traffic.log');
+const WEBHOOK_LOG_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
 
 function generateShortId(length = 6) {
     return crypto.randomBytes(length).toString('base64url').slice(0, length);
@@ -557,6 +558,13 @@ function logWebhook(type, data, ip) {
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
+        if (fs.existsSync(WEBHOOK_LOG_FILE)) {
+            const stat = fs.statSync(WEBHOOK_LOG_FILE);
+            if (stat.size >= WEBHOOK_LOG_MAX_SIZE) {
+                const backup = WEBHOOK_LOG_FILE + '.old';
+                fs.renameSync(WEBHOOK_LOG_FILE, backup);
+            }
+        }
         fs.appendFileSync(WEBHOOK_LOG_FILE, logEntry);
     } catch (err) {
         console.error('Webhook logging error:', err.message);
@@ -685,11 +693,32 @@ async function startServer() {
         console.log('Создан администратор по умолчанию: admin / admin123');
     }
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`Сервер подписок запущен на порту ${PORT} `);
         console.log(`Админ - панель: http://localhost:${PORT}/admin`);
         console.log(`Подписка: http://localhost:${PORT}/join/{user_id}`);
     });
+
+    const shutdown = () => {
+        console.log('Получен сигнал завершения, закрываю сервер...');
+        server.close(() => process.exit(0));
+        setTimeout(() => process.exit(1), 5000);
+    };
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+
+    // Ежемесячный сброс трафика (1-го числа)
+    setInterval(checkMonthlyReset, 60 * 60 * 1000);
+    checkMonthlyReset();
+}
+
+function checkMonthlyReset() {
+    const now = new Date();
+    if (now.getDate() === 1 && now.getHours() === 0) {
+        console.log('Выполняется ежемесячный сброс трафика...');
+        resetAllTraffic();
+        console.log('Трафик успешно сброшен.');
+    }
 }
 
 // Helper function to format bytes

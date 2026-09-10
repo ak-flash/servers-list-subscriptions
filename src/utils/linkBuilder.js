@@ -81,8 +81,7 @@ function buildFullSubscription(servers, userUuid, username = 'User') {
         if (server.traffic_limit > 0) {
             const usedGB = (server.total_traffic || 0) / (1024 * 1024 * 1024);
             const limitGB = server.traffic_limit;
-            const remainingGB = Math.max(0, limitGB - usedGB);
-            remark = `${server.name} | ${remainingGB.toFixed(1)}/${limitGB} GB`;
+            remark = `${server.name} | ${usedGB.toFixed(1)}/${limitGB} GB`;
         }
         let link = updateLinkRemark(server.link, remark);
         if (server.user_server_uuid) {

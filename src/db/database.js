@@ -7,6 +7,8 @@ const backupDir = path.join(__dirname, '..', '..', 'data', 'backups');
 
 let db;
 
+const BACKUP_DAYS_TO_KEEP = 30;
+
 function createBackup() {
   if (!fs.existsSync(dbPath)) {
     return null;
@@ -17,27 +19,31 @@ function createBackup() {
       fs.mkdirSync(backupDir, { recursive: true });
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(backupDir, `subscription_${timestamp}.db`);
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const backupPath = path.join(backupDir, `subscription_${today}.db`);
 
     fs.copyFileSync(dbPath, backupPath);
     console.log(`Резервная копия создана: ${backupPath}`);
 
-    // Оставляем только последние 10 резервных копий
+    // Удаляем файлы старше BACKUP_DAYS_TO_KEEP дней
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - BACKUP_DAYS_TO_KEEP);
+
     const backups = fs.readdirSync(backupDir)
       .filter(file => file.startsWith('subscription_') && file.endsWith('.db'))
       .map(file => ({
         name: file,
+        path: path.join(backupDir, file),
         time: fs.statSync(path.join(backupDir, file)).mtime.getTime()
       }))
       .sort((a, b) => b.time - a.time);
 
-    if (backups.length > 10) {
-      backups.slice(10).forEach(backup => {
-        fs.unlinkSync(path.join(backupDir, backup.name));
+    backups.forEach(backup => {
+      if (backup.time < cutoff.getTime()) {
+        fs.unlinkSync(backup.path);
         console.log(`Старая резервная копия удалена: ${backup.name}`);
-      });
-    }
+      }
+    });
 
     return backupPath;
   } catch (error) {
@@ -57,9 +63,9 @@ function getLatestBackup() {
       .map(file => ({
         name: file,
         path: path.join(backupDir, file),
-        time: fs.statSync(path.join(backupDir, file)).mtime.getTime()
+        date: file.replace('subscription_', '').replace('.db', '')
       }))
-      .sort((a, b) => b.time - a.time);
+      .sort((a, b) => b.date.localeCompare(a.date));
 
     return backups.length > 0 ? backups[0] : null;
   } catch (error) {
@@ -464,6 +470,13 @@ function createTrafficSnapshot(userId, serverId) {
   saveDb();
 }
 
+function resetAllTraffic() {
+  db.run('DELETE FROM user_traffic');
+  db.run('DELETE FROM server_traffic');
+  db.run('DELETE FROM traffic_snapshots');
+  saveDb();
+}
+
 function getAllUsersTraffic() {
   const stmt = db.prepare(`
     SELECT 
@@ -669,5 +682,6 @@ module.exports = {
   getServerTraffic,
   getAllServersTraffic,
   getAvailableMonths,
-  getServersTrafficByMonth
+  getServersTrafficByMonth,
+  resetAllTraffic
 };
