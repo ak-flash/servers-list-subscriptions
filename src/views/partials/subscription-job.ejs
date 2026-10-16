@@ -1,0 +1,7 @@
+<div class="bg-blue-50 text-blue-900 rounded-lg p-4 mb-6" data-job-region data-job-id="<%= job ? job.id : '' %>" role="status" aria-live="polite">
+  <p data-job-message><% if (job) { %><%= statusLabel(job.state) %>: <%= job.completed %> из <%= job.total %>. <%= job.error || '' %><% } else { %>Загрузка и VPN-проверки выполняются в фоне. Результаты сохраняются после проверки каждого узла.<% } %></p>
+  <a href="<%= refreshUrl %>" data-job-refresh class="inline-block mt-2 underline underline-offset-4">Обновить результаты</a>
+</div>
+<% if (metrics.storage_error || metrics.runner?.error) { %>
+  <p class="bg-amber-50 text-amber-900 rounded-lg p-4 mb-6"><%= metrics.storage_error || metrics.runner.error %> Последний успешный VPN-тест действует до истечения срока актуальности.</p>
+<% } %>

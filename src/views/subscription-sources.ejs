@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><%- include('partials/subscription-head', { title: `Источники подписок — ${appName}` }) %></head>
+<body class="bg-gray-100 text-gray-800">
+  <%- include('partials/subscription-header', { heading: 'Источники подписок' }) %>
+  <main id="main" class="max-w-6xl mx-auto my-8 px-4">
+    <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+      <div class="max-w-2xl">
+        <p>Добавьте внешнюю подписку. Сервис проверит VLESS-узлы через Xray и выберет работающие для пользователей.</p>
+        <p class="text-sm text-gray-600 mt-2">В очереди: <%= metrics.queued %>. Проверяются: <%= metrics.running.check %>. Ожидание старейшей задачи: <%= Math.ceil(metrics.oldest_wait_ms / 60000) %> мин.</p>
+      </div>
+      <a href="/admin/subscription-sources/new" class="bg-green-700 hover:bg-green-800 text-white rounded px-4 py-3">Добавить источник</a>
+    </div>
+    <%- include('partials/subscription-job', { job, metrics, refreshUrl: '/admin/subscription-sources' }) %>
+    <% if (!sources.length) { %>
+      <section class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold">Источников пока нет</h2>
+        <p class="mt-2 text-gray-600">Добавьте HTTP(S)-ссылку на список VLESS-серверов. После проверки привяжите источник на странице серверов пользователя.</p>
+      </section>
+    <% } %>
+    <div class="space-y-4">
+      <% sources.forEach(source => { %>
+        <section class="bg-white rounded-lg shadow p-4 md:p-6">
+          <div class="flex flex-wrap justify-between items-start gap-4">
+            <div class="min-w-0">
+              <h2 class="text-lg font-semibold break-all"><a href="/admin/subscription-sources/<%= source.id %>/nodes" class="text-blue-700 underline underline-offset-4"><%= source.name %></a></h2>
+              <p class="text-sm text-gray-600 mt-1 break-all"><%= source.masked_url %></p>
+              <p class="mt-3"><strong><%= source.healthy %></strong> работают через VPN · <%= source.count %> в каталоге · пользователей: <%= source.users %></p>
+              <p class="text-sm text-gray-600 mt-1"><%= source.is_active ? statusLabel(source.sync_status) : 'Источник отключён' %> · Последняя загрузка: <%= time(source.last_success_at) %></p>
+              <% if (source.last_error) { %><p class="text-sm text-red-700 mt-2"><%= source.last_error %></p><% } %>
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <% if (source.is_active) { %>
+                <form method="post" action="/api/subscription-sources/<%= source.id %>/sync" data-background-action>
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="border border-blue-700 text-blue-700 hover:bg-blue-50 rounded px-3 py-2 min-h-[44px]" aria-label="Загрузить список: <%= source.name %>">Загрузить список</button>
+                </form>
+                <form method="post" action="/api/subscription-sources/<%= source.id %>/check" data-background-action>
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[44px]" aria-label="Проверить VPN: <%= source.name %>">Проверить VPN</button>
+                </form>
+              <% } %>
+              <a href="/admin/subscription-sources/<%= source.id %>/edit" class="bg-gray-100 hover:bg-gray-200 rounded px-3 py-2 min-h-[44px]" aria-label="Настроить источник: <%= source.name %>">Настроить</a>
+            </div>
+          </div>
+        </section>
+      <% }); %>
+    </div>
+  </main>
+  <script src="/subscription-actions.js" defer></script>
+</body>
+</html>

@@ -23,14 +23,20 @@
         </div>
     </header>
     <main class="max-w-6xl mx-auto mt-8 px-4">
+        <section class="bg-white rounded-lg shadow p-4 md:p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-800">Внешние подписки</h2>
+                <p class="text-sm text-gray-600 mt-1">Импорт VLESS, VPN-проверки через Xray и автоматический отбор рабочих узлов.</p>
+            </div>
+            <a href="/admin/subscription-sources" class="bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700">Управлять источниками</a>
+        </section>
         <div class="bg-white rounded-lg shadow p-4 md:p-6 mb-6 w-full">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b">
-                <h2 class="text-lg font-semibold text-gray-800">Серверы</h2>
+                <h2 class="text-lg font-semibold text-gray-800">Ручные серверы · TCP-диагностика</h2>
                 <div class="flex flex-col md:flex-row gap-2 w-full sm:w-auto">
 
                     <button id="checkAllBtn" onclick="checkAllServers()"
-                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto">Проверить
-                        все</button>
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto">Проверить TCP-порты</button>
                     <a href="/admin/servers/new"
                         class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto text-center">+
                         Добавить сервер</a>
@@ -344,13 +350,13 @@
                 const applyResult = (el) => {
                     if (!el) return;
                     if (data.status === 'online') {
-                        el.textContent = 'Онлайн';
+                        el.textContent = 'TCP открыт';
                         el.className = 'px-2 py-1 text-xs rounded bg-green-100 text-green-800';
                     } else if (data.status === 'timeout') {
                         el.textContent = 'Таймаут';
                         el.className = 'px-2 py-1 text-xs rounded bg-orange-100 text-orange-800';
                     } else {
-                        el.textContent = 'Офлайн';
+                        el.textContent = 'TCP недоступен';
                         el.className = 'px-2 py-1 text-xs rounded bg-red-100 text-red-800';
                     }
                 };
@@ -382,13 +388,13 @@
                     const applyResult = (el) => {
                         if (!el) return;
                         if (result.status === 'online') {
-                            el.textContent = 'Онлайн';
+                            el.textContent = 'TCP открыт';
                             el.className = 'px-2 py-1 text-xs rounded bg-green-100 text-green-800';
                         } else if (result.status === 'timeout') {
                             el.textContent = 'Таймаут';
                             el.className = 'px-2 py-1 text-xs rounded bg-orange-100 text-orange-800';
                         } else {
-                            el.textContent = 'Офлайн';
+                            el.textContent = 'TCP недоступен';
                             el.className = 'px-2 py-1 text-xs rounded bg-red-100 text-red-800';
                         }
                     };
@@ -399,7 +405,7 @@
                 alert('Ошибка проверки серверов');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Проверить все';
+                btn.textContent = 'Проверить TCP-порты';
             }
         }
     </script>

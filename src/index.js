@@ -4,11 +4,15 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
-const QRCode = require('qrcode');
 const fs = require('fs');
-const { initDb, getDb, saveDb, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getUserServerUuid, getUserServersWithUuid, getUserServerAssignments, getServerByTag, updateServerTraffic, getServerTraffic, getAllServersTraffic, getAvailableMonths, getServersTrafficByMonth, resetAllTraffic } = require('./db/database');
-const { extractHostPortFromLink, parseLinkAndExtractName, updateLinkRemark, buildFullSubscription } = require('./utils/linkBuilder');
+const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic } = require('./db/database');
+const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
 const { checkServer, checkMultipleServers } = require('./utils/serverChecker');
+const { loadConfig } = require('./config/subscriptions');
+const { ProbeScheduler } = require('./services/probeScheduler');
+const { deleteUser, deleteServer } = require('./services/subscriptionAssignments');
+const subscriptionRoutes = require('./routes/subscriptions');
+const subscriptionSourceRoutes = require('./routes/subscriptionSources');
 
 const WEBHOOK_LOG_FILE = path.join(__dirname, '..', 'data', 'webhook-traffic.log');
 const WEBHOOK_LOG_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -20,24 +24,28 @@ function generateShortId(length = 6) {
 const app = express();
 const PORT = process.env.PORT || 2096;
 const APP_NAME = process.env.APP_NAME || 'VPN Подписки';
+const subscriptionConfig = loadConfig();
+const scheduler = new ProbeScheduler(subscriptionConfig);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 
 app.use(session({
     secret: process.env.SESSION_SECRET || 'vpn-subscription-secret-key-2024',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 }
+    cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: process.env.SESSION_COOKIE_SECURE === '1' }
 }));
 
 function requireAuth(req, res, next) {
     if (req.session && req.session.userId) {
         return next();
     }
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Войдите в админ-панель.' });
     res.redirect('/admin/login');
 }
 
@@ -77,21 +85,16 @@ function recordSubscriptionRequest(userId, req) {
     const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
     const userAgent = req.headers['user-agent'] || '';
 
-    dbRun(`
-        INSERT INTO subscription_requests (user_id, requested_at, ip_address, user_agent)
-        VALUES (?, datetime('now'), ?, ?)
-    `, [userId, ipAddress, userAgent]);
-
-    const user = dbGet('SELECT * FROM users WHERE id = ?', [userId]);
-    if (user) {
-        const firstRequestAt = user.first_request_at;
-        if (!firstRequestAt) {
-            dbRun(`UPDATE users SET first_request_at = datetime('now'), last_request_at = datetime('now') WHERE id = ?`, [userId]);
-        } else {
-            dbRun(`UPDATE users SET last_request_at = datetime('now') WHERE id = ?`, [userId]);
-        }
-    }
+    transaction(() => {
+        dbRun(`INSERT INTO subscription_requests (user_id, requested_at, ip_address, user_agent)
+            VALUES (?, datetime('now'), ?, ?)`, [userId, ipAddress, userAgent]);
+        dbRun(`UPDATE users SET first_request_at = COALESCE(first_request_at, datetime('now')),
+            last_request_at = datetime('now') WHERE id = ?`, [userId]);
+    });
 }
+
+app.use(subscriptionRoutes({ config: subscriptionConfig, recordRequest: recordSubscriptionRequest }));
+app.use(subscriptionSourceRoutes({ config: subscriptionConfig, scheduler, requireAuth, appName: APP_NAME }));
 
 app.get('/admin/login', (req, res) => {
     res.render('login', { error: null, appName: APP_NAME });
@@ -211,8 +214,7 @@ app.post('/admin/servers/:id', requireAuth, (req, res) => {
 });
 
 app.post('/admin/servers/:id/delete', requireAuth, (req, res) => {
-    dbRun('DELETE FROM user_servers WHERE server_id = ?', [req.params.id]);
-    dbRun('DELETE FROM servers WHERE id = ?', [req.params.id]);
+    deleteServer(req.params.id);
     res.redirect('/admin');
 });
 
@@ -262,216 +264,8 @@ app.post('/admin/users/:id', requireAuth, (req, res) => {
 });
 
 app.post('/admin/users/:id/delete', requireAuth, (req, res) => {
-    dbRun('DELETE FROM user_servers WHERE user_id = ?', [req.params.id]);
-    dbRun('DELETE FROM users WHERE id = ?', [req.params.id]);
+    deleteUser(req.params.id);
     res.redirect('/admin');
-});
-
-app.get('/admin/users/:id/servers', requireAuth, (req, res) => {
-    const user = dbGet('SELECT * FROM users WHERE id = ?', [req.params.id]);
-    if (!user) return res.redirect('/admin');
-
-    const allServers = dbAll('SELECT * FROM servers WHERE is_active = 1');
-    const serversWithInfo = allServers.map(server => {
-        const info = extractHostPortFromLink(server.link);
-        return { ...server, ...info };
-    });
-    const assignedServers = getUserServerAssignments(req.params.id);
-    const assignedIds = assignedServers.map(s => String(s.server_id));
-    const uuidMap = {};
-    assignedServers.forEach(s => { uuidMap[s.server_id] = s.uuid; });
-
-    res.render('user-servers', { user, servers: serversWithInfo, assignedIds, uuidMap, appName: APP_NAME });
-});
-
-app.post('/admin/users/:id/servers', requireAuth, (req, res) => {
-    let { servers, uuids } = req.body;
-
-    if (typeof servers === 'string') {
-        servers = servers ? [servers] : [];
-    } else if (!Array.isArray(servers)) {
-        servers = [];
-    }
-
-    const existingAssignments = getUserServerAssignments(req.params.id);
-    const existingMap = {};
-    existingAssignments.forEach(s => { existingMap[s.server_id] = s.uuid; });
-
-    const crypto = require('crypto');
-    const serversToKeep = new Set(servers);
-
-    for (const serverId of servers) {
-        const existingUuid = existingMap[serverId];
-        let userServerUuid;
-
-        if (uuids && typeof uuids === 'object' && uuids[serverId] && uuids[serverId].trim()) {
-            userServerUuid = uuids[serverId].trim();
-        } else if (existingUuid) {
-            userServerUuid = existingUuid;
-        } else {
-            userServerUuid = crypto.randomUUID();
-        }
-
-        const existing = dbGet('SELECT 1 FROM user_servers WHERE user_id = ? AND server_id = ?', [req.params.id, serverId]);
-        if (existing) {
-            dbRun('UPDATE user_servers SET uuid = ? WHERE user_id = ? AND server_id = ?', [userServerUuid, req.params.id, serverId]);
-        } else {
-            dbRun('INSERT INTO user_servers (user_id, server_id, uuid) VALUES (?, ?, ?)', [req.params.id, serverId, userServerUuid]);
-        }
-    }
-
-    for (const [serverId, existingUuid] of Object.entries(existingMap)) {
-        if (!serversToKeep.has(serverId)) {
-            dbRun('DELETE FROM user_servers WHERE user_id = ? AND server_id = ?', [req.params.id, serverId]);
-        }
-    }
-
-    res.redirect('/admin');
-});
-
-app.get('/join/:id', (req, res) => {
-    const user = dbGet('SELECT * FROM users WHERE id = ? AND is_active = 1', [req.params.id]);
-
-    if (!user) {
-        return res.status(404).send('Пользователь не найден или отключен');
-    }
-
-    const servers = getUserServersWithUuid(user.id);
-
-    if (servers.length === 0) {
-        return res.status(404).send('Нет доступных серверов для этого пользователя');
-    }
-
-    recordSubscriptionRequest(user.id, req);
-
-    const subscription = buildFullSubscription(servers, user.id, user.username);
-
-    // Get user traffic data
-    const traffic = getUserTraffic(user.id);
-    const uploadBytes = traffic.total_upload || 0;
-    const downloadBytes = traffic.total_download || 0;
-    const totalBytes = traffic.total_traffic || 0;
-
-    // Set default expiration (30 days from now) if not set
-    const expireTimestamp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
-
-    res.set('Content-Type', 'text/plain; charset=utf-8');
-    res.set('profile-title', `base64:${Buffer.from('Подписка ' + user.username).toString('base64')}`);
-    res.set('profile-update-interval', '24');
-    res.set('subscription-userinfo', `upload=${uploadBytes}; download=${downloadBytes}; total=${totalBytes}; expire=${expireTimestamp}`);
-    res.send(subscription);
-});
-
-app.get('/join/:id/qr', async (req, res) => {
-    const user = dbGet('SELECT * FROM users WHERE id = ? AND is_active = 1', [req.params.id]);
-
-    if (!user) {
-        return res.status(404).send('Пользователь не найден или отключен');
-    }
-
-    const servers = getUserServersWithUuid(user.id);
-
-    if (servers.length === 0) {
-        return res.status(404).send('Нет доступных серверов для этого пользователя');
-    }
-
-    recordSubscriptionRequest(user.id, req);
-
-    let protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    let host = req.headers['x-forwarded-host'] || req.get('host');
-
-    // Use configured domain if available
-    if (process.env.PUBLIC_DOMAIN) {
-        host = process.env.PUBLIC_DOMAIN;
-        protocol = 'https'; // Assume HTTPS for custom domains
-    }
-
-    const subscriptionUrl = `${protocol}://${host}/join/${user.id}#Подписка_${user.username}`;
-
-    try {
-        const qrCode = await QRCode.toDataURL(subscriptionUrl, {
-            width: 300,
-            margin: 2,
-            color: { dark: '#000000', light: '#ffffff' }
-        });
-        res.send(`<html><head><meta charset="UTF-8"><title>QR Код - ${user.username}</title><style>body{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f5f5f5;font-family:system-ui,sans-serif}.container{text-align:center;background:#fff;padding:2rem;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.1)}.username{font-size:1.5rem;font-weight:600;margin-bottom:1rem;color:#1f2937}</style></head><body><div class="container"><div class="username">${user.username}</div><img src="${qrCode}" /></div></body></html>`);
-    } catch (err) {
-        res.status(500).send('Ошибка генерации QR кода');
-    }
-});
-
-app.get('/join/:id/qr-img', async (req, res) => {
-    const user = dbGet('SELECT * FROM users WHERE id = ? AND is_active = 1', [req.params.id]);
-
-    if (!user) {
-        return res.status(404).json({ error: 'Пользователь не найден' });
-    }
-
-    const servers = getUserServersWithUuid(user.id);
-
-    if (servers.length === 0) {
-        return res.status(404).json({ error: 'Нет серверов' });
-    }
-
-    recordSubscriptionRequest(user.id, req);
-
-    let protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    let host = req.headers['x-forwarded-host'] || req.get('host');
-
-    // Use configured domain if available
-    if (process.env.PUBLIC_DOMAIN) {
-        host = process.env.PUBLIC_DOMAIN;
-        protocol = 'https'; // Assume HTTPS for custom domains
-    }
-
-    const subscriptionUrl = `${protocol}://${host}/join/${user.id}#Подписка_${user.username}`;
-
-    try {
-        const qrCode = await QRCode.toDataURL(subscriptionUrl, {
-            width: 300,
-            margin: 2,
-            color: { dark: '#000000', light: '#ffffff' }
-        });
-        res.json({ qrCode, username: user.username, subscriptionUrl });
-    } catch (err) {
-        res.status(500).json({ error: 'Ошибка генерации QR кода' });
-    }
-});
-
-app.get('/join/:id/json', (req, res) => {
-    const user = dbGet('SELECT * FROM users WHERE id = ? AND is_active = 1', [req.params.id]);
-
-    if (!user) {
-        return res.status(404).json({ error: 'Пользователь не найден или отключен' });
-    }
-
-    const servers = getUserServersWithUuid(user.id);
-
-    if (servers.length === 0) {
-        return res.status(404).json({ error: 'Нет доступных серверов' });
-    }
-
-    recordSubscriptionRequest(user.id, req);
-
-    const subscription = buildFullSubscription(servers, user.id, user.username);
-
-    res.json({
-        version: 2,
-        servers: servers.map(s => ({
-            id: s.id,
-            name: s.name,
-            remark: s.remark,
-            host: s.host,
-            port: s.port,
-            protocol: s.protocol,
-            uuid: s.user_server_uuid,
-            network: s.network,
-            tls: s.tls,
-            sni: s.sni,
-            path: s.path
-        })),
-        raw: subscription
-    });
 });
 
 app.post('/api/servers/check', requireAuth, async (req, res) => {
@@ -680,36 +474,49 @@ app.delete('/api/webhook/logs', requireAuth, (req, res) => {
 async function startServer() {
     await initDb();
 
-    const dataDir = path.join(__dirname, '..', '..', 'data');
-    const fs = require('fs');
-    if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-    }
-
-    const defaultAdmin = dbGet('SELECT * FROM users WHERE username = ?', ['admin']);
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const defaultAdmin = dbGet('SELECT * FROM users WHERE username = ?', [adminUsername]);
     if (!defaultAdmin) {
         dbRun('INSERT INTO users (id, username, password, is_active, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))',
-            [generateShortId(), 'admin', 'admin123', 1]);
-        console.log('Создан администратор по умолчанию: admin / admin123');
+            [generateShortId(), adminUsername, process.env.ADMIN_PASSWORD || 'admin123', 1]);
+        console.log('Создан администратор:', adminUsername);
     }
 
-    const server = app.listen(PORT, () => {
+    await scheduler.start();
+    const server = app.listen(PORT, process.env.HOST || '0.0.0.0', () => {
         console.log(`Сервер подписок запущен на порту ${PORT} `);
         console.log(`Админ - панель: http://localhost:${PORT}/admin`);
         console.log(`Подписка: http://localhost:${PORT}/join/{user_id}`);
     });
 
-    const shutdown = () => {
+    let stopping = false;
+    const shutdown = async () => {
+        if (stopping) return;
+        stopping = true;
         console.log('Получен сигнал завершения, закрываю сервер...');
-        server.close(() => process.exit(0));
-        setTimeout(() => process.exit(1), 5000);
+        clearInterval(monthlyReset);
+        const deadline = setTimeout(() => process.exit(1), 10000);
+        const closed = new Promise(resolve => server.close(resolve));
+        server.closeIdleConnections();
+        try {
+            await scheduler.stop();
+            await closed;
+            saveDb();
+            closeDb();
+            clearTimeout(deadline);
+            process.exit(0);
+        } catch {
+            console.error('Не удалось корректно завершить сервис');
+            process.exit(1);
+        }
     };
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
 
     // Ежемесячный сброс трафика (1-го числа)
-    setInterval(checkMonthlyReset, 60 * 60 * 1000);
+    const monthlyReset = setInterval(checkMonthlyReset, 60 * 60 * 1000);
     checkMonthlyReset();
+    return server;
 }
 
 function checkMonthlyReset() {
@@ -846,4 +653,11 @@ app.post('/admin/stats/clear', requireAuth, (req, res) => {
     }
 });
 
-startServer();
+if (require.main === module) {
+    startServer().catch(error => {
+        console.error('Не удалось запустить сервис:', error.message);
+        process.exitCode = 1;
+    });
+}
+
+module.exports = { app, startServer, scheduler, subscriptionConfig };

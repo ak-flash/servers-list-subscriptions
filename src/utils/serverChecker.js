@@ -29,14 +29,22 @@ function checkServer(host, port, timeout = 5000) {
         try {
             socket.connect(port, host);
         } catch (err) {
+            socket.destroy();
             resolve({ host, port, status: 'error', timestamp: Date.now() });
         }
     });
 }
 
-async function checkMultipleServers(servers, timeout = 5000) {
-    const checks = servers.map(server => checkServer(server.host, server.port, timeout));
-    return Promise.all(checks);
+async function checkMultipleServers(servers, timeout = 5000, concurrency = 8) {
+    const results = new Array(servers.length);
+    let index = 0;
+    await Promise.all(Array.from({ length: Math.min(concurrency, servers.length) }, async () => {
+        while (index < servers.length) {
+            const current = index++;
+            results[current] = await checkServer(servers[current].host, servers[current].port, timeout);
+        }
+    }));
+    return results;
 }
 
 module.exports = { checkServer, checkMultipleServers };

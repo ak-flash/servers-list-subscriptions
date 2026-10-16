@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><%- include('partials/subscription-head', { title: `Узлы источника — ${appName}` }) %></head>
+<body class="bg-gray-100 text-gray-800">
+  <%- include('partials/subscription-header', { heading: source.name }) %>
+  <main id="main" class="max-w-6xl mx-auto my-8 px-4">
+    <section class="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
+      <div class="flex flex-wrap justify-between items-start gap-4">
+        <div class="min-w-0">
+          <h2 class="text-lg font-semibold">Каталог узлов</h2>
+          <p class="text-sm text-gray-600 mt-1 break-all"><%= source.masked_url %> · <%= source.is_active ? statusLabel(source.sync_status) : 'Источник отключён' %></p>
+          <p class="mt-3"><strong><%= healthy %></strong> работают через VPN. Последняя успешная загрузка: <%= time(source.last_success_at) %></p>
+          <p class="text-sm text-gray-600 mt-2">Задержка измеряется от хоста проверки через VPN до HTTPS-цели. На устройстве пользователя она может отличаться.</p>
+          <% if (source.last_error) { %><p class="text-red-700 mt-2"><%= source.last_error %></p><% } %>
+          <% if (report) { %><p class="text-sm text-gray-600 mt-2">Последний импорт: новых — <%= report.added %>, существующих — <%= report.existing %>, дублей — <%= report.duplicates %>, неподдерживаемых — <%= report.unsupported %>, некорректных — <%= report.invalid %>.</p><% } %>
+          <% if (source.metadata_json) { const metadata = JSON.parse(source.metadata_json); %>
+            <details class="mt-3 text-sm"><summary class="cursor-pointer">Квота внешнего источника</summary>
+              <p class="text-gray-600 mt-2">Общая квота поставщика используется всеми пользователями этого источника.</p>
+              <dl class="mt-2 space-y-1">
+                <div><dt class="inline">Передано: </dt><dd class="inline"><%= (((metadata.upload || 0) + (metadata.download || 0)) / 1073741824).toFixed(2) %> GiB</dd></div>
+                <div><dt class="inline">Лимит: </dt><dd class="inline"><%= metadata.total ? `${(metadata.total / 1073741824).toFixed(2)} GiB` : 'Не указан' %></dd></div>
+                <div><dt class="inline">Срок действия: </dt><dd class="inline"><%= metadata.expire ? time(metadata.expire * 1000) : 'Не указан' %></dd></div>
+              </dl>
+            </details>
+          <% } %>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <% if (source.is_active) { %>
+            <form method="post" action="/api/subscription-sources/<%= source.id %>/sync" data-background-action><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="border border-blue-700 text-blue-700 rounded px-3 py-2 min-h-[44px]">Загрузить список</button></form>
+            <form method="post" action="/api/subscription-sources/<%= source.id %>/check" data-background-action><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[44px]">Проверить VPN</button></form>
+          <% } %>
+          <a href="/admin/subscription-sources/<%= source.id %>/edit" class="bg-gray-100 hover:bg-gray-200 rounded px-3 py-2 min-h-[44px]">Настроить источник</a>
+        </div>
+      </div>
+    </section>
+    <%- include('partials/subscription-job', { job, metrics, refreshUrl: `/admin/subscription-sources/${source.id}/nodes` }) %>
+    <form method="get" class="flex flex-wrap items-end gap-4 mb-6">
+      <div><label for="status-filter" class="block text-sm font-medium mb-2">Состояние</label>
+        <select id="status-filter" name="status" class="border border-gray-300 rounded px-3 py-2 min-h-[44px]">
+          <option value="">Все состояния</option>
+          <% ['healthy', 'unknown', 'stale', 'degraded', 'offline', 'test_failed', 'unsupported', 'invalid', 'disabled'].forEach(state => { %><option value="<%= state %>" <%= filter === state ? 'selected' : '' %>><%= statusLabel(state) %></option><% }); %>
+        </select>
+      </div>
+      <label class="flex items-center gap-3 min-h-[44px]"><input type="checkbox" name="removed" value="1" <%= showRemoved ? 'checked' : '' %> class="w-5 h-5">Показать удалённые</label>
+      <button class="bg-white border border-gray-300 rounded px-4 py-2 min-h-[44px]">Применить фильтр</button>
+    </form>
+    <% if (!nodes.length) { %><p class="bg-white rounded-lg p-6">Узлы не найдены. <%= source.last_success_at ? 'Измените фильтр или загрузите список повторно.' : 'Запустите загрузку списка и дождитесь её завершения.' %></p><% } %>
+    <ul class="divide-y divide-gray-200 bg-white rounded-lg shadow">
+      <% nodes.forEach(node => { %>
+        <li class="px-3 py-3 md:px-4">
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div class="min-w-0 flex-1 basis-64">
+              <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <h3 class="font-semibold break-all"><%= node.name %></h3>
+                <span class="text-sm text-gray-600 break-all"><%= node.protocol.toUpperCase() %> · <%= node.host || 'Адрес не распознан' %><%= node.port ? `:${node.port}` : '' %></span>
+              </div>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
+                <span class="font-medium <%= node.effective_status === 'healthy' ? 'text-green-800' : 'text-gray-700' %>"><%= statusLabel(node.effective_status) %></span>
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums <%= node.latency_ms !== null && node.latency_ms !== undefined ? (node.latency_ms <= 150 ? 'bg-green-100 text-green-800' : node.latency_ms <= 400 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') : 'bg-gray-100 text-gray-600' %>" title="Задержка HTTPS через VPN"><%= latency(node.latency_ms) %></span>
+                <span class="text-gray-500">Проверено: <%= time(node.last_checked_at) %></span>
+                <% if (node.parse_error || node.runner_error_message || node.error_message) { %><span class="text-red-700 break-all"><%= node.parse_error || node.runner_error_message || node.error_message %></span><% } %>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <% if (node.raw_link) { %>
+                <button type="button" class="border border-gray-300 hover:bg-gray-100 rounded px-3 py-2 min-h-[40px] text-sm" data-copy-connection="<%= encodeURIComponent(node.raw_link) %>">Копировать</button>
+                <span class="text-sm text-gray-600" data-copy-status aria-live="polite"></span>
+              <% } %>
+              <% if (node.is_present && node.is_enabled && node.capability_status === 'supported' && source.is_active) { %>
+                <form method="post" action="/api/subscription-nodes/<%= node.id %>/check" data-background-action><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[40px] text-sm" aria-label="Проверить VPN: <%= node.name %>">Проверить</button></form>
+              <% } %>
+              <form method="post" action="/api/subscription-nodes/<%= node.id %>/settings" data-node-setting>
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="is_enabled" value="<%= node.is_enabled ? '0' : '1' %>">
+                <button class="border border-gray-300 rounded px-3 py-2 min-h-[40px] text-sm" aria-label="<%= node.is_enabled ? 'Исключить узел' : 'Включить узел' %>: <%= node.name %>"><%= node.is_enabled ? 'Исключить' : 'Включить' %></button>
+              </form>
+            </div>
+          </div>
+        </li>
+      <% }); %>
+    </ul>
+    <nav aria-label="Страницы каталога" class="flex flex-wrap items-center gap-4 mt-6">
+      <span>Страница <%= page %> из <%= pages %> · Найдено: <%= total %></span>
+      <% if (page > 1) { %><a class="bg-white border rounded px-4 py-2" href="?page=<%= page - 1 %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>">Предыдущая</a><% } %>
+      <% if (page < pages) { %><a class="bg-white border rounded px-4 py-2" href="?page=<%= page + 1 %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>">Следующая</a><% } %>
+    </nav>
+  </main>
+  <script src="/subscription-actions.js" defer></script>
+</body>
+</html>

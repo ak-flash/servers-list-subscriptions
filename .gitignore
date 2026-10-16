@@ -9,3 +9,5 @@ coverage/
 *.sqlite
 *.db
 data/
+.playwright-mcp/
+tools/xray/

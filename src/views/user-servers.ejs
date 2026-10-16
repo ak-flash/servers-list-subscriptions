@@ -1,81 +1,111 @@
 <!DOCTYPE html>
 <html lang="ru">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Серверы пользователя - <%= appName %>
-    </title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
-<body class="bg-gray-100">
-    <header class="bg-slate-800 text-white px-8 py-4">
-        <h1 class="text-xl">Серверы пользователя: <%= user.username %>
-        </h1>
-    </header>
-    <main class="max-w-2xl mx-auto mt-8 px-4">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Ссылка подписки</h2>
-            <div class="flex items-center gap-3 mb-4">
-                <a href="/join/<%= user.id %>#Подписка_<%= user.username %>" target="_blank" class="block bg-blue-50 p-3 rounded text-lg break-all hover:bg-blue-100 text-blue-600"><%= user.id %></a>
-                <a href="/join/<%= user.id %>/qr" target="_blank" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">QR код</a>
-            </div>
-
-            <form method="POST" action="/admin/users/<%= user.id %>/servers">
-                <div class="mb-4 pb-4 border-b">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="select-all" class="w-4 h-4">
-                        <span>Выбрать все серверы</span>
-                    </label>
+<head><%- include('partials/subscription-head', { title: `Серверы пользователя — ${appName}` }) %></head>
+<body class="bg-gray-100 text-gray-800">
+  <%- include('partials/subscription-header', { heading: `Серверы пользователя: ${user.username}` }) %>
+  <main id="main" class="max-w-3xl mx-auto my-8 px-4">
+    <section class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-3">Ссылка подписки</h2>
+      <div class="flex flex-wrap items-center gap-3">
+        <a href="/join/<%= user.id %>" target="_blank" rel="noopener" class="text-blue-700 underline underline-offset-4 py-2">Открыть подписку <%= user.id %></a>
+        <a href="/join/<%= user.id %>/qr" target="_blank" rel="noopener" class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 min-h-[44px] rounded">Открыть QR-код</a>
+      </div>
+      <p class="text-sm text-gray-600 mt-3">Изменения состава появятся в VPN-клиенте после обновления подписки.</p>
+    </section>
+    <% if (error) { %><p id="assignment-error" role="alert" tabindex="-1" class="bg-red-50 text-red-800 p-4 rounded-lg mb-6"><%= error %></p><% } %>
+    <% if (saved) { %><p role="status" class="bg-green-50 text-green-800 p-4 rounded-lg mb-6">Назначения сохранены.</p><% } %>
+    <form method="post" action="/admin/users/<%= user.id %>/servers" class="space-y-6">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <section class="bg-white rounded-lg shadow p-4 md:p-6">
+        <h2 class="text-lg font-semibold">Ручные назначения</h2>
+        <p class="text-sm text-gray-600 mt-2 mb-4">Отдельные серверы с пользовательским UUID. Они не входят в лимиты внешних источников.</p>
+        <% if (!servers.length) { %>
+          <p class="text-gray-600">Ручных серверов нет. Можно назначить только источники ниже.</p>
+        <% } else { %>
+          <label class="flex items-center gap-3 mb-3 min-h-[44px]"><input type="checkbox" id="select-all" class="w-5 h-5">Выбрать все ручные серверы</label>
+          <div class="space-y-4">
+            <% servers.forEach(server => { %>
+              <div class="border border-gray-200 rounded p-4">
+                <label class="flex gap-3 items-center min-h-[44px] cursor-pointer">
+                  <input type="checkbox" name="servers" value="<%= server.id %>" <%= assignedIds.includes(server.id) ? 'checked' : '' %> class="w-5 h-5 shrink-0">
+                  <span class="min-w-0"><span class="block font-medium break-all"><%= server.name %></span><span class="block text-sm text-gray-600 break-all"><%= server.protocol.toUpperCase() %> · <%= server.host %>:<%= server.port %></span></span>
+                </label>
+                <div class="mt-3">
+                  <label for="uuid-<%= server.id %>" class="block text-sm font-medium mb-2">UUID для сервера «<%= server.name %>»</label>
+                  <input id="uuid-<%= server.id %>" name="uuids[<%= server.id %>]" type="text" value="<%= uuidMap[server.id] || '' %>" maxlength="256" class="border border-gray-300 rounded px-3 py-2 w-full font-mono" autocomplete="off" spellcheck="false" aria-describedby="uuid-hint-<%= server.id %>">
+                  <p id="uuid-hint-<%= server.id %>" class="text-sm text-gray-600 mt-2">Пустое поле сохраняет назначенный UUID или создаёт новый при первом назначении.</p>
                 </div>
-
-                <% if (servers.length===0) { %>
-                    <p class="text-gray-500">Нет доступных серверов. <a href="/admin/servers/new"
-                            class="text-green-600 hover:underline">Создайте сервер</a>.</p>
-                    <% } else { %>
-                        <% const assignedIdsStr = assignedIds.map(String); %>
-                        <div class="space-y-3 mb-6">
-                            <% servers.forEach(function(server) { %>
-                                <div class="p-3 border rounded hover:bg-gray-50">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <input type="checkbox" name="servers" value="<%= String(server.id) %>"
-                                            class="w-4 h-4" <%= assignedIdsStr.includes(String(server.id)) ? 'checked' : '' %>>
-                                        <div>
-                                            <div class="font-medium">
-                                                <%= server.name %>
-                                            </div>
-                                            <div class="text-sm text-gray-500">
-                                                <%= server.protocol ? server.protocol.toUpperCase() : '' %> | <%= server.host %>:<%= server.port %>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="ml-7">
-                                        <label class="block text-sm text-gray-600 mb-1">UUID для этого сервера:</label>
-                                        <input type="text" name="uuids[<%= server.id %>]" value="<%= uuidMap[server.id] || '' %>"
-                                            placeholder="Оставьте пустым для автогенерации"
-                                            class="w-full px-3 py-1.5 border rounded text-sm font-mono">
-                                    </div>
-                                </div>
-                                <% }); %>
-                        </div>
-                        <% } %>
-
-                            <div class="flex gap-4">
-                                <button type="submit"
-                                    class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Сохранить</button>
-                                <a href="/admin"
-                                    class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Отмена</a>
-                            </div>
-            </form>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </section>
+      <section class="bg-white rounded-lg shadow p-4 md:p-6">
+        <h2 class="text-lg font-semibold">Внешние источники</h2>
+        <p class="text-sm text-gray-600 mt-2 mb-4">UUID берётся из источника. Выдаются только узлы со свежей успешной VPN-проверкой.</p>
+        <% if (!sources.length) { %><p>Источников пока нет. <a href="/admin/subscription-sources/new" class="text-blue-700 underline underline-offset-4">Добавить источник</a>.</p><% } %>
+        <div class="space-y-4">
+          <% sources.forEach(source => {
+            const binding = bindings.find(item => item.source_id === source.id);
+            const selected = selectedSources ? selectedSources.includes(source.id) : !!binding?.is_active;
+            const limit = values?.source_limits?.[source.id] ?? binding?.node_limit ?? 3;
+            const maxLatency = values?.max_latency?.[source.id] ?? binding?.max_latency_ms ?? '';
+            const priority = values?.priorities?.[source.id] ?? binding?.priority ?? 0;
+          %>
+            <div class="border border-gray-200 rounded p-4" data-source-binding>
+              <label class="flex items-center gap-3 min-h-[44px] cursor-pointer">
+                <input type="checkbox" name="sources" value="<%= source.id %>" <%= selected ? 'checked' : '' %> class="w-5 h-5 shrink-0" data-source-checkbox>
+                <span class="min-w-0"><span class="block font-medium break-all"><%= source.name %></span><span class="text-sm text-gray-600"><%= source.is_active ? `Работают через VPN: ${source.healthy} из ${source.count}` : 'Источник отключён' %></span></span>
+              </label>
+              <fieldset class="grid sm:grid-cols-3 gap-4 mt-4" data-source-fields>
+                <legend class="sr-only">Отбор узлов из источника «<%= source.name %>»</legend>
+                <div><label for="limit-<%= source.id %>" class="block text-sm font-medium mb-2">Количество узлов</label><input id="limit-<%= source.id %>" name="source_limits[<%= source.id %>]" type="number" min="1" max="20" step="1" value="<%= limit %>" class="w-full border border-gray-300 rounded px-3 py-2"></div>
+                <div><label for="latency-<%= source.id %>" class="block text-sm font-medium mb-2">Задержка до, мс</label><input id="latency-<%= source.id %>" name="max_latency[<%= source.id %>]" type="number" min="1" max="60000" step="1" value="<%= maxLatency %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="latency-hint-<%= source.id %>"><p id="latency-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Пусто — без ограничения</p></div>
+                <div><label for="priority-<%= source.id %>" class="block text-sm font-medium mb-2">Приоритет</label><input id="priority-<%= source.id %>" name="priorities[<%= source.id %>]" type="number" min="0" max="1000" step="1" value="<%= priority %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="priority-hint-<%= source.id %>"><p id="priority-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Меньшее число — раньше</p></div>
+              </fieldset>
+              <a href="/admin/subscription-sources/<%= source.id %>/nodes" class="inline-block text-sm text-blue-700 underline underline-offset-4 mt-4">Посмотреть узлы источника</a>
+            </div>
+          <% }); %>
         </div>
-    </main>
-    <script>
-        document.getElementById('select-all').addEventListener('change', function () {
-            const checkboxes = document.querySelectorAll('input[name="servers"]');
-            checkboxes.forEach(function (cb) { cb.checked = document.getElementById('select-all').checked; });
-        });
-    </script>
+      </section>
+      <div class="flex flex-wrap gap-3">
+        <button type="submit" class="bg-green-700 hover:bg-green-800 text-white px-5 py-3 rounded">Сохранить назначения</button>
+        <a href="/admin" class="bg-white border border-gray-300 px-5 py-3 rounded">Отмена</a>
+      </div>
+    </form>
+    <section class="bg-white rounded-lg shadow p-4 md:p-6 mt-8">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 class="text-lg font-semibold">Текущий сохранённый состав</h2>
+        <a href="/admin/users/<%= user.id %>/servers" class="text-blue-700 underline underline-offset-4 py-2">Обновить состав</a>
+      </div>
+      <p class="text-sm text-gray-600 mb-4">Состояние на <%= time(preview.resolved_at) %>. Изменения формы учитываются после сохранения.</p>
+      <% if (!preview.servers.length) { %><p class="mb-4">Пока нет доступных узлов. Назначьте серверы или дождитесь успешной проверки источников.</p><% } %>
+      <% preview.sources.forEach(source => { %>
+        <div class="border-b border-gray-200 pb-4 mb-4">
+          <h3 class="font-medium break-all"><%= source.name %></h3>
+          <p class="mt-1">Запрошено <%= source.requested %>, доступно <%= source.available %>, выбрано <%= source.selected.length %>.</p>
+          <% if (Object.keys(source.excluded).length) { %><ul class="text-sm text-gray-600 mt-2"><% Object.entries(source.excluded).forEach(([reason, count]) => { %><li><%= statusLabel(reason) %>: <%= count %></li><% }); %></ul><% } %>
+        </div>
+      <% }); %>
+      <ul class="space-y-3">
+        <% preview.servers.forEach(server => { %>
+          <li><strong class="break-all"><%= server.name %></strong><p class="text-sm text-gray-600"><%= server.origin === 'manual' ? 'Ручное назначение' : `${latency(server.latency_ms)} · Проверено ${time(server.last_checked_at)}` %></p></li>
+        <% }); %>
+      </ul>
+    </section>
+  </main>
+  <script>
+    document.getElementById('select-all')?.addEventListener('change', event => {
+      document.querySelectorAll('input[name="servers"]').forEach(input => { input.checked = event.target.checked; });
+    });
+    document.querySelectorAll('[data-source-binding]').forEach(group => {
+      const checkbox = group.querySelector('[data-source-checkbox]');
+      const fields = group.querySelector('[data-source-fields]');
+      const update = () => { fields.disabled = !checkbox.checked; };
+      checkbox.addEventListener('change', update);
+      update();
+    });
+    document.getElementById('assignment-error')?.focus();
+  </script>
 </body>
-
 </html>

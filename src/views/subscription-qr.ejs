@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><%- include('partials/subscription-head', { title: `Подписка — ${user.username}` }) %></head>
+<body class="bg-gray-100 text-gray-800">
+  <main class="max-w-lg mx-auto my-8 p-4">
+    <div class="bg-white rounded-lg shadow p-6 text-center">
+      <h1 class="text-xl font-semibold break-words">Подписка: <%= user.username %></h1>
+      <img src="<%= qrCode %>" alt="QR-код ссылки подписки" width="300" height="300" class="mx-auto my-4 max-w-full">
+      <p class="text-gray-600">Отсканируйте код в VPN-клиенте или откройте ссылку подписки.</p>
+      <a href="<%= subscriptionUrl %>" class="inline-block mt-4 text-blue-700 underline underline-offset-4">Открыть подписку</a>
+    </div>
+  </main>
+</body>
+</html>

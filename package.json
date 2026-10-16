@@ -4,15 +4,22 @@
   "description": "VPN subscription service with admin panel",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "start": "node scripts/start.js",
+    "dev": "node scripts/start.js watch",
+    "test": "node --test test/*.test.js",
+    "test:vpn": "node --test test/integration/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
+    "ipaddr.js": "2.2.0",
     "qrcode": "^1.5.4",
+    "socks-proxy-agent": "8.0.5",
     "sql.js": "^1.10.2"
   },
   "devDependencies": {
