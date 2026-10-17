@@ -69,6 +69,21 @@ test('Reality parameters are validated, included in identity and mapped to the p
   assert.equal(parseVless(uri.replace('type=raw', 'type=ws')).capability, 'unsupported');
 });
 
+test('VLESS XHTTP with Reality preserves transport settings and builds Xray config', () => {
+  const raw = 'Vless://1e2b9c0c-4f9b-56f5-a062-1c4f2d2aa200@84.201.180.13:443?encryption=none&extra=null&fp=safari&host=api-maps.yandex.ru&pbk=DuxQy3KWEZTU_sBhXSfeo_1Q0-0lMcSnx21bWvUi5hQ&security=reality&sni=api-maps.yandex.ru&type=xhttp#%F0%9F%87%B3%F0%9F%87%B1%20The%20Netherlands%20%E2%80%94%20%23117';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.equal(parsed.name, '🇳🇱 The Netherlands — #117');
+  assert.deepEqual(parsed.config.xhttp, { host: 'api-maps.yandex.ru', path: '/', mode: 'auto', extra: 'null' });
+  assert.equal(parsed.config.reality.publicKey, 'DuxQy3KWEZTU_sBhXSfeo_1Q0-0lMcSnx21bWvUi5hQ');
+  assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
+  const built = buildXrayConfig(parsed.config, '84.201.180.13', 12000, { user: 'test', password: 'test' });
+  assert.deepEqual(built.outbounds[0].streamSettings.xhttpSettings, { host: 'api-maps.yandex.ru', path: '/', mode: 'auto' });
+  assert.equal(built.outbounds[0].streamSettings.realitySettings.password, parsed.config.reality.publicKey);
+  assert.equal(parseVless(raw.replace('type=xhttp', 'type=grpc')).capability, 'unsupported');
+  assert.equal(parseVless(raw.replace('extra=null', 'extra=bad')).capability, 'unsupported');
+});
+
 test('VLESS security=none supports TCP/WS without adding TLS and rejects Vision without TLS/Reality', () => {
   for (const network of ['tcp', 'ws']) {
     const parsed = parseVless(link().replace('security=tls', 'security=none').replace('type=tcp', `type=${network}`));
