@@ -1,10 +1,13 @@
 <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:bg-white focus:p-4 focus:z-50">Перейти к содержимому</a>
-<header class="bg-slate-800 text-white px-4 md:px-8 py-4">
-  <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
-    <h1 class="text-xl font-semibold break-words min-w-0"><%= heading %></h1>
-    <nav aria-label="Админ-панель" class="flex flex-wrap gap-4 text-sm">
-      <a href="/admin" class="py-2 underline underline-offset-4">Серверы и пользователи</a>
-      <a href="/admin/subscription-sources" class="py-2 underline underline-offset-4">Источники подписок</a>
+<header class="bg-slate-950 text-white shadow-lg">
+  <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 md:px-8">
+    <div class="min-w-0">
+      <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-300">VPN subscription service</p>
+      <h1 class="mt-1 break-words text-xl font-semibold tracking-tight"><%= heading %></h1>
+    </div>
+    <nav aria-label="Админ-панель" class="flex flex-wrap gap-2 text-sm">
+      <a href="/admin" class="rounded-lg px-3 py-2 text-slate-300 underline-offset-4 transition hover:bg-white/10 hover:text-white hover:underline">Серверы и пользователи</a>
+      <a href="/admin/subscription-sources" class="rounded-lg px-3 py-2 text-slate-300 underline-offset-4 transition hover:bg-white/10 hover:text-white hover:underline">Источники подписок</a>
     </nav>
   </div>
 </header>

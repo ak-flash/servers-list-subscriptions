@@ -80,7 +80,12 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
     if (!source) return res.status(404).send('Источник не найден');
     const all = health.getNodes(source.id).map(node => health.safeNode(node, config));
     const filter = typeof req.query.status === 'string' ? req.query.status : '';
-    const nodes = all.filter(node => (node.is_present || req.query.removed === '1') && (!filter || node.effective_status === filter));
+    const nodes = all.filter(node => (node.is_present || req.query.removed === '1') && (!filter || node.effective_status === filter))
+      .sort((a, b) => {
+        const aLatency = Number.isFinite(a.latency_ms) && a.latency_ms >= 0 ? a.latency_ms : Number.POSITIVE_INFINITY;
+        const bLatency = Number.isFinite(b.latency_ms) && b.latency_ms >= 0 ? b.latency_ms : Number.POSITIVE_INFINITY;
+        return aLatency - bLatency || String(a.name).localeCompare(String(b.name), 'ru') || String(a.id).localeCompare(String(b.id));
+      });
     const pages = Math.max(1, Math.ceil(nodes.length / 50));
     const page = Math.max(1, Math.min(pages, Number.parseInt(req.query.page, 10) || 1));
     res.render('subscription-source-nodes', {

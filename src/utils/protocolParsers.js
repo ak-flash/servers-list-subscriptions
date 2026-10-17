@@ -4,7 +4,7 @@ const { domainToASCII } = require('url');
 const { SubscriptionError } = require('./subscriptionErrors');
 
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
-const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'extra', 'mode']);
+const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'extra', 'mode', 'serviceName', 'fm']);
 const REALITY_PARAMS = new Set(['pbk', 'sid', 'spx', 'pqv']);
 const FINGERPRINTS = new Set(['', 'chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'random', 'randomized']);
 
@@ -42,8 +42,8 @@ function vlessCapability(config) {
   if (config.protocol !== 'vless' || !['tls', 'reality', 'none'].includes(config.security)) {
     return unsupported('Поддерживаются VLESS с security=tls, reality или none.');
   }
-  if (!['tcp', 'ws', 'xhttp'].includes(config.network)) return unsupported('Поддерживаются транспорты TCP/RAW, WebSocket и XHTTP.');
-  if (config.security === 'reality' && !['tcp', 'xhttp'].includes(config.network)) return unsupported('Reality поддерживается с транспортами TCP/RAW и XHTTP.');
+  if (!['tcp', 'ws', 'xhttp', 'grpc'].includes(config.network)) return unsupported('Поддерживаются транспорты TCP/RAW, WebSocket, XHTTP и gRPC.');
+  if (config.security === 'reality' && !['tcp', 'xhttp', 'grpc'].includes(config.network)) return unsupported('Reality поддерживается с транспортами TCP/RAW, XHTTP и gRPC.');
   if (config.encryption !== 'none' || config.headerType !== 'none' || Object.keys(config.extra || {}).length) {
     return unsupported('Ссылка содержит неподдерживаемые параметры подключения.');
   }
@@ -54,7 +54,17 @@ function vlessCapability(config) {
   }
   if (config.ws && (!config.ws.path.startsWith('/') || /[\r\n]/.test(config.ws.host))) return unsupported('Неподдерживаемые параметры WebSocket.');
   if (config.xhttp && (!config.xhttp.path.startsWith('/') || /[\r\n]/.test(config.xhttp.host) || !['auto', 'packet-up', 'stream-up', 'stream-one'].includes(config.xhttp.mode))) return invalid('Неподдерживаемые параметры XHTTP.');
-  if (config.xhttp && config.xhttp.extra && !['null', ''].includes(config.xhttp.extra)) return unsupported('Параметр XHTTP extra пока не поддерживается в проверяющем профиле.');
+  if (config.grpc && (!config.grpc.serviceName || /[\r\n]/.test(config.grpc.serviceName) || !['gun', 'multi'].includes(config.grpc.mode))) return invalid('Для gRPC нужны serviceName и mode=gun или mode=multi.');
+  if (config.finalmask) {
+    if (!Array.isArray(config.finalmask.tcp)) return invalid('FinalMask tcp должен быть массивом.');
+    for (const mask of config.finalmask.tcp) {
+      if (!mask || mask.type !== 'fragment' || !mask.settings || !Array.isArray(mask.settings.delays) || !Array.isArray(mask.settings.lengths) || !['tlshello', ''].includes(mask.settings.packets || '')) return unsupported('Поддерживается только TCP fragment FinalMask для tlshello.');
+      const settings = mask.settings;
+      if (!settings.delays.every(value => /^\d+(?:-\d+)?$/.test(String(value))) || !settings.lengths.every(value => /^\d+(?:-\d+)?$/.test(String(value))) || (settings.maxSplit !== undefined && !/^\d+(?:-\d+)?$/.test(String(settings.maxSplit)))) return invalid('Некорректные диапазоны TCP fragment FinalMask.');
+    }
+  }
+  if (config.xhttp?.extra && typeof config.xhttp.extra !== 'object') return invalid('Параметр XHTTP extra должен быть JSON-объектом.');
+  if (config.xhttp?.extra?.downloadSettings) return unsupported('XHTTP downloadSettings пока не поддерживается в проверяющем профиле.');
   if (config.security === 'reality') {
     if (!config.reality || !isBase64UrlKey(config.reality.publicKey, 32)) return invalid('Для Reality требуется корректный публичный ключ pbk: 32 байта в Base64URL без padding.');
     if (!/^(?:[a-f\d]{2}){0,8}$/.test(config.reality.shortId)) return invalid('Reality sid должен содержать от 0 до 16 шестнадцатеричных символов, с чётной длиной.');
@@ -106,11 +116,29 @@ function parseVless(raw) {
     allowInsecure: ['1', 'true'].includes(params.allowInsecure),
     headerType: params.headerType || 'none',
     ws: network === 'ws' ? { host: params.host || host, path: params.path || '/' } : null,
-    xhttp: network === 'xhttp' ? { host: params.host || host, path: params.path || '/', mode: params.mode || 'auto', extra: params.extra || null } : null,
+    xhttp: network === 'xhttp' ? { host: params.host || host, path: params.path || '/', mode: params.mode || 'auto', extra: null } : null,
+    grpc: network === 'grpc' ? { serviceName: params.serviceName || '', mode: params.mode || 'gun' } : null,
     extra: Object.fromEntries(Object.entries(params).filter(([key]) =>
       (!KNOWN_PARAMS.has(key) && !(security === 'reality' && REALITY_PARAMS.has(key))) ||
       (network !== 'ws' && network !== 'xhttp' && ['host', 'path'].includes(key))))
   };
+  if (network === 'grpc' && params.mode === 'multi') config.grpc.mode = 'multi';
+  if (params.fm) {
+    try {
+      config.finalmask = JSON.parse(params.fm);
+      if (!config.finalmask || typeof config.finalmask !== 'object' || Array.isArray(config.finalmask)) throw new Error();
+    } catch {
+      throw new SubscriptionError('invalid_link');
+    }
+  }
+  if (network === 'xhttp' && params.extra) {
+    try {
+      config.xhttp.extra = JSON.parse(params.extra);
+      if (config.xhttp.extra !== null && (typeof config.xhttp.extra !== 'object' || Array.isArray(config.xhttp.extra))) throw new Error();
+    } catch {
+      throw new SubscriptionError('invalid_link');
+    }
+  }
   if (security === 'reality') {
     config.reality = { publicKey: params.pbk || '', shortId: (params.sid || '').toLowerCase(), spiderX: params.spx || '/', mldsa65Verify: params.pqv || '' };
   }
@@ -133,8 +161,13 @@ function serializeVless(config, name = '') {
     params.set('host', config.xhttp.host);
     params.set('path', config.xhttp.path);
     params.set('mode', config.xhttp.mode);
-    if (config.xhttp.extra) params.set('extra', config.xhttp.extra);
+    if (config.xhttp.extra) params.set('extra', JSON.stringify(config.xhttp.extra));
   }
+  if (config.grpc) {
+    params.set('serviceName', config.grpc.serviceName);
+    params.set('mode', config.grpc.mode);
+  }
+  if (config.finalmask) params.set('fm', JSON.stringify(config.finalmask));
   if (config.reality) {
     params.set('pbk', config.reality.publicKey);
     params.set('sid', config.reality.shortId);

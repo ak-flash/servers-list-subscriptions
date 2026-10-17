@@ -9,27 +9,21 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-gray-100">
-    <header
-        class="bg-slate-800 text-white px-4 md:px-8 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-        <h1 class="text-lg md:text-xl">
-            <%= appName %> - Статистика
-        </h1>
-        <div class="flex items-center gap-4 text-sm md:text-base">
-            <a href="/admin" class="text-gray-300 hover:text-white">← Назад</a>
-            <button onclick="clearStatistics()"
-                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">🗑️ Очистить</button>
-            <span>Привет, <%= username %></span>
-            <a href="/admin/logout" class="text-gray-300 hover:text-white">Выйти</a>
-        </div>
-    </header>
-
-    <main class="max-w-6xl mx-auto mt-8 px-4">
-        <div class="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
+<body class="bg-slate-100 text-slate-900">
+    <%- include('partials/subscription-header', { heading: 'Статистика' }) %>
+    <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
+        <section class="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 p-5 text-white shadow-xl md:p-8">
+            <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
+            <div class="relative flex flex-wrap items-end justify-between gap-5">
+                <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Аналитика сервиса</p><h2 class="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">Статистика</h2><p class="mt-2 text-sm text-slate-300">Запросы подписок, пользователи и использование трафика.</p></div>
+                <button onclick="clearStatistics()" class="min-h-[44px] rounded-lg border border-red-300/40 bg-red-500/10 px-4 py-3 font-semibold text-red-100 hover:bg-red-500/20">Очистить статистику</button>
+            </div>
+        </section>
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6">
             <div class="flex flex-wrap items-center gap-4 mb-4 pb-4 border-b">
                 <h2 class="text-lg font-semibold text-gray-800">Выберите месяц:</h2>
                 <form method="GET" action="/admin/stats" class="flex items-center gap-2">
-                    <select name="month" onchange="this.form.submit()" class="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <select name="month" onchange="this.form.submit()" class="rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                         <option value="">Все время</option>
                         <% if (typeof availableMonths !== 'undefined' && availableMonths.length > 0) { %>
                             <% availableMonths.forEach(function(m) { %>
@@ -45,7 +39,7 @@
                 <% } %>
             </div>
             <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Общая статистика</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div class="bg-blue-50 rounded-lg p-4">
                     <div class="text-2xl md:text-3xl font-bold text-blue-600">
                         <%= totalRequests %>
@@ -98,7 +92,7 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow p-4 md:p-6">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ пользователей</h2>
                 <% if (topUsers.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных</p>
@@ -135,7 +129,7 @@
                         <% } %>
             </div>
 
-            <div class="bg-white rounded-lg shadow p-4 md:p-6">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ по трафику (серверы)</h2>
                 <% if (topServersTraffic.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных о трафике</p>
@@ -183,7 +177,7 @@
                         <% } %>
             </div>
 
-            <div class="bg-white rounded-lg shadow p-4 md:p-6">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Запросов по дням (30 дней)</h2>
                 <% if (requestsByDay.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных</p>
@@ -208,7 +202,7 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-4 md:p-6 mb-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-4">
             <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Последние запросы</h2>
             <% if (lastRequests.length===0) { %>
                 <p class="text-gray-500 text-center py-8">Нет запросов подписок</p>

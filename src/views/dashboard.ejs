@@ -10,35 +10,25 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-gray-100">
-    <header
-        class="bg-slate-800 text-white px-4 md:px-8 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-        <h1 class="text-lg md:text-xl">
-            <%= appName %> - Админ-панель
-        </h1>
-        <div class="flex items-center gap-4 text-sm md:text-base">
-
-            <span>Привет, <%= username %></span>
-            <a href="/admin/logout" class="text-gray-300 hover:text-white">Выйти</a>
-        </div>
-    </header>
-    <main class="max-w-6xl mx-auto mt-8 px-4">
-        <section class="bg-white rounded-lg shadow p-4 md:p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h2 class="text-lg font-semibold text-gray-800">Внешние подписки</h2>
-                <p class="text-sm text-gray-600 mt-1">Импорт VLESS, VPN-проверки через Xray и автоматический отбор рабочих узлов.</p>
+<body class="bg-slate-100 text-slate-900">
+    <%- include('partials/subscription-header', { heading: 'Админ-панель' }) %>
+    <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
+        <section class="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 p-5 text-white shadow-xl md:p-8">
+            <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
+            <div class="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+                <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Центр управления</p><h2 class="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">Серверы и пользователи</h2><p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p></div>
+                <a href="/admin/subscription-sources" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-500 px-4 py-3 font-semibold text-white hover:bg-blue-400">Управлять источниками</a>
             </div>
-            <a href="/admin/subscription-sources" class="bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700">Управлять источниками</a>
         </section>
-        <div class="bg-white rounded-lg shadow p-4 md:p-6 mb-6 w-full">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6 w-full">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b">
-                <h2 class="text-lg font-semibold text-gray-800">Ручные серверы · TCP-диагностика</h2>
+                <h2 class="text-lg font-semibold text-gray-800">Ручные серверы</h2>
                 <div class="flex flex-col md:flex-row gap-2 w-full sm:w-auto">
 
                     <button id="checkAllBtn" onclick="checkAllServers()"
-                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full sm:w-auto">Проверить TCP-порты</button>
+                        class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 w-full sm:w-auto">Проверить VPN</button>
                     <a href="/admin/servers/new"
-                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto text-center">+
+                        class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 w-full sm:w-auto text-center">+
                         Добавить сервер</a>
                 </div>
             </div>
@@ -52,7 +42,7 @@
                                 <th class="pb-3">Хост</th>
                                 <th class="pb-3">Порт</th>
                                 <th class="pb-3">Протокол</th>
-                                <th class="pb-3">Статус</th>
+                                <th class="pb-3">VPN / задержка</th>
                                 <th class="pb-3 text-right">Действия</th>
                             </tr>
                         </thead>
@@ -75,19 +65,20 @@
                                     </td>
                                     <td class="py-3">
                                         <span id="status-<%= server.id %>"
-                                            class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">Не
-                                            проверен</span>
+class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" data-latency="">Не проверен</span>
                                     </td>
                                     <td class="py-3 text-right">
                                         <div class="flex gap-2 items-center justify-end">
-                                            <button onclick="checkServer('<%= server.id %>')"
-                                                class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">Проверить</button>
+<button type="button" onclick="checkServer('<%= server.id %>')"
+                                                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Проверить VPN: <%= server.name %>" title="Проверить VPN">
+                                                 <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h3l2-7 4 14 2-7h7"/></svg>
+                                             </button>
                                             <a href="/admin/servers/<%= server.id %>/edit"
-                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Редактировать</a>
+                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Редактировать</a>
                                             <form method="POST" action="/admin/servers/<%= server.id %>/delete"
                                                 onsubmit="return confirm('Удалить сервер?')">
                                                 <button type="submit"
-                                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 flex items-center justify-center">
+                                                    class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                                         viewBox="0 0 24 24" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -119,21 +110,22 @@
                                         </div>
                                     </div>
                                     <span id="status-mobile-<%= server.id %>"
-                                        class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">Не
-                                        проверен</span>
+class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" data-latency="">Не проверен</span>
                                 </div>
-                                <div class="text-xs text-gray-400 mb-3">
-                                    <%= server.protocol ? server.protocol.toUpperCase() : '' %>
-                                </div>
+<div class="mb-3 text-xs text-gray-400">
+                                     <%= server.protocol ? server.protocol.toUpperCase() : '' %> · проверка через Xray
+                                 </div>
                                 <div class="flex gap-2">
-                                    <button onclick="checkServer('<%= server.id %>')"
-                                        class="hidden md:flex bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 flex-1 text-center">Проверить</button>
+<button type="button" onclick="checkServer('<%= server.id %>')"
+                                         class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Проверить VPN: <%= server.name %>" title="Проверить VPN">
+                                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h3l2-7 4 14 2-7h7"/></svg>
+                                     </button>
                                     <a href="/admin/servers/<%= server.id %>/edit"
                                         class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 flex-1 text-center">Редактировать</a>
                                     <form method="POST" action="/admin/servers/<%= server.id %>/delete"
                                         onsubmit="return confirm('Удалить сервер?')">
                                         <button type="submit"
-                                            class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Удалить</button>
+                                            class="inline-flex min-h-[38px] items-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">Удалить</button>
                                     </form>
                                 </div>
                             </div>
@@ -142,16 +134,16 @@
                     <% } %>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-4 md:p-6 w-full mb-6">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 w-full mb-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b">
                 <h2 class="text-lg font-semibold text-gray-800">Пользователи</h2>
                 <div class="flex flex-col md:flex-row gap-2 w-full sm:w-auto">
                     <a href="/admin/stats"
-                        class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 w-full sm:w-auto text-center">📊
+                        class="min-h-[44px] rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50 w-full sm:w-auto text-center">📊
                         Статистика</a>
 
                     <a href="/admin/users/new"
-                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full sm:w-auto text-center">+
+                        class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 w-full sm:w-auto text-center">+
                         Добавить пользователя</a>
                 </div>
 
@@ -222,13 +214,13 @@
                                     <td class="py-3">
                                         <div class="flex gap-2 items-center">
                                             <a href="/admin/users/<%= user.id %>/servers"
-                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Серверы</a>
+                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Серверы</a>
                                             <a href="/admin/users/<%= user.id %>/edit"
-                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Редактировать</a>
+                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Редактировать</a>
                                             <form method="POST" action="/admin/users/<%= user.id %>/delete"
                                                 onsubmit="return confirm('Удалить пользователя?')">
                                                 <button type="submit"
-                                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Удалить</button>
+                                                    class="inline-flex min-h-[38px] items-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">Удалить</button>
                                             </form>
                                         </div>
                                     </td>
@@ -278,13 +270,13 @@
                                         </div>
                                         <div class="flex flex-wrap gap-2">
                                             <a href="/admin/users/<%= user.id %>/servers"
-                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Серверы</a>
+                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Серверы</a>
                                             <a href="/admin/users/<%= user.id %>/edit"
-                                                class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">Редактировать</a>
+                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Редактировать</a>
                                             <form method="POST" action="/admin/users/<%= user.id %>/delete"
                                                 onsubmit="return confirm('Удалить пользователя?')">
                                                 <button type="submit"
-                                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Удалить</button>
+                                                    class="inline-flex min-h-[38px] items-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">Удалить</button>
                                             </form>
                                         </div>
                             </div>
@@ -349,16 +341,19 @@
 
                 const applyResult = (el) => {
                     if (!el) return;
-                    if (data.status === 'online') {
-                        el.textContent = 'TCP открыт';
-                        el.className = 'px-2 py-1 text-xs rounded bg-green-100 text-green-800';
-                    } else if (data.status === 'timeout') {
-                        el.textContent = 'Таймаут';
-                        el.className = 'px-2 py-1 text-xs rounded bg-orange-100 text-orange-800';
-                    } else {
-                        el.textContent = 'TCP недоступен';
-                        el.className = 'px-2 py-1 text-xs rounded bg-red-100 text-red-800';
-                    }
+if (data.status === 'healthy') {
+                         el.textContent = `${Math.round(data.latency_ms)} мс`;
+                         el.className = 'inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800';
+                     } else if (data.status === 'degraded') {
+                         el.textContent = data.latency_ms ? `${Math.round(data.latency_ms)} мс · нестабильно` : 'Нестабильно';
+                         el.className = 'inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800';
+                     } else if (data.status === 'test_failed') {
+                         el.textContent = 'Тест не пройден';
+                         el.className = 'inline-flex rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-800';
+                     } else {
+                         el.textContent = data.status === 'unsupported' ? 'Не поддерживается' : 'Недоступен';
+                         el.className = 'inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800';
+                     }
                 };
                 applyResult(statusEl);
                 applyResult(statusMobileEl);
@@ -387,16 +382,19 @@
                     const statusMobileEl = document.getElementById('status-mobile-' + result.id);
                     const applyResult = (el) => {
                         if (!el) return;
-                        if (result.status === 'online') {
-                            el.textContent = 'TCP открыт';
-                            el.className = 'px-2 py-1 text-xs rounded bg-green-100 text-green-800';
-                        } else if (result.status === 'timeout') {
-                            el.textContent = 'Таймаут';
-                            el.className = 'px-2 py-1 text-xs rounded bg-orange-100 text-orange-800';
-                        } else {
-                            el.textContent = 'TCP недоступен';
-                            el.className = 'px-2 py-1 text-xs rounded bg-red-100 text-red-800';
-                        }
+if (result.status === 'healthy') {
+                             el.textContent = `${Math.round(result.latency_ms)} мс`;
+                             el.className = 'inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800';
+                         } else if (result.status === 'degraded') {
+                             el.textContent = result.latency_ms ? `${Math.round(result.latency_ms)} мс · нестабильно` : 'Нестабильно';
+                             el.className = 'inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800';
+                         } else if (result.status === 'test_failed') {
+                             el.textContent = 'Тест не пройден';
+                             el.className = 'inline-flex rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-800';
+                         } else {
+                             el.textContent = result.status === 'unsupported' ? 'Не поддерживается' : 'Недоступен';
+                             el.className = 'inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800';
+                         }
                     };
                     applyResult(statusEl);
                     applyResult(statusMobileEl);
@@ -405,7 +403,7 @@
                 alert('Ошибка проверки серверов');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Проверить TCP-порты';
+                btn.textContent = 'Проверить';
             }
         }
     </script>

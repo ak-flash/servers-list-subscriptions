@@ -21,11 +21,14 @@
 | VLESS TCP / RAW + TLS, `encryption=none` | Да |
 | VLESS WebSocket + TLS | Да |
 | VLESS TCP / RAW + Reality | Да: `pbk`, `sid`, SNI, fingerprint, `spx`, опциональный `pqv` |
+| VLESS XHTTP + TLS или Reality | Да: `host`, `path`, `mode`; `extra=null` и поддерживаемые JSON-параметры допускаются |
+| VLESS gRPC + TLS или Reality | Да: `serviceName`, `mode=gun|multi` |
+| VLESS gRPC/Reality с TCP FinalMask fragment (`fm`) | Да: `packets=tlshello`, `delays`, `lengths`, `maxSplit` |
 | VLESS TCP / RAW или WebSocket с `security=none` | Да; TLS к VPN endpoint не добавляется |
 | SNI, ALPN, поддерживаемый Xray TLS fingerprint | Передаются в TLS-конфиг; у Reality ALPN определяется fingerprint |
 | `flow=xtls-rprx-vision` с TCP/TLS или TCP/Reality | Да; с `security=none` этот flow не поддерживается |
 | IPv4, IPv6, Unicode-имена, percent-encoding | Да |
-| gRPC, XHTTP и другие транспорты, Reality поверх WebSocket | `unsupported`, не попадают в автоматическую выдачу |
+| gRPC и другие транспорты, Reality поверх WebSocket | `unsupported`, не попадают в автоматическую выдачу |
 | Явный `alpn` в Reality URI | `unsupported`: закреплённое ядро не поддерживает отдельную настройку Reality ALPN |
 | `allowInsecure=1` | `unsupported`: этот параметр удалён в закреплённой версии Xray |
 | VMess, Trojan, Shadowsocks, Clash YAML, sing-box JSON | Импорт источников в MVP не поддерживает; существующие ручные назначения остаются отдельным механизмом |

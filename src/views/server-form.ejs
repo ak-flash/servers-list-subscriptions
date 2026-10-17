@@ -1,59 +1,57 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= server ? 'Редактирование' : 'Добавление' %> сервера - <%= appName %></title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100">
-    <header class="bg-slate-800 text-white px-8 py-4">
-        <h1 class="text-xl"><%= server ? 'Редактирование' : 'Добавление' %> сервера</h1>
-    </header>
-    <main class="max-w-2xl mx-auto mt-8 px-4">
-        <div class="bg-white rounded-lg shadow p-6">
+<head><%- include('partials/subscription-head', { title: `${server ? 'Редактирование' : 'Добавление'} сервера — ${appName}` }) %></head>
+<body class="bg-slate-100 text-slate-900">
+    <%- include('partials/subscription-header', { heading: server ? 'Редактирование сервера' : 'Добавление сервера' }) %>
+    <main id="main" class="mx-auto max-w-3xl px-4 py-6 md:py-8">
+        <section class="mb-6 rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Ручной каталог</p>
+            <h2 class="mt-2 text-2xl font-semibold"><%= server ? 'Обновите параметры сервера' : 'Добавьте сервер вручную' %></h2>
+            <p class="mt-2 max-w-xl text-sm leading-6 text-slate-300">Ссылка подключения будет использоваться в персональных подписках пользователей.</p>
+        </section>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
             <% if (error) { %>
-                <div class="bg-red-100 text-red-700 p-3 rounded mb-4"><%= error %></div>
+                    <div role="alert" class="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><%= error %></div>
             <% } %>
 
             <form method="POST" action="/admin/servers<%= server ? '/' + server.id : '' %>">
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-medium mb-2">Название</label>
-                    <input type="text" name="name" value="<%= server ? server.name : '' %>" placeholder="Название сервера" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-name">Название</label>
+                    <input id="server-name" type="text" name="name" value="<%= server ? server.name : '' %>" placeholder="Например, Германия — основной" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                 </div>
 
                 <% if (!server) { %>
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-medium mb-2">Ссылка</label>
-                    <textarea name="link" rows="3" placeholder="vless://..." class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"><%= server ? server.link : '' %></textarea>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-link">Ссылка подключения</label>
+                    <textarea id="server-link" name="link" rows="4" placeholder="vless://..." class="w-full rounded-lg border border-slate-300 px-4 py-3 font-mono text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><%= server ? server.link : '' %></textarea>
                 </div>
                 <% } else { %>
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-medium mb-2">Ссылка</label>
-                    <textarea name="link" rows="3" placeholder="vless://..." class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"><%= server ? server.link : '' %></textarea>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-link">Ссылка подключения</label>
+                    <textarea id="server-link" name="link" rows="4" placeholder="vless://..." class="w-full rounded-lg border border-slate-300 px-4 py-3 font-mono text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><%= server ? server.link : '' %></textarea>
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-medium mb-2">Тег (для webhook, например inbound-8443)</label>
-                    <input type="text" name="tag" value="<%= server ? (server.tag || '') : '' %>" placeholder="inbound-8443" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm">
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-tag">Тег для webhook <span class="font-normal text-slate-500">(необязательно)</span></label>
+                    <input id="server-tag" type="text" name="tag" value="<%= server ? (server.tag || '') : '' %>" placeholder="inbound-8443" class="w-full rounded-lg border border-slate-300 px-4 py-3 font-mono text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-medium mb-2">Лимит трафика (ГБ, 0 = без лимита)</label>
-                    <input type="number" name="traffic_limit" value="<%= server ? (server.traffic_limit || 0) : 0 %>" placeholder="0" min="0" class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="traffic-limit">Лимит трафика <span class="font-normal text-slate-500">(ГБ, 0 — без лимита)</span></label>
+                    <input id="traffic-limit" type="number" name="traffic_limit" value="<%= server ? (server.traffic_limit || 0) : 0 %>" placeholder="0" min="0" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                 </div>
                 <% } %>
 
                 <div class="mb-6">
                     <label class="flex items-center gap-2">
-                        <input type="checkbox" name="is_active" id="is_active" value="1" <%= (!server || server.is_active) ? 'checked' : '' %> class="w-4 h-4">
-                        <span>Сервер активен</span>
+                        <input type="checkbox" name="is_active" id="is_active" value="1" <%= (!server || server.is_active) ? 'checked' : '' %> class="h-5 w-5 rounded border-slate-300 text-blue-700 focus:ring-blue-600">
+                        <span class="text-sm font-medium text-slate-700">Сервер активен</span>
                     </label>
                 </div>
 
-                <div class="flex gap-4">
-                    <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"><%= server ? 'Сохранить' : 'Создать' %></button>
-                    <a href="/admin" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Отмена</a>
+                <div class="flex flex-wrap gap-3 border-t border-slate-100 pt-5">
+                    <button type="submit" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"><%= server ? 'Сохранить сервер' : 'Создать сервер' %></button>
+                    <a href="/admin" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">Отмена</a>
                 </div>
             </form>
         </div>

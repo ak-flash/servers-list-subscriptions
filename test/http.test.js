@@ -37,6 +37,8 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   assert.ok(listing.includes('Test source'));
   const nodesPage = await (await request(`/admin/subscription-sources/${source.id}/nodes`, { headers: { cookie } })).text();
   assert.ok(nodesPage.includes('Каталог узлов'));
+  assert.ok(nodesPage.includes('one.example.com'));
+  assert.ok(nodesPage.includes('two.example.com'));
   for (const url of [`/admin/subscription-sources/${source.id}/edit`, `/admin/subscription-sources/${source.id}/nodes`, '/admin/users/u/servers']) {
     assert.equal((await request(url, { headers: { cookie } })).status, 200);
   }

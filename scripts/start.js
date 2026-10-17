@@ -6,7 +6,11 @@ const entry = path.join(root, 'src', 'index.js');
 const watch = process.argv.slice(2).some(arg => arg === 'watch' || arg === '--watch');
 
 if (!watch) {
-    require(entry);
+    const { startServer } = require(entry);
+    startServer().catch(error => {
+        console.error('Не удалось запустить сервис:', error.message);
+        process.exitCode = 1;
+    });
 } else {
     const args = ['--watch', '--watch-preserve-output'];
 

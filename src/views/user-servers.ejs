@@ -1,22 +1,26 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head><%- include('partials/subscription-head', { title: `Серверы пользователя — ${appName}` }) %></head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-slate-100 text-slate-900">
   <%- include('partials/subscription-header', { heading: `Серверы пользователя: ${user.username}` }) %>
-  <main id="main" class="max-w-3xl mx-auto my-8 px-4">
-    <section class="bg-white rounded-lg shadow p-6 mb-6">
+  <main id="main" class="mx-auto max-w-4xl px-4 py-6 md:py-8">
+    <section class="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
+      <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
+      <div class="relative"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Персональная подписка</p><h2 class="mt-2 text-2xl font-semibold">Серверы пользователя</h2><p class="mt-2 max-w-xl text-sm leading-6 text-slate-300">Настройте ручные назначения и автоматический отбор рабочих узлов из источников.</p></div>
+    </section>
+    <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
       <h2 class="text-lg font-semibold mb-3">Ссылка подписки</h2>
       <div class="flex flex-wrap items-center gap-3">
         <a href="/join/<%= user.id %>" target="_blank" rel="noopener" class="text-blue-700 underline underline-offset-4 py-2">Открыть подписку <%= user.id %></a>
-        <a href="/join/<%= user.id %>/qr" target="_blank" rel="noopener" class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 min-h-[44px] rounded">Открыть QR-код</a>
+        <a href="/join/<%= user.id %>/qr" target="_blank" rel="noopener" class="inline-flex min-h-[44px] items-center rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800">Открыть QR-код</a>
       </div>
       <p class="text-sm text-gray-600 mt-3">Изменения состава появятся в VPN-клиенте после обновления подписки.</p>
     </section>
     <% if (error) { %><p id="assignment-error" role="alert" tabindex="-1" class="bg-red-50 text-red-800 p-4 rounded-lg mb-6"><%= error %></p><% } %>
-    <% if (saved) { %><p role="status" class="bg-green-50 text-green-800 p-4 rounded-lg mb-6">Назначения сохранены.</p><% } %>
+    <% if (saved) { %><p role="status" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">Назначения сохранены.</p><% } %>
     <form method="post" action="/admin/users/<%= user.id %>/servers" class="space-y-6">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <section class="bg-white rounded-lg shadow p-4 md:p-6">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <h2 class="text-lg font-semibold">Ручные назначения</h2>
         <p class="text-sm text-gray-600 mt-2 mb-4">Отдельные серверы с пользовательским UUID. Они не входят в лимиты внешних источников.</p>
         <% if (!servers.length) { %>
@@ -33,14 +37,14 @@
                 <div class="mt-3">
                   <label for="uuid-<%= server.id %>" class="block text-sm font-medium mb-2">UUID для сервера «<%= server.name %>»</label>
                   <input id="uuid-<%= server.id %>" name="uuids[<%= server.id %>]" type="text" value="<%= uuidMap[server.id] || '' %>" maxlength="256" class="border border-gray-300 rounded px-3 py-2 w-full font-mono" autocomplete="off" spellcheck="false" aria-describedby="uuid-hint-<%= server.id %>">
-                  <p id="uuid-hint-<%= server.id %>" class="text-sm text-gray-600 mt-2">Пустое поле сохраняет назначенный UUID или создаёт новый при первом назначении.</p>
+                  <p id="uuid-hint-<%= server.id %>" class="text-sm text-gray-600 mt-2">Пустое поле сохраняет credential или создаёт новый при первом назначении. Можно указать произвольный credential без пробелов и символа @.</p>
                 </div>
               </div>
             <% }); %>
           </div>
         <% } %>
       </section>
-      <section class="bg-white rounded-lg shadow p-4 md:p-6">
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <h2 class="text-lg font-semibold">Внешние источники</h2>
         <p class="text-sm text-gray-600 mt-2 mb-4">UUID берётся из источника. Выдаются только узлы со свежей успешной VPN-проверкой.</p>
         <% if (!sources.length) { %><p>Источников пока нет. <a href="/admin/subscription-sources/new" class="text-blue-700 underline underline-offset-4">Добавить источник</a>.</p><% } %>
@@ -69,11 +73,11 @@
         </div>
       </section>
       <div class="flex flex-wrap gap-3">
-        <button type="submit" class="bg-green-700 hover:bg-green-800 text-white px-5 py-3 rounded">Сохранить назначения</button>
+        <button type="submit" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800">Сохранить назначения</button>
         <a href="/admin" class="bg-white border border-gray-300 px-5 py-3 rounded">Отмена</a>
       </div>
     </form>
-    <section class="bg-white rounded-lg shadow p-4 md:p-6 mt-8">
+    <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 class="text-lg font-semibold">Текущий сохранённый состав</h2>
         <a href="/admin/users/<%= user.id %>/servers" class="text-blue-700 underline underline-offset-4 py-2">Обновить состав</a>
@@ -84,14 +88,25 @@
         <div class="border-b border-gray-200 pb-4 mb-4">
           <h3 class="font-medium break-all"><%= source.name %></h3>
           <p class="mt-1">Запрошено <%= source.requested %>, доступно <%= source.available %>, выбрано <%= source.selected.length %>.</p>
-          <% if (Object.keys(source.excluded).length) { %><ul class="text-sm text-gray-600 mt-2"><% Object.entries(source.excluded).forEach(([reason, count]) => { %><li><%= statusLabel(reason) %>: <%= count %></li><% }); %></ul><% } %>
         </div>
       <% }); %>
-      <ul class="space-y-3">
+      <div class="flex flex-wrap gap-3">
         <% preview.servers.forEach(server => { %>
-          <li><strong class="break-all"><%= server.name %></strong><p class="text-sm text-gray-600"><%= server.origin === 'manual' ? 'Ручное назначение' : `${latency(server.latency_ms)} · Проверено ${time(server.last_checked_at)}` %></p></li>
+          <article class="flex min-w-0 flex-1 basis-64 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
+            <div class="min-w-0">
+              <strong class="block truncate text-sm font-semibold text-slate-900" title="<%= server.name %>"><%= server.name %></strong>
+              <% if (server.origin === 'manual') { %>
+                <p class="mt-1 truncate text-xs text-slate-500">Ручное назначение</p>
+              <% } else { %>
+                <div class="mt-1 flex flex-wrap items-center gap-2">
+                  <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums <%= server.latency_ms !== null && server.latency_ms !== undefined ? (server.latency_ms <= 150 ? 'bg-emerald-100 text-emerald-800' : server.latency_ms <= 400 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800') : 'bg-slate-200 text-slate-600' %>"><%= latency(server.latency_ms) %></span>
+                </div>
+                <p class="mt-1 truncate text-xs text-slate-500">Проверено <%= time(server.last_checked_at) %></p>
+              <% } %>
+            </div>
+          </article>
         <% }); %>
-      </ul>
+      </div>
     </section>
   </main>
   <script>

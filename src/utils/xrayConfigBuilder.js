@@ -1,6 +1,60 @@
 const { SubscriptionError } = require('./subscriptionErrors');
 const { vlessCapability } = require('./protocolParsers');
 
+function range(value) {
+  const match = /^(\d+)(?:-(\d+))?$/.exec(String(value));
+  if (!match) throw new SubscriptionError('invalid_link');
+  return { from: Number(match[1]), to: Number(match[2] || match[1]) };
+}
+
+function buildFinalmask(node) {
+  if (!node.finalmask) return null;
+  const tcp = node.finalmask.tcp.map(mask => {
+    const settings = mask.settings;
+    const delay = range(settings.delays[0]);
+    const lengths = range(settings.lengths[0]);
+    const split = range(settings.maxSplit || '0');
+    return {
+      type: mask.type,
+      settings: {
+        packets: settings.packets || '',
+        length: settings.lengths[0],
+        delay: settings.delays[0],
+        maxSplit: settings.maxSplit || '0'
+      }
+    };
+  });
+  return { tcp, udp: node.finalmask.udp || [], quicParams: node.finalmask.quicParams || null };
+}
+
+function buildXhttpSettings(node) {
+  const settings = { host: node.xhttp.host, path: node.xhttp.path, mode: node.xhttp.mode };
+  if (node.xhttp.extra?.host) settings.host = node.xhttp.extra.host;
+  if (node.xhttp.extra?.path) settings.path = node.xhttp.extra.path;
+  if (node.xhttp.extra?.mode) settings.mode = node.xhttp.extra.mode;
+  const extra = node.xhttp.extra || {};
+  const fields = [
+    'xPaddingBytes', 'xPaddingObfsMode', 'xPaddingKey', 'xPaddingHeader', 'xPaddingPlacement', 'xPaddingMethod',
+    'uplinkHTTPMethod', 'sessionPlacement', 'sessionKey', 'seqPlacement', 'seqKey', 'uplinkDataPlacement',
+    'uplinkDataKey', 'uplinkChunkSize', 'noGRPCHeader', 'noSSEHeader', 'scMaxEachPostBytes', 'scMinPostsIntervalMs',
+    'scMaxBufferedPosts', 'scStreamUpServerSecs', 'serverMaxHeaderBytes'
+  ];
+  const aliases = { sessionIDPlacement: 'sessionPlacement', sessionIDKey: 'sessionKey' };
+  for (const field of fields) {
+    if (extra[field] !== undefined && extra[field] !== '' && extra[field] !== 0 && extra[field] !== '0') settings[field] = extra[field];
+  }
+  for (const [from, to] of Object.entries(aliases)) {
+    if (extra[from] !== undefined && extra[from] !== '') settings[to] = extra[from];
+  }
+  if (extra.xmux && typeof extra.xmux === 'object') {
+    settings.xmux = {};
+    for (const field of ['maxConcurrency', 'maxConnections', 'cMaxReuseTimes', 'hMaxRequestTimes', 'hMaxReusableSecs', 'hKeepAlivePeriod']) {
+      if (extra.xmux[field] !== undefined && extra.xmux[field] !== '' && extra.xmux[field] !== 0 && extra.xmux[field] !== '0') settings.xmux[field] = extra.xmux[field];
+    }
+  }
+  return settings;
+}
+
 function buildXrayConfig(node, address, port, credentials, certificateAuthority) {
   const support = vlessCapability(node);
   if (support.capability !== 'supported') throw new SubscriptionError(support.capability === 'invalid' ? 'invalid_link' : 'unsupported');
@@ -23,7 +77,9 @@ function buildXrayConfig(node, address, port, credentials, certificateAuthority)
     if (node.reality.mldsa65Verify) streamSettings.realitySettings.mldsa65Verify = node.reality.mldsa65Verify;
   }
   if (node.network === 'ws') streamSettings.wsSettings = { path: node.ws.path, headers: { Host: node.ws.host } };
-  if (node.network === 'xhttp') streamSettings.xhttpSettings = { host: node.xhttp.host, path: node.xhttp.path, mode: node.xhttp.mode };
+  if (node.network === 'xhttp') streamSettings.xhttpSettings = buildXhttpSettings(node);
+  if (node.network === 'grpc') streamSettings.grpcSettings = { serviceName: node.grpc.serviceName, multiMode: node.grpc.mode === 'multi' };
+  if (node.finalmask) streamSettings.finalmask = buildFinalmask(node);
   return {
     log: { loglevel: 'none' },
     inbounds: [{

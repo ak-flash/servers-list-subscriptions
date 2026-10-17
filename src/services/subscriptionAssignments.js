@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 const db = require('../db/database');
-const { UUID } = require('../utils/protocolParsers');
 const { SubscriptionError } = require('../utils/subscriptionErrors');
 
 function ids(value) {
@@ -29,14 +28,17 @@ function saveAssignments(userId, input) {
   const serverIds = ids(input.servers);
   const sourceIds = ids(input.sources);
   const existing = new Map(db.getUserServerAssignments(userId).map(row => [row.server_id, row.uuid]));
+  const submittedUuids = input.uuids || {};
   const manual = serverIds.map(id => {
     const server = db.get('SELECT * FROM servers WHERE id = ? AND is_active = 1', [id]);
     if (!server) throw new SubscriptionError('validation', 'Один из выбранных серверов не найден или отключён. Обновите страницу.');
-    const requested = input.uuids?.[id];
+    const requested = submittedUuids[id];
     if (requested !== undefined && typeof requested !== 'string') throw new SubscriptionError('validation', 'Проверьте UUID сервера.');
-    const uuid = requested?.trim() || existing.get(id) || crypto.randomUUID();
-    if (uuid.length > 256 || /[\r\n]/.test(uuid) || (server.link.startsWith('vless://') && !UUID.test(uuid))) {
-      throw new SubscriptionError('validation', 'Для VLESS укажите UUID в формате xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.');
+    const entered = typeof requested === 'string' ? requested.trim() : '';
+    const existingUuid = existing.get(id);
+    const uuid = entered || existingUuid || crypto.randomUUID();
+    if (uuid.length > 256 || /[\r\n\u0000]/.test(uuid) || /[@\s]/.test(uuid)) {
+      throw new SubscriptionError('validation', 'Укажите credential без пробелов и символов @.');
     }
     return { id, uuid };
   });

@@ -1,53 +1,58 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head><%- include('partials/subscription-head', { title: `Настройки источника — ${appName}` }) %></head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-slate-100 text-slate-900">
   <%- include('partials/subscription-header', { heading: source ? 'Настройки источника' : 'Добавить источник' }) %>
-  <main id="main" class="max-w-2xl mx-auto my-8 px-4">
-    <section class="bg-white rounded-lg shadow p-6">
+  <main id="main" class="mx-auto max-w-3xl px-4 py-6 md:py-8">
+    <section class="mb-6 rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Настройка каталога</p>
+      <h2 class="mt-2 text-2xl font-semibold"><%= source ? 'Обновите источник подписки' : 'Добавьте источник подписки' %></h2>
+      <p class="mt-2 max-w-xl text-sm leading-6 text-slate-300">Сервис загрузит VLESS-узлы, проверит их через Xray и будет использовать только рабочие.</p>
+    </section>
+    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
       <% if (error) { %><p id="form-error" role="alert" tabindex="-1" class="bg-red-50 text-red-800 rounded p-4 mb-6"><%= error %></p><% } %>
       <form method="post" action="<%= source ? `/admin/subscription-sources/${source.id}` : '/admin/subscription-sources' %>" class="space-y-6" <%- error ? 'aria-describedby="form-error"' : '' %>>
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div>
-          <label for="source-name" class="block font-medium mb-2">Название источника</label>
-          <input id="source-name" name="name" type="text" value="<%= values.name %>" required maxlength="160" class="w-full border border-gray-300 rounded px-3 py-2" autocomplete="off">
+          <label for="source-name" class="mb-2 block text-sm font-semibold text-slate-700">Название источника</label>
+          <input id="source-name" name="name" type="text" value="<%= values.name %>" required maxlength="160" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" autocomplete="off">
         </div>
         <div>
-          <label for="source-url" class="block font-medium mb-2">Ссылка подписки</label>
-          <input id="source-url" name="url" type="url" value="<%= values.url || '' %>" <%= source ? '' : 'required' %> maxlength="4096" placeholder="https://provider.example/subscription" class="w-full border border-gray-300 rounded px-3 py-2" autocomplete="off" spellcheck="false" aria-describedby="url-hint">
+          <label for="source-url" class="mb-2 block text-sm font-semibold text-slate-700">Ссылка подписки</label>
+          <input id="source-url" name="url" type="url" value="<%= values.url || '' %>" <%= source ? '' : 'required' %> maxlength="4096" placeholder="https://provider.example/subscription" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" autocomplete="off" spellcheck="false" aria-describedby="url-hint">
           <p id="url-hint" class="text-sm text-gray-600 mt-2"><% if (source) { %>Сохранено: <%= source.masked_url %>. Оставьте поле пустым, чтобы сохранить текущую ссылку.<% } else { %>Поддерживаются текстовый список VLESS-ссылок и Base64/Base64URL.<% } %></p>
         </div>
         <div>
-          <label for="source-interval" class="block font-medium mb-2">Интервал загрузки, секунды</label>
-          <input id="source-interval" name="sync_interval_seconds" type="number" min="60" max="604800" step="1" required value="<%= values.sync_interval_seconds %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="interval-hint">
+          <label for="source-interval" class="mb-2 block text-sm font-semibold text-slate-700">Интервал загрузки, секунды</label>
+          <input id="source-interval" name="sync_interval_seconds" type="number" min="60" max="604800" step="1" required value="<%= values.sync_interval_seconds %>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" aria-describedby="interval-hint">
           <p id="interval-hint" class="text-sm text-gray-600 mt-2">1800 секунд — 30 минут. VPN-проверки выполняются по отдельному расписанию.</p>
         </div>
-        <label class="flex items-center gap-3 min-h-[44px] cursor-pointer"><input name="is_active" type="checkbox" value="1" <%= ['1', 'on', 1, true].includes(values.is_active) ? 'checked' : '' %> class="w-5 h-5">Включить источник в автоматическую выдачу</label>
+        <label class="flex min-h-[44px] items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 cursor-pointer"><input name="is_active" type="checkbox" value="1" <%= ['1', 'on', 1, true].includes(values.is_active) ? 'checked' : '' %> class="h-5 w-5 rounded border-slate-300 text-blue-700 focus:ring-blue-600">Включить источник в автоматическую выдачу</label>
         <details>
-          <summary class="cursor-pointer font-medium py-2">HTTP-заголовки поставщика</summary>
+          <summary class="cursor-pointer rounded-lg px-3 py-2 font-semibold text-slate-800 hover:bg-slate-50">HTTP-заголовки поставщика</summary>
           <div class="space-y-4 mt-3">
-            <div><label for="source-agent" class="block mb-2">User-Agent</label><input id="source-agent" name="user_agent" value="<%= values.user_agent || '' %>" maxlength="256" class="w-full border border-gray-300 rounded px-3 py-2" autocomplete="off"></div>
+            <div><label for="source-agent" class="block mb-2">User-Agent</label><input id="source-agent" name="user_agent" value="<%= values.user_agent || '' %>" maxlength="256" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" autocomplete="off"></div>
             <div>
               <label for="source-authorization" class="block mb-2">Authorization</label>
-              <input id="source-authorization" name="authorization" type="password" maxlength="2048" class="w-full border border-gray-300 rounded px-3 py-2" autocomplete="new-password" aria-describedby="auth-hint">
+              <input id="source-authorization" name="authorization" type="password" maxlength="2048" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" autocomplete="new-password" aria-describedby="auth-hint">
               <p id="auth-hint" class="text-sm text-gray-600 mt-2"><%= source?.has_authorization ? 'Заголовок сохранён. Пустое поле сохраняет текущее значение.' : 'Укажите полное значение, если поставщик требует авторизацию, например Bearer и токен.' %></p>
             </div>
             <% if (source?.has_authorization) { %><label class="flex items-center gap-3 min-h-[44px]"><input type="checkbox" name="clear_authorization" value="1" class="w-5 h-5">Удалить сохранённый Authorization</label><% } %>
           </div>
         </details>
         <div class="flex flex-wrap gap-3">
-          <button type="submit" class="bg-green-700 hover:bg-green-800 text-white rounded px-5 py-3">Сохранить источник</button>
-          <a href="/admin/subscription-sources" class="bg-gray-100 hover:bg-gray-200 rounded px-5 py-3">Отмена</a>
+          <button type="submit" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800">Сохранить источник</button>
+          <a href="/admin/subscription-sources" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">Отмена</a>
         </div>
       </form>
     </section>
     <% if (source) { %>
-      <details class="bg-white rounded-lg shadow p-6 mt-6">
+      <details class="mt-6 rounded-2xl border border-red-200 bg-white p-5 shadow-sm md:p-7">
         <summary class="font-medium cursor-pointer">Удаление источника</summary>
         <p class="mt-3 mb-4">Будут удалены каталог узлов, история проверок и привязки пользователей: <%= linkedUsers %>.</p>
         <form method="post" action="/admin/subscription-sources/<%= source.id %>/delete">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="bg-red-700 hover:bg-red-800 text-white rounded px-4 py-3">Удалить источник</button>
+          <button type="submit" class="min-h-[44px] rounded-lg bg-red-700 px-4 py-3 font-semibold text-white hover:bg-red-800">Удалить источник</button>
         </form>
       </details>
     <% } %>

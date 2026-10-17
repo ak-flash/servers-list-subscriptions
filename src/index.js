@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
-const { checkServer, checkMultipleServers } = require('./utils/serverChecker');
+const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
 const { ProbeScheduler } = require('./services/probeScheduler');
 const { deleteUser, deleteServer } = require('./services/subscriptionAssignments');
@@ -26,6 +26,7 @@ const PORT = process.env.PORT || 2096;
 const APP_NAME = process.env.APP_NAME || 'VPN Подписки';
 const subscriptionConfig = loadConfig();
 const scheduler = new ProbeScheduler(subscriptionConfig);
+const manualVpnChecker = scheduler.checker;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -268,44 +269,31 @@ app.post('/admin/users/:id/delete', requireAuth, (req, res) => {
     res.redirect('/admin');
 });
 
-app.post('/api/servers/check', requireAuth, async (req, res) => {
-    const servers = dbAll('SELECT * FROM servers');
-
-    if (servers.length === 0) {
-        return res.json({ results: [] });
+async function checkManualServer(server) {
+    try {
+        const parsed = parseVless(server.link);
+        if (parsed.capability !== 'supported') {
+            return { id: server.id, name: server.name, status: parsed.capability, errorCode: 'unsupported', errorMessage: parsed.error || 'Конфигурация не поддерживается' };
+        }
+        const result = await manualVpnChecker.check({ normalized_config_json: JSON.stringify(parsed.config) });
+        return { id: server.id, name: server.name, status: result.status, latency_ms: result.latencyMs ?? null, target_id: result.targetId ?? null,
+            errorCode: result.errorCode ?? null, errorMessage: result.errorMessage ?? null };
+    } catch (error) {
+        return { id: server.id, name: server.name, status: 'runner_error', latency_ms: null, errorCode: 'runner_error', errorMessage: 'Не удалось выполнить VPN-проверку.' };
     }
+}
 
-    const serversToCheck = servers.map(server => {
-        const info = extractHostPortFromLink(server.link);
-        return { id: server.id, name: server.name, host: info.host, port: info.port };
-    });
-
-    const results = await checkMultipleServers(serversToCheck);
-
-    const resultsWithId = results.map((result, index) => ({
-        ...result,
-        id: serversToCheck[index].id,
-        name: serversToCheck[index].name
-    }));
-
-    res.json({ results: resultsWithId });
+app.post('/api/servers/check', requireAuth, async (req, res) => {
+    const servers = dbAll('SELECT * FROM servers WHERE is_active = 1');
+    const results = [];
+    for (const server of servers) results.push(await checkManualServer(server));
+    res.json({ results });
 });
 
 app.post('/api/servers/:id/check', requireAuth, async (req, res) => {
     const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
-
-    if (!server) {
-        return res.status(404).json({ error: 'Сервер не найден' });
-    }
-
-    const info = extractHostPortFromLink(server.link);
-    const result = await checkServer(info.host, info.port);
-
-    res.json({
-        id: server.id,
-        name: server.name,
-        ...result
-    });
+    if (!server) return res.status(404).json({ error: 'Сервер не найден' });
+    res.json(await checkManualServer(server));
 });
 
 // Traffic reporting API endpoints

@@ -30,8 +30,11 @@ test('resolver: original credentials, manual overrides, dedupe/refill, priority,
   saveAssignments('u', input);
   saveAssignments('u', input);
   assert.equal(db.get('SELECT count(*) AS n FROM user_subscription_sources').n, 2);
+  db.run("INSERT INTO servers (id, name, link) VALUES ('legacy-manual', 'Legacy', ?)", [link('legacy.example.com')]);
+  db.run("INSERT INTO user_servers (user_id, server_id, uuid) VALUES ('u', 'legacy-manual', ?)", [UUID]);
+  assert.doesNotThrow(() => saveAssignments('u', { servers: ['legacy-manual'], uuids: { 'legacy-manual': UUID }, sources: [first.id, second.id], source_limits: { [first.id]: '2', [second.id]: '2' }, priorities: { [first.id]: '0', [second.id]: '1' } }));
   const result = resolveUserSubscription('u', now, settings);
-  assert.deepEqual(result.servers.map(s => s.host), ['a.example.com', 'b.example.com', 'd.example.com', 'e.example.com']);
+  assert.deepEqual(result.servers.filter(s => s.origin === 'source').map(s => s.host), ['a.example.com', 'b.example.com', 'd.example.com', 'e.example.com']);
   assert.deepEqual(resolveUserSubscription('u', now, settings), result);
   assert.equal(resolveUserSubscription('other', now, settings).servers.length, 0);
   const raw = Buffer.from(buildFullSubscription(result.servers, 'u'), 'base64').toString('utf8');
@@ -44,6 +47,8 @@ test('resolver: original credentials, manual overrides, dedupe/refill, priority,
   saveAssignments('u', { sources: [first.id], max_latency: { [first.id]: '150' } });
   assert.equal(resolveUserSubscription('u', now, settings).servers.length, 1);
   db.run("INSERT INTO servers (id, name, link) VALUES ('manual', 'Manual', ?)", [link('a.example.com')]);
+  assert.doesNotThrow(() => saveAssignments('u', { servers: ['manual'], uuids: { manual: 'custom-credential' }, sources: [first.id], source_limits: { [first.id]: '2' } }));
+  assert.ok(resolveUserSubscription('u', now, settings).servers[0].link.includes('custom-credential'));
   saveAssignments('u', { servers: ['manual'], uuids: { manual: UUID }, sources: [first.id], source_limits: { [first.id]: '2' } });
   const combined = resolveUserSubscription('u', now, settings);
   assert.equal(combined.servers.length, 3); // Manual A, external B and C; duplicate A does not consume quota.

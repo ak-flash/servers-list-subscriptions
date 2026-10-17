@@ -29,7 +29,7 @@ test('unsupported connection parameters are retained and never silently discarde
     }
   }
   assert.equal(parseVless(link().replace('security=tls', 'security=reality')).capability, 'invalid'); // pbk is required.
-  assert.equal(parseVless(link().replace('type=tcp', 'type=grpc')).capability, 'unsupported');
+  assert.equal(parseVless(link().replace('type=tcp', 'type=grpc')).capability, 'invalid');
   assert.equal(parseVless(link('example.com', '&allowInsecure=1')).capability, 'unsupported');
   for (const raw of [link().replace(UUID, 'bad'), link().replace(':443', ':70000'), link() + '%XX', link().replace('#', '&sni=a&sni=b#')]) {
     assert.throws(() => parseVless(raw), { code: 'invalid_link' });
@@ -74,14 +74,52 @@ test('VLESS XHTTP with Reality preserves transport settings and builds Xray conf
   const parsed = parseVless(raw);
   assert.equal(parsed.capability, 'supported');
   assert.equal(parsed.name, '🇳🇱 The Netherlands — #117');
-  assert.deepEqual(parsed.config.xhttp, { host: 'api-maps.yandex.ru', path: '/', mode: 'auto', extra: 'null' });
+  assert.deepEqual(parsed.config.xhttp, { host: 'api-maps.yandex.ru', path: '/', mode: 'auto', extra: null });
   assert.equal(parsed.config.reality.publicKey, 'DuxQy3KWEZTU_sBhXSfeo_1Q0-0lMcSnx21bWvUi5hQ');
   assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
   const built = buildXrayConfig(parsed.config, '84.201.180.13', 12000, { user: 'test', password: 'test' });
   assert.deepEqual(built.outbounds[0].streamSettings.xhttpSettings, { host: 'api-maps.yandex.ru', path: '/', mode: 'auto' });
   assert.equal(built.outbounds[0].streamSettings.realitySettings.password, parsed.config.reality.publicKey);
   assert.equal(parseVless(raw.replace('type=xhttp', 'type=grpc')).capability, 'unsupported');
-  assert.equal(parseVless(raw.replace('extra=null', 'extra=bad')).capability, 'unsupported');
+  const richExtra = { xPaddingBytes: '100-1000', xPaddingObfsMode: false, xPaddingKey: '', xPaddingHeader: '', xPaddingPlacement: '', xPaddingMethod: '', uplinkHTTPMethod: '', sessionIDPlacement: '', sessionIDKey: '', sessionIDTable: '', sessionIDLength: '0', seqPlacement: '', seqKey: '', uplinkDataPlacement: '', uplinkDataKey: '', uplinkChunkSize: '0', noGRPCHeader: false, noSSEHeader: false, scMaxEachPostBytes: '0', scMinPostsIntervalMs: '0', scMaxBufferedPosts: 0, scStreamUpServerSecs: '0', serverMaxHeaderBytes: 0, xmux: { maxConcurrency: '16-32', maxConnections: '0', cMaxReuseTimes: '64-128', hMaxRequestTimes: '0', hMaxReusableSecs: '0', hKeepAlivePeriod: 0 }, downloadSettings: null, extra: null };
+  const rich = parseVless(raw.replace('extra=null', `extra=${encodeURIComponent(JSON.stringify(richExtra))}`));
+  assert.equal(rich.capability, 'supported');
+  assert.deepEqual(rich.config.xhttp.extra.xmux, richExtra.xmux);
+  const richConfig = buildXrayConfig(rich.config, '84.201.180.13', 12000, { user: 'test', password: 'test' });
+  assert.equal(richConfig.outbounds[0].streamSettings.xhttpSettings.xPaddingBytes, '100-1000');
+  assert.equal(richConfig.outbounds[0].streamSettings.xhttpSettings.xmux.maxConcurrency, richExtra.xmux.maxConcurrency);
+  assert.equal(richConfig.outbounds[0].streamSettings.xhttpSettings.xmux.cMaxReuseTimes, richExtra.xmux.cMaxReuseTimes);
+  assert.deepEqual(rich.config.alpn, []);
+  assert.throws(() => parseVless(raw.replace('extra=null', 'extra=%7Bbad%7D')), { code: 'invalid_link' });
+  const unsupportedExtra = parseVless(raw.replace('extra=null', 'extra=%7B%22downloadSettings%22%3A%7B%7D%7D'));
+  assert.equal(unsupportedExtra.capability, 'unsupported');
+});
+
+test('VLESS gRPC with Reality preserves serviceName and multi mode', () => {
+  const raw = 'Vless://03ca8c3f-e777-45b5-a1b1-592094ca99ee@82.202.178.132:443?encryption=none&fp=chrome&mode=multi&pbk=1A9loATtqTbKfErpj24clMebWdbmBRDgUIADwtlvtAw&security=reality&serviceName=google.storage.v2.Storage&sid=70c20a2f5a7d542e&sni=mobile-api-12.sova.toys&type=grpc#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%E2%80%94%20%23167';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.equal(parsed.name, '🇩🇪 Germany — #167');
+  assert.deepEqual(parsed.config.grpc, { serviceName: 'google.storage.v2.Storage', mode: 'multi' });
+  assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
+  const built = buildXrayConfig(parsed.config, '82.202.178.132', 12000, { user: 'test', password: 'test' });
+  assert.deepEqual(built.outbounds[0].streamSettings.grpcSettings, { serviceName: 'google.storage.v2.Storage', multiMode: true });
+  assert.equal(built.outbounds[0].streamSettings.realitySettings.password, parsed.config.reality.publicKey);
+  assert.equal(parseVless(raw.replace('serviceName=google.storage.v2.Storage', 'serviceName=')).capability, 'invalid');
+});
+
+test('VLESS gRPC Reality with TCP fragment FinalMask is preserved and accepted by Xray', () => {
+  const fm = { tcp: [{ type: 'fragment', settings: { delays: ['10-20'], lengths: ['122', '2-3', '2-3', '2-3'], maxSplit: '5', packets: 'tlshello' } }], udp: null, quicParams: null };
+  const raw = `Vless://ebc90732-ab04-4cfa-8a19-c15c5c8f37d8@194.55.239.113:443?encryption=none&fm=${encodeURIComponent(JSON.stringify(fm))}&fp=firefox&mode=gun&pbk=1vSZjvhZO01oAEH3b7eebR1qF5dLU1Dq2E7xu8pwGSs&security=reality&serviceName=grpc-vk&sid=428ef87fd47a3a33&sni=api-maps.yandex.ru&spx=%2F&type=grpc#test`;
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.deepEqual(parsed.config.finalmask, fm);
+  assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config.finalmask, fm);
+  const built = buildXrayConfig(parsed.config, '194.55.239.113', 12000, { user: 'test', password: 'test' });
+  assert.equal(built.outbounds[0].streamSettings.finalmask.tcp[0].type, 'fragment');
+  assert.deepEqual(built.outbounds[0].streamSettings.finalmask.tcp[0].settings, { packets: 'tlshello', length: '122', delay: '10-20', maxSplit: '5' });
+  assert.deepEqual(built.outbounds[0].streamSettings.grpcSettings, { serviceName: 'grpc-vk', multiMode: false });
+  assert.equal(parseVless(raw.replace('packets%22%3A%22tlshello', 'packets%22%3A%22bad')).capability, 'unsupported');
 });
 
 test('VLESS security=none supports TCP/WS without adding TLS and rejects Vision without TLS/Reality', () => {
