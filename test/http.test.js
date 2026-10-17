@@ -53,6 +53,8 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   const profile = await request('/join/u');
   assert.equal(profile.status, 200);
   const body = await profile.text();
+  const firstUris = Buffer.from(body, 'base64').toString('utf8').split('\n').filter(line => line.startsWith('vless://'));
+  assert.equal(firstUris.length, 1);
   const decoded = Buffer.from(body, 'base64').toString('utf8');
   const uris = decoded.split('\n').filter(line => line.startsWith('vless://'));
   assert.equal(uris.length, 1);
@@ -62,6 +64,15 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   assert.deepEqual(json.servers.map(server => server.link), uris);
   assert.equal(json.servers[0].uuid, UUID);
   assert.equal(json.raw, body);
+  const checkedNode = db.get('SELECT id FROM subscription_nodes WHERE source_id = ? ORDER BY id LIMIT 1', [source.id]);
+  db.run("UPDATE subscription_node_health SET latency_ms = 1 WHERE node_id = ?", [checkedNode.id]);
+  db.run("UPDATE subscription_node_health SET latency_ms = 999 WHERE node_id != ?", [checkedNode.id]);
+  const refreshed = await request('/join/u');
+  assert.equal(refreshed.status, 200);
+  const refreshedUris = Buffer.from(await refreshed.text(), 'base64').toString('utf8').split('\n').filter(line => line.startsWith('vless://'));
+  assert.equal(refreshedUris.length, 1);
+  assert.ok(refreshedUris[0].includes('one.example.com') || refreshedUris[0].includes('two.example.com'));
+  assert.equal(refreshed.headers.get('cache-control'), 'no-store');
   const qr = await (await request('/join/u/qr-img')).json();
   assert.match(qr.qrCode, /^data:image\/png;base64,/);
   const qrPage = await (await request('/join/u/qr')).text();

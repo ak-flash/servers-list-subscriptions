@@ -33,8 +33,9 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
       if (state !== 'healthy') { exclude(state); return false; }
       if (binding.max_latency_ms && node.latency_ms > binding.max_latency_ms) { exclude('latency'); return false; }
       return true;
-    }).sort((a, b) => (b.successful_attempts / b.total_attempts) - (a.successful_attempts / a.total_attempts) ||
-      a.target_priority - b.target_priority || a.latency_ms - b.latency_ms || a.fingerprint.localeCompare(b.fingerprint));
+    }).sort((a, b) => a.latency_ms - b.latency_ms ||
+      (b.successful_attempts / b.total_attempts) - (a.successful_attempts / a.total_attempts) ||
+      a.target_priority - b.target_priority || a.fingerprint.localeCompare(b.fingerprint));
     for (const node of candidates) {
       const server = { id: node.id, name: node.name, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,

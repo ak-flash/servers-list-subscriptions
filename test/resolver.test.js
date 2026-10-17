@@ -22,8 +22,8 @@ test('resolver: original credentials, manual overrides, dedupe/refill, priority,
   for (const source of [first, second]) {
     for (const [index, node] of health.getNodes(source.id).sort((a, b) => a.host.localeCompare(b.host)).entries()) {
       health.markStarted(node, node.id, now - 200);
-      health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
-        latencyMs: 100 + index * 100, httpStatus: 204, attempts: [] }, settings, null, now - 100);
+      health.recordResult(node, node.id, { status: 'healthy', successCount: index === 0 ? 2 : 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
+        latencyMs: index === 0 ? 300 : 100 + index * 100, httpStatus: 204, attempts: [] }, settings, null, now - 100);
     }
   }
   const input = { sources: [first.id, second.id], source_limits: { [first.id]: '2', [second.id]: '2' }, priorities: { [first.id]: '0', [second.id]: '1' } };
@@ -34,7 +34,7 @@ test('resolver: original credentials, manual overrides, dedupe/refill, priority,
   db.run("INSERT INTO user_servers (user_id, server_id, uuid) VALUES ('u', 'legacy-manual', ?)", [UUID]);
   assert.doesNotThrow(() => saveAssignments('u', { servers: ['legacy-manual'], uuids: { 'legacy-manual': UUID }, sources: [first.id, second.id], source_limits: { [first.id]: '2', [second.id]: '2' }, priorities: { [first.id]: '0', [second.id]: '1' } }));
   const result = resolveUserSubscription('u', now, settings);
-  assert.deepEqual(result.servers.filter(s => s.origin === 'source').map(s => s.host), ['a.example.com', 'b.example.com', 'd.example.com', 'e.example.com']);
+  assert.deepEqual(result.servers.filter(s => s.origin === 'source').map(s => s.host), ['b.example.com', 'a.example.com', 'd.example.com', 'e.example.com']);
   assert.deepEqual(resolveUserSubscription('u', now, settings), result);
   assert.equal(resolveUserSubscription('other', now, settings).servers.length, 0);
   const raw = Buffer.from(buildFullSubscription(result.servers, 'u'), 'base64').toString('utf8');
