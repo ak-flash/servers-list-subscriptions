@@ -193,11 +193,10 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                                 <% } %>
                                     </td>
                                     <td class="py-3">
-                                        <%= new Date(user.created_at).toLocaleDateString('ru-RU') %>
+<%= date(user.created_at) %>
                                     </td>
                                     <td class="py-3 font-semibold">
-                                        <%= user.last_request_at ? new
-                                            Date(user.last_request_at).toLocaleDateString('ru-RU') : '—' %>
+                                        <%= user.last_request_at ? date(user.last_request_at) : '—' %>
                                     </td>
                                     <td class="py-3">
                                         <div class="flex items-center gap-2">
@@ -241,7 +240,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                     </span>
                                 </div>
                                 <div class="text-sm text-gray-500 mb-2">
-                                    <%= new Date(user.created_at).toLocaleDateString('ru-RU') %>
+                                    <%= date(user.created_at) %>
                                 </div>
                                 <div class="text-xs text-gray-400 mb-3">ID: <%= user.id %>
                                 </div>

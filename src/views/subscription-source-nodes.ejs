@@ -80,8 +80,11 @@
     </ul>
     <nav aria-label="Страницы каталога" class="flex flex-wrap items-center gap-4 mt-6">
       <span>Страница <%= page %> из <%= pages %> · Найдено: <%= total %></span>
-      <% if (page > 1) { %><a class="bg-white border rounded px-4 py-2" href="?page=<%= page - 1 %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>">Предыдущая</a><% } %>
-      <% if (page < pages) { %><a class="bg-white border rounded px-4 py-2" href="?page=<%= page + 1 %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>">Следующая</a><% } %>
+      <nav class="flex flex-wrap gap-2" aria-label="Пагинация">
+        <% for (let number = 1; number <= pages; number++) { %>
+          <a class="<%= number === page ? 'bg-blue-700 text-white' : 'bg-white' %> border rounded px-3 py-2" href="?page=<%= number %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>" <%= number === page ? 'aria-current="page"' : '' %>><%= number %></a>
+        <% } %>
+      </nav>
     </nav>
   </main>
   <script src="/subscription-actions.js" defer></script>

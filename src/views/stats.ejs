@@ -28,7 +28,7 @@
                         <% if (typeof availableMonths !== 'undefined' && availableMonths.length > 0) { %>
                             <% availableMonths.forEach(function(m) { %>
                                 <option value="<%= m %>" <%= selectedMonth === m ? 'selected' : '' %>>
-                                    <%= new Date(m + '-01').toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' }) %>
+                                    <%= formatDate(m + '-01', { year: 'numeric', month: 'long' }) %>
                                 </option>
                             <% }); %>
                         <% } %>
@@ -119,8 +119,7 @@
                                             <%= user.request_count %>
                                         </td>
                                         <td class="py-2 text-sm text-gray-500">
-                                            <%= user.last_request ? new
-                                                Date(user.last_request).toLocaleDateString('ru-RU') : '—' %>
+<%= user.last_request ? date(user.last_request) : '—' %>
                                         </td>
                                     </tr>
                                     <% }); %>
@@ -186,7 +185,7 @@
                             <% requestsByDay.forEach(function(day) { %>
                                 <div class="flex items-center justify-between py-1 border-b border-gray-100">
                                     <span class="text-sm text-gray-600">
-                                        <%= new Date(day.day).toLocaleDateString('ru-RU') %>
+                                        <%= date(day.day) %>
                                     </span>
                                     <div class="flex items-center gap-2">
                                         <div class="bg-blue-500 rounded"
@@ -227,8 +226,8 @@
                                         <%= req.username || 'Неизвестен' %>
                                     </td>
                                     <td class="py-3 text-sm">
-                                        <%= new Date(req.requested_at).toLocaleDateString('ru-RU') %>
-                                            <%= new Date(req.requested_at).toLocaleTimeString('ru-RU') %>
+                                        <%= date(req.requested_at) %>
+                                            <%= formatDate(req.requested_at, { timeStyle: 'short' }) %>
                                     </td>
                                     <td class="py-3 text-sm font-mono">
                                         <%= req.ip_address || '—' %>
@@ -251,8 +250,8 @@
                                     <span class="text-xs text-gray-500">#<%= req.id %></span>
                                 </div>
                                 <div class="text-sm text-gray-500 mb-1">
-                                    <%= new Date(req.requested_at).toLocaleDateString('ru-RU') %>
-                                        <%= new Date(req.requested_at).toLocaleTimeString('ru-RU') %>
+                                    <%= date(req.requested_at) %>
+                                        <%= formatDate(req.requested_at, { timeStyle: 'short' }) %>
                                 </div>
                                 <div class="text-xs font-mono text-gray-400 truncate">
                                     <%= req.ip_address || '—' %>

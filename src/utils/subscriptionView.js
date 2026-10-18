@@ -7,8 +7,15 @@ const statusLabels = {
   interrupted: 'Прервана', pending: 'Ожидает загрузки', success: 'Обновлён', partial: 'Частично обновлён', error: 'Ошибка загрузки'
 };
 
+const timezone = process.env.APP_TIMEZONE || 'UTC';
+
+function formatDate(value, options = {}) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('ru-RU', { timeZone: timezone, ...options });
+}
 function statusLabel(value) { return statusLabels[value] || value || 'Нет данных'; }
-function time(value) { return value ? new Date(value).toLocaleString('ru-RU', { timeZone: 'UTC' }) + ' UTC' : '—'; }
+function time(value) { return value ? `${formatDate(value)} ${timezone}` : '—'; }
+function date(value) { return formatDate(value, { dateStyle: 'short' }); }
 function latency(value) { return value === null || value === undefined ? '—' : `${Math.round(value)} мс`; }
 
-module.exports = { statusLabel, time, latency };
+module.exports = { statusLabel, time, date, latency, timezone };

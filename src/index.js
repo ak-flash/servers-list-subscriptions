@@ -13,6 +13,7 @@ const { ProbeScheduler } = require('./services/probeScheduler');
 const { deleteUser, deleteServer } = require('./services/subscriptionAssignments');
 const subscriptionRoutes = require('./routes/subscriptions');
 const subscriptionSourceRoutes = require('./routes/subscriptionSources');
+const subscriptionView = require('./utils/subscriptionView');
 
 const WEBHOOK_LOG_FILE = path.join(__dirname, '..', 'data', 'webhook-traffic.log');
 const WEBHOOK_LOG_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -33,6 +34,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.locals = { ...app.locals, ...subscriptionView };
 if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 
 app.use(session({
