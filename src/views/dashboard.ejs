@@ -123,7 +123,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                         class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 flex-1 text-center">Редактировать</a>
                                     <form method="POST" action="/admin/servers/<%= server.id %>/delete"
                                         onsubmit="return confirm('Удалить сервер?')">
-<button type="submit" aria-label="Удалить пользователя <%= user.username %>" title="Удалить пользователя"
+<button type="submit" aria-label="Удалить сервер <%= server.name %>" title="Удалить сервер"
                                                      class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-700 text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7l1-3h4l1 3"/></svg></button>
                                     </form>
                                 </div>
