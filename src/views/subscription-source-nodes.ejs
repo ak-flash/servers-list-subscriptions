@@ -57,7 +57,7 @@
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
                 <span class="font-medium <%= node.effective_status === 'healthy' ? 'text-green-800' : 'text-gray-700' %>"><%= statusLabel(node.effective_status) %></span>
                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums <%= node.latency_ms !== null && node.latency_ms !== undefined ? (node.latency_ms <= 150 ? 'bg-green-100 text-green-800' : node.latency_ms <= 400 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') : 'bg-gray-100 text-gray-600' %>" title="Задержка HTTPS через VPN"><%= latency(node.latency_ms) %></span>
-                <span class="text-gray-500">Проверено: <%= time(node.last_checked_at) %></span>
+                <span class="text-gray-500">Проверено: <%= ago(node.last_checked_at) %> (<%= time(node.last_checked_at) %>)</span>
                 <% if (node.parse_error || node.runner_error_message || node.error_message) { %><span class="text-red-700 break-all"><%= node.parse_error || node.runner_error_message || node.error_message %></span><% } %>
               </div>
             </div>

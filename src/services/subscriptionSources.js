@@ -28,7 +28,7 @@ function validateSettings(input, existing, config) {
     else delete headers[header];
   }
   if (input.clear_authorization === '1' || input.clear_authorization === true) delete headers.authorization;
-  return { name, url, headers_json: JSON.stringify(headers), sync_interval_seconds: interval, is_active: ['1', 'on', 1, true].includes(input.is_active) ? 1 : 0 };
+  return { name, url, headers_json: JSON.stringify(headers), sync_interval_seconds: interval, is_active: 1 };
 }
 
 function createSource(input, config, now = Date.now()) {
@@ -197,7 +197,7 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
 
 async function syncSource(id, config, { signal, download = downloadSource, now = Date.now } = {}) {
   const source = getSource(id);
-  if (!source || !source.is_active) throw new SubscriptionError('superseded');
+  if (!source) throw new SubscriptionError('superseded');
   reparseStoredNodes(id);
   db.run("UPDATE subscription_sources SET last_attempt_at = ?, sync_status = 'running' WHERE id = ?", [now(), id]);
   try {

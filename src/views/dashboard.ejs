@@ -16,20 +16,18 @@
         <section class="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 p-5 text-white shadow-xl md:p-8">
             <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
             <div class="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-                <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Центр управления</p><h2 class="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">Серверы и пользователи</h2><p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p></div>
+                <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Центр управления</p><h2 class="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">Серверы и пользователи</h2><p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p><p class="mt-2 text-xs text-slate-400">Время отображается по часовому поясу <%= timezone %>.</p></div>
                 <a href="/admin/subscription-sources" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-500 px-4 py-3 font-semibold text-white hover:bg-blue-400">Управлять источниками</a>
             </div>
         </section>
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6 w-full">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b">
                 <h2 class="text-lg font-semibold text-gray-800">Ручные серверы</h2>
-                <div class="flex flex-col md:flex-row gap-2 w-full sm:w-auto">
-
+                <div class="flex w-full flex-row gap-2 sm:w-auto">
                     <button id="checkAllBtn" onclick="checkAllServers()"
-                        class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 w-full sm:w-auto">Проверить VPN</button>
-                    <a href="/admin/servers/new"
-                        class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 w-full sm:w-auto text-center">+
-                        Добавить сервер</a>
+                        class="min-h-[44px] flex-1 rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 sm:flex-none">Проверить VPN</button>
+                    <a href="/admin/servers/new" aria-label="Добавить сервер" title="Добавить сервер"
+                        class="inline-flex min-h-[44px] w-11 items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-xl font-semibold text-white hover:bg-emerald-700 sm:w-auto sm:text-base">+<span class="hidden sm:inline sm:ml-2">Добавить сервер</span></a>
                 </div>
             </div>
             <% if (servers.length===0) { %>
@@ -73,8 +71,8 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                                  class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Проверить VPN: <%= server.name %>" title="Проверить VPN">
                                                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h3l2-7 4 14 2-7h7"/></svg>
                                              </button>
-                                            <a href="/admin/servers/<%= server.id %>/edit"
-                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Редактировать</a>
+<a href="/admin/servers/<%= server.id %>/edit"
+                                                 class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-slate-600 px-3 py-1.5 text-center text-sm font-semibold leading-tight text-white hover:bg-slate-700">Редактировать</a>
                                             <form method="POST" action="/admin/servers/<%= server.id %>/delete"
                                                 onsubmit="return confirm('Удалить сервер?')">
                                                 <button type="submit"
@@ -124,8 +122,8 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                         class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 flex-1 text-center">Редактировать</a>
                                     <form method="POST" action="/admin/servers/<%= server.id %>/delete"
                                         onsubmit="return confirm('Удалить сервер?')">
-                                        <button type="submit"
-                                            class="inline-flex min-h-[38px] items-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">Удалить</button>
+<button type="submit" aria-label="Удалить пользователя <%= user.username %>" title="Удалить пользователя"
+                                                     class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-700 text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7l1-3h4l1 3"/></svg></button>
                                     </form>
                                 </div>
                             </div>
