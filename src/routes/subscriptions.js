@@ -30,8 +30,8 @@ module.exports = function subscriptionRoutes({ config, recordRequest }) {
   }
 
   function subscriptionUrl(req, user) {
-    const protocol = process.env.PUBLIC_DOMAIN ? 'https' : req.protocol;
-    const host = process.env.PUBLIC_DOMAIN || req.get('host');
+    const protocol = config.publicDomain ? 'https' : req.protocol;
+    const host = config.publicDomain || req.get('host');
     return `${protocol}://${host}/join/${encodeURIComponent(user.id)}#${encodeURIComponent(`Подписка_${user.username}`)}`;
   }
 

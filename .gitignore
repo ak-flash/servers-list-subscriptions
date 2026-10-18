@@ -9,5 +9,6 @@ coverage/
 *.sqlite
 *.db
 data/
+!data/.gitkeep
 .playwright-mcp/
 tools/xray/

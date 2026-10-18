@@ -6,6 +6,15 @@ const { once } = require('events');
 const { isPublicAddress, validateSourceUrl, resolvePublicHost, downloadSource } = require('../src/utils/safeHttp');
 const { link, config } = require('./fixtures');
 
+test('configuration validates public domains', () => {
+  const { loadConfig } = require('../src/config/subscriptions');
+  assert.equal(loadConfig({ PUBLIC_DOMAIN: 'example.com' }).publicDomain, 'example.com');
+  for (const value of ['https://example.com', 'example.com:443', 'example.com/path', '']) {
+    if (!value) continue;
+    assert.throws(() => loadConfig({ PUBLIC_DOMAIN: value }), /PUBLIC_DOMAIN/);
+  }
+});
+
 test('SSRF: private/metadata/mapped addresses, unusual numeric IPs and mixed DNS answers', async () => {
   for (const address of ['127.0.0.1', '10.0.0.1', '169.254.169.254', '100.64.0.1', '::1', 'fc00::1', '::ffff:127.0.0.1', '0.0.0.0']) assert.equal(isPublicAddress(address), false);
   assert.equal(isPublicAddress('8.8.8.8'), true);

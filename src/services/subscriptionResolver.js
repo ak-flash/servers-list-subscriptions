@@ -9,12 +9,13 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
   if (!user) return { user: null, servers: [], sources: [], resolved_at: now };
   const servers = [];
   const seen = new Set();
+  const manualSeen = new Set();
   for (const manual of db.getUserServersWithUuid(userId).sort((a, b) => a.id.localeCompare(b.id))) {
     const server = { ...manual, credential_mode: 'user_override', origin: 'manual' };
     server.link = effectiveLink(server);
     const key = effectiveFingerprint(server.link);
-    if (seen.has(key)) continue;
-    seen.add(key);
+    if (manualSeen.has(key)) continue;
+    manualSeen.add(key);
     servers.push(server);
   }
   const bindings = db.all(`SELECT us.*, s.name, s.is_active AS source_active FROM user_subscription_sources us
@@ -50,11 +51,6 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     }
     diagnostics.push(report);
   }
-  servers.sort((a, b) => {
-    const aLatency = Number.isFinite(a.latency_ms) ? a.latency_ms : Number.POSITIVE_INFINITY;
-    const bLatency = Number.isFinite(b.latency_ms) ? b.latency_ms : Number.POSITIVE_INFINITY;
-    return aLatency - bLatency || a.id.localeCompare(b.id);
-  });
   return { user, servers, sources: diagnostics, resolved_at: now };
 }
 

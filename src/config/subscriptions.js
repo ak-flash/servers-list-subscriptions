@@ -11,6 +11,16 @@ function integer(env, key, fallback, min, max) {
 }
 
 function loadConfig(env = process.env) {
+  let publicDomain = '';
+  if (env.PUBLIC_DOMAIN) {
+    try {
+      const parsed = new URL(`https://${env.PUBLIC_DOMAIN}`);
+      if (parsed.hostname !== env.PUBLIC_DOMAIN || parsed.pathname !== '/' || parsed.search || parsed.hash || parsed.username || parsed.password) throw new Error();
+      publicDomain = parsed.hostname;
+    } catch {
+      throw new Error('PUBLIC_DOMAIN: ожидается доменное имя без протокола, порта или пути');
+    }
+  }
   const targets = [
     { id: 'primary', url: env.PROBE_PRIMARY_URL || 'https://www.gstatic.com/generate_204', priority: 0, status: 204 },
     { id: 'fallback', url: env.PROBE_FALLBACK_URL || 'https://cp.cloudflare.com/generate_204', priority: 1, status: 204 }
@@ -20,6 +30,7 @@ function loadConfig(env = process.env) {
     if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error('PROBE_*_URL: требуется HTTPS URL без credentials/fragment');
   }
   const config = {
+    publicDomain,
     xrayPath: env.XRAY_PATH || (process.platform === 'win32' ? path.join(__dirname, '../../tools/xray/xray.exe') : '/usr/local/bin/xray'),
     xrayVersion: env.XRAY_VERSION || '26.3.27',
     xraySha256: env.XRAY_SHA256 || '',

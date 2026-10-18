@@ -13,9 +13,11 @@ const { ProbeScheduler } = require('./services/probeScheduler');
 const { deleteUser, deleteServer } = require('./services/subscriptionAssignments');
 const subscriptionRoutes = require('./routes/subscriptions');
 const subscriptionSourceRoutes = require('./routes/subscriptionSources');
+const adminRoutes = require('./routes/admin');
 const subscriptionView = require('./utils/subscriptionView');
 const { hashPassword, verifyPassword } = require('./utils/passwords');
 const { csrfToken, requireCsrf } = require('./middleware/csrf');
+const logger = require('./utils/logger');
 
 const WEBHOOK_LOG_FILE = path.join(__dirname, '..', 'data', 'webhook-traffic.log');
 const WEBHOOK_LOG_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -65,7 +67,7 @@ app.use((req, res, next) => {
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com"
+        'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
     });
     next();
 });
@@ -73,10 +75,15 @@ app.locals = { ...app.locals, ...subscriptionView };
 if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 
 app.use(session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: process.env.SESSION_COOKIE_SECURE === '1' }
+     secret: SESSION_SECRET,
+     resave: false,
+     saveUninitialized: false,
+     cookie: {
+         maxAge: 24 * 60 * 60 * 1000,
+         httpOnly: true,
+         sameSite: 'lax',
+         secure: process.env.NODE_ENV === 'production' || process.env.SESSION_COOKIE_SECURE === '1'
+     }
 }));
 app.use(csrfToken);
 
@@ -122,7 +129,7 @@ function dbRun(sql, params = []) {
 }
 
 function recordSubscriptionRequest(userId, req) {
-    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+    const ipAddress = req.ip || req.socket.remoteAddress || '';
     const userAgent = req.headers['user-agent'] || '';
 
     transaction(() => {
@@ -135,6 +142,8 @@ function recordSubscriptionRequest(userId, req) {
 
 app.use(subscriptionRoutes({ config: subscriptionConfig, recordRequest: recordSubscriptionRequest }));
 app.use(subscriptionSourceRoutes({ config: subscriptionConfig, scheduler, requireAuth, appName: APP_NAME }));
+app.use(adminRoutes({ requireAuth, dbGet, dbAll, dbRun, appName: APP_NAME }));
+app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
 
 app.get('/admin/login', (req, res) => {
     res.render('login', { error: null, appName: APP_NAME });
@@ -415,7 +424,7 @@ function logWebhook(type, data, ip) {
         }
         fs.appendFileSync(WEBHOOK_LOG_FILE, logEntry);
     } catch (err) {
-        console.error('Webhook logging error:', err.message);
+        logger.error('webhook_logging_failed', { error: err.message });
     }
 }
 
@@ -536,14 +545,12 @@ async function startServer() {
     if (!defaultAdmin) {
         dbRun('INSERT INTO users (id, username, password, is_active, must_change_password, created_at) VALUES (?, ?, ?, ?, ?, datetime(\'now\'))',
             [generateShortId(12), adminUsername, hashPassword(adminPassword), 1, 1]);
-        console.log('Создан администратор:', adminUsername);
+        logger.info('admin_created', { username: adminUsername });
     }
 
     await scheduler.start();
     const server = app.listen(PORT, process.env.HOST || '0.0.0.0', () => {
-        console.log(`Сервер подписок запущен на порту ${PORT} `);
-        console.log(`Админ - панель: http://localhost:${PORT}/admin`);
-        console.log(`Подписка: http://localhost:${PORT}/join/{user_id}`);
+        logger.info('server_started', { port: PORT, host: process.env.HOST || '0.0.0.0' });
     });
 
     let stopping = false;
@@ -551,7 +558,7 @@ async function startServer() {
     const shutdown = async (exitCode = 0) => {
         if (stopping) return;
         stopping = true;
-        console.log('Получен сигнал завершения, закрываю сервер...');
+        logger.info('shutdown_started');
         clearInterval(monthlyReset);
         const deadline = setTimeout(() => process.exit(1), 10000);
         const closed = new Promise(resolve => server.close(resolve));
@@ -564,18 +571,18 @@ async function startServer() {
             clearTimeout(deadline);
             process.exit(exitCode);
         } catch (error) {
-            console.error('Не удалось корректно завершить сервис:', error.message);
+            logger.error('shutdown_failed', { error: error.message });
             process.exit(1);
         }
     };
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
     process.on('uncaughtException', error => {
-        console.error('Необработанное исключение:', error);
+        logger.error('uncaught_exception', { error: error?.message, stack: error?.stack });
         shutdown(1);
     });
     process.on('unhandledRejection', error => {
-        console.error('Необработанное отклонение Promise:', error);
+        logger.error('unhandled_rejection', { error: error?.message, stack: error?.stack });
         shutdown(1);
     });
 
@@ -590,14 +597,14 @@ function checkMonthlyReset() {
     const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
     const state = dbGet('SELECT value FROM app_state WHERE key = ?', ['traffic_reset_month']);
     if (state?.value === monthKey || now.getDate() !== 1) return;
-    console.log('Выполняется ежемесячный сброс трафика...');
+    logger.info('monthly_traffic_reset_started', { month: monthKey });
     transaction(() => {
         dbRun('DELETE FROM user_traffic');
         dbRun('DELETE FROM server_traffic');
         dbRun('DELETE FROM traffic_snapshots');
         dbRun('INSERT OR REPLACE INTO app_state (key, value) VALUES (?, ?)', ['traffic_reset_month', monthKey]);
     });
-    console.log('Трафик успешно сброшен.');
+    logger.info('monthly_traffic_reset_completed', { month: monthKey });
 }
 
 // Helper function to format bytes
@@ -711,23 +718,9 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     });
 });
 
-app.post('/admin/stats/clear', requireAuth, requireCsrf, (req, res) => {
-    try {
-        // Clear all subscription requests
-        dbRun('DELETE FROM subscription_requests');
-
-        // Reset user request tracking
-        dbRun('UPDATE users SET first_request_at = NULL, last_request_at = NULL');
-
-        res.json({ success: true, message: 'Статистика успешно очищена' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Ошибка при очистке статистики: ' + error.message });
-    }
-});
-
 if (require.main === module) {
     startServer().catch(error => {
-        console.error('Не удалось запустить сервис:', error.message);
+        logger.error('server_start_failed', { error: error.message });
         process.exitCode = 1;
     });
 }

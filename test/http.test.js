@@ -20,6 +20,9 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   t.after(async () => { await scheduler.stop(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); db.closeDb(); });
   const request = (url, options = {}) => fetch(base + url, { redirect: 'manual', ...options });
   const post = (url, data, cookie) => request(url, { method: 'POST', headers: cookie ? { cookie } : {}, body: new URLSearchParams(data) });
+  const healthcheck = await request('/healthz');
+  assert.equal(healthcheck.status, 200);
+  assert.equal((await healthcheck.json()).status, 'ok');
   assert.equal((await request('/api/users/u/subscription-preview')).status, 401);
   const login = await post('/admin/login', { username: 'test-admin', password: 'test-password' });
   assert.equal(login.status, 302);
@@ -57,10 +60,10 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   assert.equal(profile.status, 200);
   const body = await profile.text();
   const firstUris = Buffer.from(body, 'base64').toString('utf8').split('\n').filter(line => line.startsWith('vless://'));
-  assert.equal(firstUris.length, 1);
+  assert.equal(firstUris.length, 2);
   const decoded = Buffer.from(body, 'base64').toString('utf8');
   const uris = decoded.split('\n').filter(line => line.startsWith('vless://'));
-  assert.equal(uris.length, 1);
+  assert.equal(uris.length, 2);
   assert.ok(uris[0].includes(UUID));
   assert.ok(decoded.includes(`#profile-update-interval: ${profile.headers.get('profile-update-interval')}`));
   const json = await (await request('/join/u/json')).json();
@@ -73,7 +76,7 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   const refreshed = await request('/join/u');
   assert.equal(refreshed.status, 200);
   const refreshedUris = Buffer.from(await refreshed.text(), 'base64').toString('utf8').split('\n').filter(line => line.startsWith('vless://'));
-  assert.equal(refreshedUris.length, 1);
+  assert.equal(refreshedUris.length, 2);
   assert.ok(refreshedUris[0].includes('one.example.com') || refreshedUris[0].includes('two.example.com'));
   assert.equal(refreshed.headers.get('cache-control'), 'no-store');
   const qr = await (await request('/join/u/qr-img')).json();
@@ -81,7 +84,7 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   const qrPage = await (await request('/join/u/qr')).text();
   assert.ok(!qrPage.includes('<script>test</script>'));
   const preview = await (await request('/api/users/u/subscription-preview', { headers: { cookie } })).json();
-  assert.equal(preview.servers.length, 1);
+  assert.equal(preview.servers.length, 2);
   assert.ok(!JSON.stringify(preview).includes(UUID));
   db.run("UPDATE users SET is_active = 0 WHERE id = 'u'");
   for (const suffix of ['', '/json', '/qr', '/qr-img']) assert.equal((await request(`/join/u${suffix}`)).status, 404);

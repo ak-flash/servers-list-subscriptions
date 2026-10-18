@@ -32,7 +32,10 @@ Xray используется как временный клиент для пр
 
 ```bash
 npm ci
+npm run build:css
 ```
+
+CSS интерфейса собирается локально из `src/styles.css` в `public/app.css`; внешние CDN для Tailwind не используются.
 
 **Важно:** База данных `data/subscription.db` будет автоматически создана при первом запуске.
 
@@ -92,6 +95,21 @@ npm start
 
 ```bash
 npm start
+```
+
+### Docker
+
+```bash
+docker build -t vpn-subscription-service .
+docker run --name vpn-subscription-service --env-file .env -p 2096:2096 -v vpn-subscription-data:/app/data vpn-subscription-service
+```
+
+Для production задайте `PORT`, соответствующий проброшенному порту, и сохраните `SESSION_SECRET`, `WEBHOOK_SECRET`, `PUBLIC_DOMAIN` и `ADMIN_PASSWORD` в `.env` до первого входа.
+
+Перед запуском или после изменения шаблонов пересоберите локальные стили:
+
+```bash
+npm run build:css
 ```
 
 Для разработки с автоматическим перезапуском при изменениях:
@@ -222,6 +240,7 @@ https://your-domain.com/api/webhook/traffic/my-secret
 
 | Метод | Путь | Описание |
 |-------|------|----------|
+| GET | `/healthz` | Публичная проверка доступности сервиса и планировщика |
 | GET | `/admin` | Админ-панель (требует авторизации) |
 | GET | `/admin/login` | Страница входа |
 | POST | `/admin/login` | Авторизация |

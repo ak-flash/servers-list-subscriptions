@@ -154,19 +154,25 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
       seen.add(node.fingerprint);
       const old = existing.get(node.fingerprint);
       const id = old?.id || crypto.randomUUID();
+      const configJson = node.config ? JSON.stringify(node.config) : null;
+      if (old && old.is_present && old.raw_link === node.rawLink && old.normalized_config_json === configJson && old.capability_status === node.capability) {
+        report.existing++;
+        db.run('UPDATE subscription_nodes SET last_seen_at = ? WHERE id = ?', [now, id]);
+        continue;
+      }
       const generation = old ? old.generation + 1 : 1;
       if (old) {
         report.existing++;
         db.run(`UPDATE subscription_nodes SET raw_link = ?, normalized_config_json = ?, name = ?, capability_status = ?,
           parse_error = ?, last_seen_at = ?, removed_at = NULL, is_present = 1, generation = ?,
           next_check_at = CASE WHEN is_present = 0 THEN 0 ELSE next_check_at END WHERE id = ?`,
-        [node.rawLink, node.config ? JSON.stringify(node.config) : null, node.name, node.capability, node.error, now, generation, id]);
+        [node.rawLink, configJson, node.name, node.capability, node.error, now, generation, id]);
       } else {
         report.added++;
         db.run(`INSERT INTO subscription_nodes
           (id, source_id, fingerprint, raw_link, normalized_config_json, name, protocol, host, port, capability_status, parse_error, first_seen_at, last_seen_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, source.id, node.fingerprint, node.rawLink, node.config ? JSON.stringify(node.config) : null, node.name, node.protocol, node.host, node.port, node.capability, node.error, now, now]);
+        [id, source.id, node.fingerprint, node.rawLink, configJson, node.name, node.protocol, node.host, node.port, node.capability, node.error, now, now]);
       }
       db.run(`INSERT INTO subscription_node_health (node_id, config_fingerprint, generation, status)
         VALUES (?, ?, ?, ?) ON CONFLICT(node_id) DO UPDATE SET config_fingerprint = excluded.config_fingerprint,
@@ -179,11 +185,11 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
       for (const old of existing.values()) {
         if (old.is_present && !seen.has(old.fingerprint)) {
           report.removed++;
-          db.run('DELETE FROM subscription_nodes WHERE id = ?', [old.id]);
+          db.run('UPDATE subscription_nodes SET is_present = 0, removed_at = ? WHERE id = ?', [now, old.id]);
         }
       }
     }
-    if (snapshot.complete) db.run('DELETE FROM subscription_nodes WHERE source_id = ? AND is_present = 0', [source.id]);
+    // Row history for absent nodes is kept (is_present = 0) and cleaned up by historyDays pruning.
     // Do not keep even old validators after a partial response: a subsequent 304 cannot certify that snapshot.
     db.run(`UPDATE subscription_sources SET sync_status = ?, last_success_at = ?, last_error = ?, failure_count = 0,
       next_sync_at = ?, etag = ?, last_modified = ?, metadata_json = ?, report_json = ? WHERE id = ?`,

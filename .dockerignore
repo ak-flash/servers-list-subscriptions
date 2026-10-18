@@ -1,0 +1,9 @@
+node_modules
+.env
+data
+*.log
+.git
+.github
+coverage
+tools/xray
+public/app.css

@@ -43,6 +43,30 @@ test('fresh database, nested rollback, persistence and cascading source/user del
   assert.throws(() => db.run(`INSERT INTO user_subscription_sources (user_id, source_id, created_at, updated_at) VALUES ('missing', 's', 1, 1)`), /FOREIGN KEY/);
 });
 
+test('backup retention removes backups older than the configured count', async t => {
+  const parent = path.join(os.tmpdir(), 'opencode');
+  fs.mkdirSync(parent, { recursive: true });
+  const directory = fs.mkdtempSync(path.join(parent, 'subscriptions-backups-'));
+  const filePath = path.join(directory, 'test.db');
+  const backupDirectory = path.join(directory, 'backups');
+  const previousRetention = process.env.BACKUP_RETENTION_COUNT;
+  process.env.BACKUP_RETENTION_COUNT = '2';
+  t.after(() => {
+    if (previousRetention === undefined) delete process.env.BACKUP_RETENTION_COUNT;
+    else process.env.BACKUP_RETENTION_COUNT = previousRetention;
+    db.closeDb();
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+  await db.initDb({ filePath });
+  db.closeDb();
+  fs.mkdirSync(backupDirectory, { recursive: true });
+  for (const date of ['2020-01-01', '2020-01-02', '2020-01-03']) fs.copyFileSync(filePath, path.join(backupDirectory, `subscription_${date}.db`));
+  await db.initDb({ filePath });
+  const backups = fs.readdirSync(backupDirectory).filter(entry => entry.endsWith('.db')).sort();
+  assert.equal(backups.length, 2);
+  assert.deepEqual(backups, ['subscription_2020-01-03.db', `subscription_${new Date().toISOString().slice(0, 10)}.db`].sort());
+});
+
 test('legacy host-based schema migrates without losing IDs, disabled state or assignments', async t => {
   const parent = path.join(os.tmpdir(), 'opencode');
   fs.mkdirSync(parent, { recursive: true });

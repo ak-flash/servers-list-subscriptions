@@ -54,17 +54,18 @@ function releaseLock() {
 function backup() {
   if (dbPath === ':memory:' || !fs.existsSync(dbPath)) return;
   const directory = path.join(path.dirname(dbPath), 'backups');
+  const retention = Math.max(1, Number.parseInt(process.env.BACKUP_RETENTION_COUNT || '7', 10) || 7);
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const filename = path.join(directory, `subscription_${new Date().toISOString().slice(0, 10)}.db`);
   if (!fs.existsSync(filename)) {
     fs.copyFileSync(dbPath, filename, fs.constants.COPYFILE_EXCL);
     fs.chmodSync(filename, 0o600);
-    for (const entry of fs.readdirSync(directory)) {
-      if (!/^subscription_\d{4}-\d{2}-\d{2}\.db$/.test(entry)) continue;
-      const file = path.join(directory, entry);
-      if (fs.statSync(file).mtimeMs < Date.now() - 30 * 86400000) fs.unlinkSync(file);
-    }
   }
+  const backups = fs.readdirSync(directory)
+    .filter(entry => /^subscription_\d{4}-\d{2}-\d{2}\.db$/.test(entry))
+    .sort()
+    .reverse();
+  for (const entry of backups.slice(retention)) fs.unlinkSync(path.join(directory, entry));
 }
 
 async function initDb(options = {}) {

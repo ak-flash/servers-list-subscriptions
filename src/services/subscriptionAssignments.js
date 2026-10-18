@@ -45,7 +45,7 @@ function saveAssignments(userId, input) {
   const bindings = sourceIds.map(id => {
     if (!db.get('SELECT id FROM subscription_sources WHERE id = ?', [id])) throw new SubscriptionError('validation', 'Один из выбранных источников удалён. Обновите страницу.');
     return {
-      id, limit: fieldNumber(input.source_limits?.[id], 10000, 1, 10000, 'Лимит узлов'),
+      id, limit: fieldNumber(input.source_limits?.[id], 3, 1, 20, 'Лимит узлов'),
       latency: fieldNumber(input.max_latency?.[id], null, 1, 60000, 'Максимальная задержка'),
       priority: fieldNumber(input.priorities?.[id], 0, 0, 1000, 'Приоритет')
     };

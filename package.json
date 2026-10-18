@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node scripts/start.js",
     "dev": "node scripts/start.js watch",
-    "test": "node --test test/*.test.js",
+    "build:css": "tailwindcss -i ./src/styles.css -o ./public/app.css --minify",
+    "docker:build": "docker build -t vpn-subscription-service .",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
     "test:vpn": "node --test test/integration/*.test.js"
   },
   "engines": {
@@ -23,6 +25,7 @@
     "sql.js": "^1.10.2"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2"
