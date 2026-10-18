@@ -25,9 +25,14 @@
     "sql.js": "^1.10.2"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.3.3",
+    "@tailwindcss/cli": "4.3.0",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2"
+  },
+  "overrides": {
+    "express": {
+      "qs": "~6.16.0"
+    }
   }
 }
