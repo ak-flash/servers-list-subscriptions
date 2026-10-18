@@ -120,7 +120,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h3l2-7 4 14 2-7h7"/></svg>
                                      </button>
                                     <a href="/admin/servers/<%= server.id %>/edit"
-                                        class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 flex-1 text-center">Редактировать</a>
+                                        class="inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-gray-500 px-3 text-sm text-white hover:bg-gray-600 text-center">Редактировать</a>
                                     <form method="POST" action="/admin/servers/<%= server.id %>/delete"
                                         onsubmit="return confirm('Удалить сервер?')">
 <button type="submit" aria-label="Удалить сервер <%= server.name %>" title="Удалить сервер"
