@@ -74,8 +74,7 @@ class ProbeScheduler {
     if (dueOnly) {
       nodes = nodes.filter(node => !this.tasks.has(this.nodeKey(node)) &&
         (node.next_check_at <= now || (node.last_checked_at && node.last_attempt_at <= node.last_checked_at && node.probe_profile_version !== this.config.profileVersion)));
-      nodes = nodes.slice(0, Math.max(0, this.config.maxQueued - this.tasks.size));
-      if (!nodes.length) return null;
+       if (!nodes.length) return null;
     }
     this.ensureCapacity(nodes.filter(node => !this.tasks.has(this.nodeKey(node))).length);
     sourceId = sourceId || nodes[0]?.source_id;

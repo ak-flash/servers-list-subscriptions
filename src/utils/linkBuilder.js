@@ -75,6 +75,7 @@ function parseLinkAndExtractName(link) {
 
 function effectiveLink(server) {
     if (!server.link) return '';
+    if (server.credential_mode === 'original') return server.link;
     let remark = server.name;
     if (server.traffic_limit > 0) {
         const usedGB = (server.total_traffic || 0) / (1024 * 1024 * 1024);

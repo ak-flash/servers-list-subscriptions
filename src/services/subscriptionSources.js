@@ -154,7 +154,7 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
       seen.add(node.fingerprint);
       const old = existing.get(node.fingerprint);
       const id = old?.id || crypto.randomUUID();
-      const generation = old ? old.generation + (old.is_present ? 0 : 1) : 1;
+      const generation = old ? old.generation + 1 : 1;
       if (old) {
         report.existing++;
         db.run(`UPDATE subscription_nodes SET raw_link = ?, normalized_config_json = ?, name = ?, capability_status = ?,
@@ -168,22 +168,22 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, source.id, node.fingerprint, node.rawLink, node.config ? JSON.stringify(node.config) : null, node.name, node.protocol, node.host, node.port, node.capability, node.error, now, now]);
       }
-      if (!old || !old.is_present) {
-        db.run(`INSERT INTO subscription_node_health (node_id, config_fingerprint, generation, status)
-          VALUES (?, ?, ?, ?) ON CONFLICT(node_id) DO UPDATE SET generation = excluded.generation,
-          status = excluded.status, pending_cycle_id = NULL, last_checked_at = NULL, last_success_at = NULL,
-          latency_ms = NULL, runner_error_code = NULL, runner_error_message = NULL`,
-        [id, node.fingerprint, generation, node.capability === 'supported' ? 'unknown' : node.capability]);
-      }
+      db.run(`INSERT INTO subscription_node_health (node_id, config_fingerprint, generation, status)
+        VALUES (?, ?, ?, ?) ON CONFLICT(node_id) DO UPDATE SET config_fingerprint = excluded.config_fingerprint,
+        generation = excluded.generation, status = excluded.status, pending_cycle_id = NULL,
+        last_checked_at = NULL, last_success_at = NULL, latency_ms = NULL,
+        runner_error_code = NULL, runner_error_message = NULL`,
+      [id, node.fingerprint, generation, node.capability === 'supported' ? 'unknown' : node.capability]);
     }
     if (snapshot.complete) {
       for (const old of existing.values()) {
         if (old.is_present && !seen.has(old.fingerprint)) {
           report.removed++;
-          db.run('UPDATE subscription_nodes SET is_present = 0, removed_at = ?, generation = generation + 1 WHERE id = ?', [now, old.id]);
+          db.run('DELETE FROM subscription_nodes WHERE id = ?', [old.id]);
         }
       }
     }
+    if (snapshot.complete) db.run('DELETE FROM subscription_nodes WHERE source_id = ? AND is_present = 0', [source.id]);
     // Do not keep even old validators after a partial response: a subsequent 304 cannot certify that snapshot.
     db.run(`UPDATE subscription_sources SET sync_status = ?, last_success_at = ?, last_error = ?, failure_count = 0,
       next_sync_at = ?, etag = ?, last_modified = ?, metadata_json = ?, report_json = ? WHERE id = ?`,

@@ -21,7 +21,7 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     JOIN subscription_sources s ON s.id = us.source_id WHERE us.user_id = ? ORDER BY us.priority, us.source_id`, [userId]);
   const diagnostics = [];
   for (const binding of bindings) {
-    const report = { source_id: binding.source_id, name: binding.name, requested: binding.node_limit, available: 0, selected: [], excluded: {} };
+    const report = { source_id: binding.source_id, name: binding.name, requested: null, available: 0, selected: [], excluded: {} };
     const exclude = reason => { report.excluded[reason] = (report.excluded[reason] || 0) + 1; };
     if (!binding.is_active || !binding.source_active) {
       exclude('source_disabled');
@@ -37,20 +37,24 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
       (b.successful_attempts / b.total_attempts) - (a.successful_attempts / a.total_attempts) ||
       a.target_priority - b.target_priority || a.fingerprint.localeCompare(b.fingerprint));
     for (const node of candidates) {
-      const server = { id: node.id, name: node.name, remark: node.name, link: node.raw_link, credential_mode: 'original',
+      const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, latency_ms: node.latency_ms, test_target_id: node.test_target_id };
       const key = effectiveFingerprint(server.link);
       if (seen.has(key)) { exclude('duplicate'); continue; }
       report.available++;
-      if (report.selected.length >= binding.node_limit) continue;
-      seen.add(key);
+       seen.add(key);
       servers.push(server);
       report.selected.push({ id: node.id, name: node.name, host: node.host, port: node.port, latency_ms: node.latency_ms,
         test_target_id: node.test_target_id, last_checked_at: node.last_checked_at });
     }
     diagnostics.push(report);
   }
+  servers.sort((a, b) => {
+    const aLatency = Number.isFinite(a.latency_ms) ? a.latency_ms : Number.POSITIVE_INFINITY;
+    const bLatency = Number.isFinite(b.latency_ms) ? b.latency_ms : Number.POSITIVE_INFINITY;
+    return aLatency - bLatency || a.id.localeCompare(b.id);
+  });
   return { user, servers, sources: diagnostics, resolved_at: now };
 }
 
