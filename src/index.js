@@ -14,6 +14,8 @@ const { deleteUser, deleteServer } = require('./services/subscriptionAssignments
 const subscriptionRoutes = require('./routes/subscriptions');
 const subscriptionSourceRoutes = require('./routes/subscriptionSources');
 const subscriptionView = require('./utils/subscriptionView');
+const { hashPassword, verifyPassword } = require('./utils/passwords');
+const { csrfToken, requireCsrf } = require('./middleware/csrf');
 
 const WEBHOOK_LOG_FILE = path.join(__dirname, '..', 'data', 'webhook-traffic.log');
 const WEBHOOK_LOG_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -25,6 +27,30 @@ function generateShortId(length = 6) {
 const app = express();
 const PORT = process.env.PORT || 2096;
 const APP_NAME = process.env.APP_NAME || 'VPN Подписки';
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) throw new Error('SESSION_SECRET не задан');
+if (process.env.NODE_ENV === 'production' && !WEBHOOK_SECRET) throw new Error('WEBHOOK_SECRET не задан в production');
+
+const loginAttempts = new Map();
+const LOGIN_RATE_WINDOW_MS = 15 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 10;
+function rateLimit(key, windowMs, max) {
+    const now = Date.now();
+    const entry = loginAttempts.get(key);
+    if (!entry || entry.resetAt <= now) {
+        loginAttempts.set(key, { count: 1, resetAt: now + windowMs });
+        return true;
+    }
+    if (entry.count >= max) return false;
+    entry.count++;
+    return true;
+}
+function webhookAuthorized(req) {
+    if (!WEBHOOK_SECRET) return process.env.NODE_ENV !== 'production';
+    const token = req.params.webhookSecret;
+    return typeof token === 'string' && token.length === WEBHOOK_SECRET.length && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(WEBHOOK_SECRET));
+}
 const subscriptionConfig = loadConfig();
 const scheduler = new ProbeScheduler(subscriptionConfig);
 const manualVpnChecker = scheduler.checker;
@@ -34,18 +60,29 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+    res.set({
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'no-referrer',
+        'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com"
+    });
+    next();
+});
 app.locals = { ...app.locals, ...subscriptionView };
 if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'vpn-subscription-secret-key-2024',
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: { maxAge: 24 * 60 * 60 * 1000, httpOnly: true, sameSite: 'lax', secure: process.env.SESSION_COOKIE_SECURE === '1' }
 }));
+app.use(csrfToken);
 
 function requireAuth(req, res, next) {
     if (req.session && req.session.userId) {
+        if (req.session.mustChangePassword && req.path !== '/admin/password' && !req.path.startsWith('/api/')) return res.redirect('/admin/password');
         return next();
     }
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Войдите в админ-панель.' });
@@ -105,20 +142,46 @@ app.get('/admin/login', (req, res) => {
 
 app.post('/admin/login', (req, res) => {
     const { username, password } = req.body;
-    const user = dbGet('SELECT * FROM users WHERE username = ? AND password = ? AND is_active = 1', [username, password]);
-
-    if (user) {
-        req.session.userId = user.id;
-        req.session.username = user.username;
-        res.redirect('/admin');
-    } else {
-        res.render('login', { error: 'Неверное имя пользователя или пароль', appName: APP_NAME });
+    if (typeof username !== 'string' || username.length > 128) return res.status(400).render('login', { error: 'Неверные данные входа', appName: APP_NAME });
+    const key = String(req.ip || req.socket.remoteAddress || 'unknown');
+    if (!rateLimit(`login:${key}`, LOGIN_RATE_WINDOW_MS, MAX_LOGIN_ATTEMPTS)) {
+        return res.status(429).render('login', { error: 'Слишком много попыток. Повторите позже.', appName: APP_NAME });
     }
+    const user = dbGet('SELECT * FROM users WHERE username = ? AND is_active = 1', [username]);
+    const normalizedPassword = typeof password === 'string' ? password : '';
+    const verification = verifyPassword(normalizedPassword, user?.password);
+
+    if (user && verification.valid) {
+        return req.session.regenerate(error => {
+            if (error) return res.status(500).render('login', { error: 'Не удалось создать сессию.', appName: APP_NAME });
+            req.session.userId = user.id;
+            req.session.username = user.username;
+            req.session.mustChangePassword = Boolean(user.must_change_password || verification.legacy);
+            if (verification.legacy) dbRun('UPDATE users SET password = ? WHERE id = ?', [hashPassword(normalizedPassword), user.id]);
+            res.redirect('/admin');
+        });
+    }
+    res.render('login', { error: 'Неверное имя пользователя или пароль', appName: APP_NAME });
 });
 
 app.get('/admin/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/admin/login');
+});
+
+app.get('/admin/password', requireAuth, (req, res) => {
+    res.render('password-form', { error: null, appName: APP_NAME });
+});
+
+app.post('/admin/password', requireAuth, requireCsrf, (req, res) => {
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    const confirmation = typeof req.body.password_confirmation === 'string' ? req.body.password_confirmation : '';
+    if (password.length < 8 || password !== confirmation) {
+        return res.status(400).render('password-form', { error: 'Пароли должны совпадать и содержать минимум 8 символов.', appName: APP_NAME });
+    }
+    dbRun('UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?', [hashPassword(password), req.session.userId]);
+    req.session.mustChangePassword = false;
+    res.redirect('/admin');
 });
 
 // Helper function to format bytes
@@ -159,7 +222,7 @@ app.get('/admin/servers/new', requireAuth, (req, res) => {
     res.render('server-form', { server: null, error: null, appName: APP_NAME });
 });
 
-app.post('/admin/servers', requireAuth, (req, res) => {
+app.post('/admin/servers', requireAuth, requireCsrf, (req, res) => {
     const { link, name } = req.body;
 
     if (!link || !link.trim()) {
@@ -191,7 +254,7 @@ app.get('/admin/servers/:id/edit', requireAuth, (req, res) => {
     res.render('server-form', { server: serverWithInfo, error: null, appName: APP_NAME });
 });
 
-app.post('/admin/servers/:id', requireAuth, (req, res) => {
+app.post('/admin/servers/:id', requireAuth, requireCsrf, (req, res) => {
     const { name, link, tag, traffic_limit, is_active } = req.body;
 
     try {
@@ -216,7 +279,7 @@ app.post('/admin/servers/:id', requireAuth, (req, res) => {
     }
 });
 
-app.post('/admin/servers/:id/delete', requireAuth, (req, res) => {
+app.post('/admin/servers/:id/delete', requireAuth, requireCsrf, (req, res) => {
     deleteServer(req.params.id);
     res.redirect('/admin');
 });
@@ -225,7 +288,7 @@ app.get('/admin/users/new', requireAuth, (req, res) => {
     res.render('user-form', { user: null, error: null, appName: APP_NAME });
 });
 
-app.post('/admin/users', requireAuth, (req, res) => {
+app.post('/admin/users', requireAuth, requireCsrf, (req, res) => {
     const { username, is_active } = req.body;
     const id = generateShortId();
 
@@ -246,13 +309,13 @@ app.get('/admin/users/:id/edit', requireAuth, (req, res) => {
     res.render('user-form', { user, error: null, appName: APP_NAME });
 });
 
-app.post('/admin/users/:id', requireAuth, (req, res) => {
+app.post('/admin/users/:id', requireAuth, requireCsrf, (req, res) => {
     const { username, password, is_active } = req.body;
 
     try {
         if (password) {
             dbRun(`UPDATE users SET username = ?, password = ?, is_active = ? WHERE id = ? `,
-                [username, password, is_active ? 1 : 0, req.params.id]);
+                [username, hashPassword(password), is_active ? 1 : 0, req.params.id]);
         } else {
             dbRun(`UPDATE users SET username = ?, is_active = ? WHERE id = ? `,
                 [username, is_active ? 1 : 0, req.params.id]);
@@ -266,7 +329,7 @@ app.post('/admin/users/:id', requireAuth, (req, res) => {
     }
 });
 
-app.post('/admin/users/:id/delete', requireAuth, (req, res) => {
+app.post('/admin/users/:id/delete', requireAuth, requireCsrf, (req, res) => {
     deleteUser(req.params.id);
     res.redirect('/admin');
 });
@@ -285,21 +348,22 @@ async function checkManualServer(server) {
     }
 }
 
-app.post('/api/servers/check', requireAuth, async (req, res) => {
+app.post('/api/servers/check', requireAuth, requireCsrf, async (req, res) => {
     const servers = dbAll('SELECT * FROM servers WHERE is_active = 1');
     const results = [];
     for (const server of servers) results.push(await checkManualServer(server));
     res.json({ results });
 });
 
-app.post('/api/servers/:id/check', requireAuth, async (req, res) => {
+app.post('/api/servers/:id/check', requireAuth, requireCsrf, async (req, res) => {
     const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
     if (!server) return res.status(404).json({ error: 'Сервер не найден' });
     res.json(await checkManualServer(server));
 });
 
 // Traffic reporting API endpoints
-app.post('/api/traffic/report', (req, res) => {
+app.post('/api/traffic/report/:webhookSecret', (req, res) => {
+    if (!webhookAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
     const { user_id, server_id, upload_bytes, download_bytes } = req.body;
 
     if (!user_id || !server_id || upload_bytes === undefined || download_bytes === undefined) {
@@ -355,8 +419,9 @@ function logWebhook(type, data, ip) {
     }
 }
 
-app.post('/api/webhook/traffic', (req, res) => {
-    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+app.post('/api/webhook/traffic/:webhookSecret', (req, res) => {
+    if (!webhookAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
     logWebhook('INCOMING', req.body, ip);
 
@@ -465,10 +530,12 @@ async function startServer() {
     await initDb();
 
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminPassword = process.env.ADMIN_PASSWORD;
     const defaultAdmin = dbGet('SELECT * FROM users WHERE username = ?', [adminUsername]);
+    if (!defaultAdmin && !adminPassword) throw new Error('ADMIN_PASSWORD не задан для создания администратора');
     if (!defaultAdmin) {
-        dbRun('INSERT INTO users (id, username, password, is_active, created_at) VALUES (?, ?, ?, ?, datetime(\'now\'))',
-            [generateShortId(), adminUsername, process.env.ADMIN_PASSWORD || 'admin123', 1]);
+        dbRun('INSERT INTO users (id, username, password, is_active, must_change_password, created_at) VALUES (?, ?, ?, ?, ?, datetime(\'now\'))',
+            [generateShortId(12), adminUsername, hashPassword(adminPassword), 1, 1]);
         console.log('Создан администратор:', adminUsername);
     }
 
@@ -480,7 +547,8 @@ async function startServer() {
     });
 
     let stopping = false;
-    const shutdown = async () => {
+    let monthlyReset;
+    const shutdown = async (exitCode = 0) => {
         if (stopping) return;
         stopping = true;
         console.log('Получен сигнал завершения, закрываю сервер...');
@@ -494,28 +562,42 @@ async function startServer() {
             saveDb();
             closeDb();
             clearTimeout(deadline);
-            process.exit(0);
-        } catch {
-            console.error('Не удалось корректно завершить сервис');
+            process.exit(exitCode);
+        } catch (error) {
+            console.error('Не удалось корректно завершить сервис:', error.message);
             process.exit(1);
         }
     };
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
+    process.on('uncaughtException', error => {
+        console.error('Необработанное исключение:', error);
+        shutdown(1);
+    });
+    process.on('unhandledRejection', error => {
+        console.error('Необработанное отклонение Promise:', error);
+        shutdown(1);
+    });
 
     // Ежемесячный сброс трафика (1-го числа)
-    const monthlyReset = setInterval(checkMonthlyReset, 60 * 60 * 1000);
+    monthlyReset = setInterval(checkMonthlyReset, 60 * 60 * 1000);
     checkMonthlyReset();
     return server;
 }
 
 function checkMonthlyReset() {
     const now = new Date();
-    if (now.getDate() === 1 && now.getHours() === 0) {
-        console.log('Выполняется ежемесячный сброс трафика...');
-        resetAllTraffic();
-        console.log('Трафик успешно сброшен.');
-    }
+    const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+    const state = dbGet('SELECT value FROM app_state WHERE key = ?', ['traffic_reset_month']);
+    if (state?.value === monthKey || now.getDate() !== 1) return;
+    console.log('Выполняется ежемесячный сброс трафика...');
+    transaction(() => {
+        dbRun('DELETE FROM user_traffic');
+        dbRun('DELETE FROM server_traffic');
+        dbRun('DELETE FROM traffic_snapshots');
+        dbRun('INSERT OR REPLACE INTO app_state (key, value) VALUES (?, ?)', ['traffic_reset_month', monthKey]);
+    });
+    console.log('Трафик успешно сброшен.');
 }
 
 // Helper function to format bytes
@@ -629,7 +711,7 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     });
 });
 
-app.post('/admin/stats/clear', requireAuth, (req, res) => {
+app.post('/admin/stats/clear', requireAuth, requireCsrf, (req, res) => {
     try {
         // Clear all subscription requests
         dbRun('DELETE FROM subscription_requests');

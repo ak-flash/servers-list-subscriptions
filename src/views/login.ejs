@@ -11,6 +11,7 @@
       </div>
       <% if (error) { %><div role="alert" class="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><%= error %></div><% } %>
       <form method="POST" action="/admin/login" class="space-y-5">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div>
           <label class="mb-2 block text-sm font-semibold text-slate-700" for="login-username">Имя пользователя</label>
           <input id="login-username" type="text" name="username" required autocomplete="username" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">

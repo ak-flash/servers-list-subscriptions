@@ -16,6 +16,7 @@
                 </div>
                 <% } %>
                     <form method="POST" action="/admin/users<%= user ? '/' + user.id : '' %>">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <div class="mb-4">
                             <label class="mb-2 block text-sm font-semibold text-slate-700" for="username">Имя пользователя</label>
                             <input id="username" type="text" name="username" value="<%= user ? user.username : '' %>" required

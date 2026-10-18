@@ -264,12 +264,14 @@
     </main>
 
     <script>
+        const csrfToken = '<%= csrfToken %>';
         function clearStatistics() {
             if (confirm('Вы уверены, что хотите очистить всю статистику? Это действие нельзя отменить.')) {
                 fetch('/admin/stats/clear', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'x-csrf-token': csrfToken,
                     }
                 })
                     .then(response => response.json())

@@ -6,7 +6,14 @@ const { getUserTraffic } = require('../db/database');
 
 module.exports = function subscriptionRoutes({ config, recordRequest }) {
   const router = express.Router();
+  router.rateLimits = new Map();
   router.use('/join/:id', (req, res, next) => {
+    const key = `join:${req.ip || req.socket.remoteAddress || 'unknown'}`;
+    const now = Date.now();
+    const entry = router.rateLimits.get(key);
+    if (!entry || entry.resetAt <= now) router.rateLimits.set(key, { count: 1, resetAt: now + 60 * 1000 });
+    else if (entry.count >= 120) return res.status(429).send('Слишком много запросов. Повторите позже.');
+    else entry.count++;
     res.set('Cache-Control', 'no-store');
     const result = resolveUserSubscription(req.params.id, Date.now(), config);
     if (!result.user) return res.status(404).send('Пользователь не найден или отключён');

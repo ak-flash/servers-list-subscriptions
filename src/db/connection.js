@@ -21,7 +21,13 @@ function acquireLock() {
       return;
     } catch (error) {
       if (error.code !== 'EEXIST') throw error;
-      const owner = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+      let owner;
+      try {
+        owner = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+      } catch {
+        fs.unlinkSync(lockPath);
+        continue;
+      }
       try {
         process.kill(owner.pid, 0);
       } catch (err) {

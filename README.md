@@ -51,14 +51,15 @@ cp .env.example .env
 | `PORT` | Порт сервера | `4000` в `.env.example`, `2096` без настройки |
 | `APP_NAME` | Название приложения (в интерфейсе) | `VPN Подписки` |
 | `SESSION_SECRET` | Секрет для сессий | Задать в `.env` |
+| `WEBHOOK_SECRET` | Секретный сегмент URL webhook 3x-ui | Задать в `.env` |
 | `PUBLIC_DOMAIN` | Публичный домен для QR кодов | `your-domain.com` |
-| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Данные первого администратора; существующий пароль не меняют | Задаются в `.env` |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Временные данные первого администратора; после первого входа задаётся новый пароль | Задаются только при первом запуске |
 | `XRAY_PATH` | Абсолютный путь к бинарнику Xray | Linux: `/usr/local/bin/xray`; Windows: `tools/xray/xray.exe` в проекте |
 | `XRAY_VERSION` | Проверяемая версия Xray | `26.3.27` |
 | `PROBE_CONCURRENCY` | Одновременные VPN-проверки | `4` |
 | `PROFILE_UPDATE_INTERVAL_HOURS` | Интервал обновления профиля для клиента | `1` |
 
-Перед первым запуском задайте `SESSION_SECRET` и `ADMIN_PASSWORD`. Полный набор настроек с ограничениями приведён в `.env.example` и [документации](docs/EXTERNAL_SUBSCRIPTIONS.md).
+Перед первым запуском задайте `SESSION_SECRET`, `WEBHOOK_SECRET` и временный `ADMIN_PASSWORD`. При первом входе приложение потребует сменить его на новый пароль. После создания администратора `ADMIN_PASSWORD` можно удалить из `.env`. Полный набор настроек с ограничениями приведён в `.env.example` и [документации](docs/EXTERNAL_SUBSCRIPTIONS.md).
 
 ### Установка Xray на Linux
 
@@ -104,12 +105,10 @@ npm start watch
 ## Админ-панель
 
 - URL: http://localhost:port/admin
-- Логин по умолчанию: `admin`
-- Пароль по умолчанию: `admin123`
+- Логин: значение `ADMIN_USERNAME` (по умолчанию `admin`)
+- Временный пароль: значение `ADMIN_PASSWORD`
 
-Эти значения используются для совместимости, только если при первом запуске не заданы `ADMIN_USERNAME` и `ADMIN_PASSWORD`. В `.env.example` предусмотрены отдельные параметры первоначального входа.
-
-**Внимание:** Обязательно смените пароль администратора после первого входа!
+При первом входе приложение принудительно откроет форму смены пароля. Новый пароль должен содержать минимум 8 символов. После успешной смены `ADMIN_PASSWORD` можно удалить из `.env`; новый пароль хранится в базе в виде хеша.
 
 ## Структура проекта
 
@@ -197,6 +196,28 @@ pm2 stop vpn-subscriptions    # Остановить
 ```
 
 
+## Webhook 3x-ui
+
+3x-ui не требует кастомных HTTP-заголовков. В `.env` задайте секрет:
+
+```env
+WEBHOOK_SECRET=случайная-длинная-строка
+```
+
+В настройках webhook 3x-ui укажите URL с этим секретом:
+
+```text
+https://your-domain.com/api/webhook/traffic/<WEBHOOK_SECRET>
+```
+
+Например, при `WEBHOOK_SECRET=my-secret`:
+
+```text
+https://your-domain.com/api/webhook/traffic/my-secret
+```
+
+Старый URL `/api/webhook/traffic` без секретного сегмента возвращает `404`. Секрет не публикуйте и не включайте в сторонние логи.
+
 ## API эндпоинты
 
 | Метод | Путь | Описание |
@@ -211,6 +232,7 @@ pm2 stop vpn-subscriptions    # Остановить
 | GET | `/admin/subscription-sources` | Источники, каталог и сохранённые VPN-проверки |
 | POST | `/api/subscription-sources/:id/sync` | Фоновая загрузка, `202 + jobId` |
 | POST | `/api/subscription-sources/:id/check` | Фоновая VPN-проверка, `202 + jobId` |
+| POST | `/api/webhook/traffic/:webhookSecret` | Webhook трафика 3x-ui; секрет передаётся в URL |
 | GET | `/api/background-jobs/:id` | Прогресс задачи (требует авторизации) |
 | GET | `/api/users/:id/subscription-preview` | Сохранённый состав и причины недобора (требует авторизации) |
 

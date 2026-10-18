@@ -4,11 +4,12 @@ const { once } = require('events');
 const db = require('../src/db/database');
 const sources = require('../src/services/subscriptionSources');
 const { app, scheduler, subscriptionConfig } = require('../src/index');
+const { hashPassword } = require('../src/utils/passwords');
 const { link, UUID } = require('./fixtures');
 
 test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSON/QR and empty/disabled responses', async t => {
   await db.initDb({ filePath: ':memory:' });
-  db.run("INSERT INTO users (id, username, password) VALUES ('admin-test', 'test-admin', 'test-password'), ('u', '<script>test</script>', NULL)");
+  db.run("INSERT INTO users (id, username, password, must_change_password) VALUES ('admin-test', 'test-admin', ?, 0), ('u', '<script>test</script>', NULL, 0)", [hashPassword('test-password')]);
   scheduler.sync = (id, config, options) => sources.syncSource(id, config, { ...options,
     download: async () => ({ status: 200, body: [link('one.example.com'), link('two.example.com')].join('\n'), headers: { etag: 'one' } }) });
   scheduler.checker.status = { available: true, version: subscriptionConfig.xrayVersion };
@@ -25,6 +26,8 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   const cookie = login.headers.get('set-cookie').split(';')[0];
   const form = await (await request('/admin/subscription-sources/new', { headers: { cookie } })).text();
   const csrf = /name="csrf-token" content="([a-f\d]+)"/.exec(form)[1];
+  const csrfInput = /name="_csrf" value="([a-f\d]+)"/.exec(form)[1];
+  assert.equal(csrfInput, csrf);
   const forbidden = await post('/admin/subscription-sources', { name: 'Test', url: 'https://example.com' }, cookie);
   assert.equal(forbidden.status, 403);
   const created = await post('/admin/subscription-sources', { _csrf: csrf, name: 'Test source', url: 'https://example.com/private?token=secret-token', is_active: '1', authorization: 'Bearer secret-auth' }, cookie);

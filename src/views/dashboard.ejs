@@ -73,8 +73,9 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                              </button>
 <a href="/admin/servers/<%= server.id %>/edit"
                                                  class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-slate-600 px-3 py-1.5 text-center text-sm font-semibold leading-tight text-white hover:bg-slate-700">Редактировать</a>
-                                            <form method="POST" action="/admin/servers/<%= server.id %>/delete"
-                                                onsubmit="return confirm('Удалить сервер?')">
+<form method="POST" action="/admin/servers/<%= server.id %>/delete"
+                                                 onsubmit="return confirm('Удалить сервер?')">
+                                                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit"
                                                     class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
@@ -214,8 +215,9 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                                 class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Серверы</a>
                                             <a href="/admin/users/<%= user.id %>/edit"
                                                 class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Редактировать</a>
-                                            <form method="POST" action="/admin/users/<%= user.id %>/delete"
-                                                onsubmit="return confirm('Удалить пользователя?')">
+<form method="POST" action="/admin/users/<%= user.id %>/delete"
+                                                 onsubmit="return confirm('Удалить пользователя?')">
+                                                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit"
                                                     class="inline-flex min-h-[38px] items-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">Удалить</button>
                                             </form>
@@ -270,8 +272,9 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                                 class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Серверы</a>
                                             <a href="/admin/users/<%= user.id %>/edit"
                                                 class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Редактировать</a>
-                                            <form method="POST" action="/admin/users/<%= user.id %>/delete"
-                                                onsubmit="return confirm('Удалить пользователя?')">
+<form method="POST" action="/admin/users/<%= user.id %>/delete"
+                                                 onsubmit="return confirm('Удалить пользователя?')">
+                                                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit"
                                                     class="inline-flex min-h-[38px] items-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">Удалить</button>
                                             </form>
@@ -297,6 +300,8 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
     </div>
 
     <script>
+        const csrfToken = '<%= csrfToken %>';
+
         async function showQrModal(userId, username) {
             try {
                 const response = await fetch('/join/' + userId + '/qr-img');
@@ -333,7 +338,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
             updateStatus(statusMobileEl);
 
             try {
-                const response = await fetch('/api/servers/' + serverId + '/check', { method: 'POST' });
+                const response = await fetch('/api/servers/' + serverId + '/check', { method: 'POST', headers: { 'x-csrf-token': csrfToken } });
                 const data = await response.json();
 
                 const applyResult = (el) => {
@@ -371,7 +376,7 @@ if (data.status === 'healthy') {
             btn.textContent = 'Проверка...';
 
             try {
-                const response = await fetch('/api/servers/check', { method: 'POST' });
+                const response = await fetch('/api/servers/check', { method: 'POST', headers: { 'x-csrf-token': csrfToken } });
                 const data = await response.json();
 
                 data.results.forEach(result => {

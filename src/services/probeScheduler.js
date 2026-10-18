@@ -161,6 +161,7 @@ class ProbeScheduler {
   complete(task, result) {
     if (task.state === 'finishing') return;
     task.state = 'finishing';
+    if (this.results.length >= 1000) this.results.shift();
     this.results.push({ task, result });
     if (this.results.length >= 10) this.flush();
     else if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(), 300);

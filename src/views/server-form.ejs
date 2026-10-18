@@ -15,6 +15,7 @@
             <% } %>
 
             <form method="POST" action="/admin/servers<%= server ? '/' + server.id : '' %>">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <div class="mb-4">
                     <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-name">Название</label>
                     <input id="server-name" type="text" name="name" value="<%= server ? server.name : '' %>" placeholder="Например, Германия — основной" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
