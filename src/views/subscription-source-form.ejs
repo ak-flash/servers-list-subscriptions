@@ -20,7 +20,7 @@
         <div>
           <label for="source-url" class="mb-2 block text-sm font-semibold text-slate-700">Ссылка подписки</label>
           <input id="source-url" name="url" type="url" value="<%= values.url || '' %>" <%= source ? '' : 'required' %> maxlength="4096" placeholder="https://provider.example/subscription" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" autocomplete="off" spellcheck="false" aria-describedby="url-hint">
-          <p id="url-hint" class="text-sm text-gray-600 mt-2"><% if (source) { %>Сохранено: <%= source.masked_url %>. Оставьте поле пустым, чтобы сохранить текущую ссылку.<% } else { %>Поддерживаются текстовый список VLESS-ссылок и Base64/Base64URL.<% } %></p>
+          <p id="url-hint" class="text-sm text-gray-600 mt-2"><% if (source) { %>Полная ссылка подставлена в поле. Оставьте поле пустым, чтобы сохранить её без изменений.<% } else { %>Поддерживаются текстовый список VLESS-ссылок и Base64/Base64URL.<% } %></p>
         </div>
         <div>
           <label for="source-interval" class="mb-2 block text-sm font-semibold text-slate-700">Интервал загрузки, секунды</label>

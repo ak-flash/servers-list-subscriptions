@@ -34,7 +34,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
     const headers = source ? JSON.parse(source.headers_json) : {};
     res.status(error ? (error.status || 400) : 200).render('subscription-source-form', {
       source: source ? sources.publicSource(source) : null,
-      values: { name: source?.name || '', url: '', user_agent: headers['user-agent'] || '',
+      values: { name: source?.name || '', url: source?.url || '', user_agent: headers['user-agent'] || '',
         sync_interval_seconds: source?.sync_interval_seconds || config.syncIntervalMs / 1000,
         is_active: source ? source.is_active : 1, ...values, ...(error ? { is_active: values.is_active || 0 } : {}) },
       linkedUsers: source ? db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n : 0,
