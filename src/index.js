@@ -19,6 +19,12 @@ const { hashPassword, verifyPassword } = require('./utils/passwords');
 const { csrfToken, requireCsrf } = require('./middleware/csrf');
 const logger = require('./utils/logger');
 
+// 'auto' включает Secure-флаг только на реальном HTTPS (учитывая TRUST_PROXY),
+// чтобы вход по HTTP не терял cookie сессии. SESSION_COOKIE_SECURE=1/0 форсирует режим.
+const sessionCookieSecure = process.env.SESSION_COOKIE_SECURE === '1' ? true
+    : process.env.SESSION_COOKIE_SECURE === '0' ? false
+    : 'auto';
+
 const WEBHOOK_LOG_FILE = path.join(__dirname, '..', 'data', 'webhook-traffic.log');
 const WEBHOOK_LOG_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
 
@@ -82,7 +88,7 @@ app.use(session({
          maxAge: 24 * 60 * 60 * 1000,
          httpOnly: true,
          sameSite: 'lax',
-         secure: process.env.NODE_ENV === 'production' || process.env.SESSION_COOKIE_SECURE === '1'
+         secure: sessionCookieSecure
      }
 }));
 app.use(csrfToken);
