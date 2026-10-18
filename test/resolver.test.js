@@ -34,15 +34,15 @@ test('resolver: original credentials, manual overrides, dedupe/refill, priority,
   db.run("INSERT INTO user_servers (user_id, server_id, uuid) VALUES ('u', 'legacy-manual', ?)", [UUID]);
   assert.doesNotThrow(() => saveAssignments('u', { servers: ['legacy-manual'], uuids: { 'legacy-manual': UUID }, sources: [first.id, second.id], source_limits: { [first.id]: '2', [second.id]: '2' }, priorities: { [first.id]: '0', [second.id]: '1' } }));
   const result = resolveUserSubscription('u', now, settings);
-  assert.deepEqual(result.servers.filter(s => s.origin === 'source').map(s => s.host).sort(), ['a.example.com', 'b.example.com', 'c.example.com', 'd.example.com', 'e.example.com']);
+  assert.deepEqual(result.servers.filter(s => s.origin === 'source').map(s => s.host).sort(), ['b.example.com', 'c.example.com', 'd.example.com', 'e.example.com']);
   assert.deepEqual(resolveUserSubscription('u', now, settings), result);
   assert.equal(resolveUserSubscription('other', now, settings).servers.length, 0);
   const raw = Buffer.from(buildFullSubscription(result.servers, 'u'), 'base64').toString('utf8');
-  assert.equal((raw.match(new RegExp(UUID, 'g')) || []).length, 6);
+  assert.equal((raw.match(new RegExp(UUID, 'g')) || []).length, 5);
   assert.ok(result.servers.map(publicServer).every(server => server.uuid === UUID));
   assert.ok(!JSON.stringify(subscriptionPreview(result)).includes(UUID));
-  assert.throws(() => saveAssignments('u', { ...input, source_limits: { [first.id]: '21' } }));
-  assert.equal(resolveUserSubscription('u', now, settings).servers.length, 6);
+  assert.throws(() => saveAssignments('u', { ...input, source_limits: { [first.id]: '10001' } }));
+  assert.equal(resolveUserSubscription('u', now, settings).servers.length, 5);
   assert.equal(resolveUserSubscription('u', now + settings.healthyTtlMs, settings).servers.length, 1);
   saveAssignments('u', { sources: [first.id], max_latency: { [first.id]: '150' } });
   assert.equal(resolveUserSubscription('u', now, settings).servers.length, 0);
@@ -51,7 +51,7 @@ test('resolver: original credentials, manual overrides, dedupe/refill, priority,
   assert.ok(resolveUserSubscription('u', now, settings).servers[0].link.includes('custom-credential'));
   saveAssignments('u', { servers: ['manual'], uuids: { manual: UUID }, sources: [first.id], source_limits: { [first.id]: '2' } });
   const combined = resolveUserSubscription('u', now, settings);
-  assert.equal(combined.servers.length, 4);
+  assert.equal(combined.servers.length, 3);
   assert.equal(combined.servers[0].origin, 'manual');
   const external = combined.servers.find(server => server.origin === 'source');
   const encoded = buildFullSubscription([{ ...external, user_server_uuid: 'must-not-replace' }], 'u');

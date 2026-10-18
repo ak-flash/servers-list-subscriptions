@@ -37,14 +37,18 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     }).sort((a, b) => a.latency_ms - b.latency_ms ||
       (b.successful_attempts / b.total_attempts) - (a.successful_attempts / a.total_attempts) ||
       a.target_priority - b.target_priority || a.fingerprint.localeCompare(b.fingerprint));
+    const selectedCount = { used: 0 };
     for (const node of candidates) {
       const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, latency_ms: node.latency_ms, test_target_id: node.test_target_id };
       const key = effectiveFingerprint(server.link);
       if (seen.has(key)) { exclude('duplicate'); continue; }
+      const limit = binding.node_limit;
+      if (Number.isFinite(limit) && limit > 0 && selectedCount.used >= limit) { exclude('quota'); continue; }
       report.available++;
-       seen.add(key);
+      seen.add(key);
+      selectedCount.used++;
       servers.push(server);
       report.selected.push({ id: node.id, name: node.name, host: node.host, port: node.port, latency_ms: node.latency_ms,
         test_target_id: node.test_target_id, last_checked_at: node.last_checked_at });
