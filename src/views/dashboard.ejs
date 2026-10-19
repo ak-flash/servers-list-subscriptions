@@ -17,18 +17,29 @@
             <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
             <div class="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
                 <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Центр управления</p><h2 class="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">Серверы и пользователи</h2><p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p><p class="mt-2 text-xs text-slate-400">Время отображается по часовому поясу <%= timezone %>.</p></div>
-                <a href="/admin/subscription-sources" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-500 px-4 py-3 font-semibold text-white hover:bg-blue-400">Управлять источниками</a>
+                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                    <a href="/admin/servers/new" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-500 px-4 py-3 font-semibold text-white hover:bg-emerald-400">Добавить сервер</a>
+                    <a href="/admin/subscription-sources" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-white/20 px-4 py-3 font-semibold text-white hover:bg-white/10">Источники подписок</a>
+                </div>
             </div>
         </section>
+        <section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="Сводка">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Серверы</p><p class="mt-1 text-2xl font-bold text-slate-900"><%= servers.length %></p><p class="mt-1 text-xs text-slate-500"><%= servers.filter(server => server.is_active).length %> активных</p></div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Пользователи</p><p class="mt-1 text-2xl font-bold text-slate-900"><%= users.length %></p><p class="mt-1 text-xs text-slate-500"><%= users.filter(user => user.is_active).length %> активных</p></div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Подписки</p><p class="mt-1 text-2xl font-bold text-slate-900"><%= users.filter(user => user.is_active).length %></p><p class="mt-1 text-xs text-slate-500">доступных профилей</p></div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Источники</p><p class="mt-1 text-2xl font-bold text-slate-900">Авто</p><a href="/admin/subscription-sources" class="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline">Открыть каталог</a></div>
+        </section>
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6 w-full">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b">
-                <h2 class="text-lg font-semibold text-gray-800">Ручные серверы</h2>
-                <div class="flex w-full flex-row gap-2 sm:w-auto">
-                    <button id="checkAllBtn" onclick="checkAllServers()"
-                        class="min-h-[44px] flex-1 rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 sm:flex-none">Проверить VPN</button>
-                    <a href="/admin/servers/new" aria-label="Добавить сервер" title="Добавить сервер"
-                        class="inline-flex min-h-[44px] w-11 items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-xl font-semibold text-white hover:bg-emerald-700 sm:w-auto sm:text-base">+<span class="hidden sm:inline sm:ml-2">Добавить сервер</span></a>
+            <div class="flex flex-col gap-4 mb-4 pb-4 border-b sm:flex-row sm:items-center sm:justify-between">
+                <div><h2 class="text-lg font-semibold text-gray-800">Ручные серверы</h2><p class="mt-1 text-sm text-slate-500">Проверьте доступность и управляйте подключениями.</p></div>
+                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                    <button id="checkAllBtn" onclick="checkAllServers()" class="min-h-[44px] flex-1 rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 sm:flex-none">Проверить все</button>
+                    <a href="/admin/servers/new" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50">Добавить</a>
                 </div>
+            </div>
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row">
+                <label class="relative flex-1"><span class="sr-only">Поиск серверов</span><input id="serverSearch" type="search" placeholder="Поиск по названию, хосту или протоколу" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
+                <select id="serverFilter" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><option value="all">Все серверы</option><option value="active">Только активные</option><option value="inactive">Только отключённые</option></select>
             </div>
             <% if (servers.length===0) { %>
                 <p class="text-gray-500 text-center py-8">Нет серверов. Добавьте первый сервер.</p>
@@ -46,7 +57,7 @@
                         </thead>
                         <tbody>
                             <% servers.forEach(function(server) { %>
-                                <tr class="border-b last:border-0 w-full">
+                                <tr class="border-b last:border-0 w-full" data-server-item data-server-search="<%= `${server.name} ${server.host} ${server.protocol || ''}`.toLowerCase() %>" data-server-active="<%= server.is_active ? 'true' : 'false' %>">
                                     <td class="py-3 px-2 font-semibold">
                                         <span
                                             class="inline-block w-2 h-2 rounded-full mr-2 <%= server.is_active ? 'bg-green-500' : 'bg-red-500' %>"></span>
@@ -94,7 +105,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                     </table>
                     <div class="md:hidden space-y-3">
                         <% servers.forEach(function(server) { %>
-                            <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="border border-gray-200 rounded-lg p-4" data-server-item data-server-search="<%= `${server.name} ${server.host} ${server.protocol || ''}`.toLowerCase() %>" data-server-active="<%= server.is_active ? 'true' : 'false' %>">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="flex items-center gap-2">
                                         <span
@@ -134,18 +145,16 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
         </div>
 
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 w-full mb-6">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b">
-                <h2 class="text-lg font-semibold text-gray-800">Пользователи</h2>
-                <div class="flex flex-col md:flex-row gap-2 w-full sm:w-auto">
-                    <a href="/admin/stats"
-                        class="min-h-[44px] rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50 w-full sm:w-auto text-center">📊
-                        Статистика</a>
-
-                    <a href="/admin/users/new"
-                        class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 w-full sm:w-auto text-center">+
-                        Добавить пользователя</a>
+            <div class="flex flex-col gap-4 mb-4 pb-4 border-b sm:flex-row sm:items-center sm:justify-between">
+                <div><h2 class="text-lg font-semibold text-gray-800">Пользователи</h2><p class="mt-1 text-sm text-slate-500">Управляйте доступом и ссылками на подписки.</p></div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="/admin/stats" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50">Статистика</a>
+                    <a href="/admin/users/new" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800">Добавить</a>
                 </div>
-
+            </div>
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row">
+                <label class="relative flex-1"><span class="sr-only">Поиск пользователей</span><input id="userSearch" type="search" placeholder="Поиск по имени пользователя или ID" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
+                <select id="userFilter" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><option value="all">Все пользователи</option><option value="active">Только активные</option><option value="inactive">Только отключённые</option></select>
             </div>
             <% if (users.length===0) { %>
                 <p class="text-gray-500 text-center py-8">Нет пользователей. Добавьте первого пользователя.</p>
@@ -164,7 +173,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                         </thead>
                         <tbody>
                             <% users.forEach(function(user) { %>
-                                <tr class="border-b last:border-0">
+                                <tr class="border-b last:border-0" data-user-item data-user-search="<%= `${user.username} ${user.id}`.toLowerCase() %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
                                     <td class="py-3">
                                         <%= user.username %>
                                     </td>
@@ -229,7 +238,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                     </table>
                     <div class="md:hidden space-y-3">
                         <% users.forEach(function(user) { %>
-                            <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="border border-gray-200 rounded-lg p-4" data-user-item data-user-search="<%= `${user.username} ${user.id}`.toLowerCase() %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="font-medium text-gray-800">
                                         <%= user.username %>
@@ -411,6 +420,38 @@ if (result.status === 'healthy') {
     </script>
 
     <script>
+        function setupCollectionFilters(searchId, filterId, itemSelector, emptyText) {
+            const search = document.getElementById(searchId);
+            const filter = document.getElementById(filterId);
+            const items = [...document.querySelectorAll(itemSelector)];
+            if (!search || !filter || !items.length) return;
+
+            const empty = document.createElement('p');
+            empty.className = 'hidden mb-4 rounded-lg bg-slate-50 py-4 text-center text-sm text-slate-500';
+            empty.textContent = emptyText;
+            search.parentElement.parentElement.after(empty);
+
+            const dataPrefix = itemSelector.includes('server') ? 'server' : 'user';
+            const apply = () => {
+                const query = search.value.trim().toLowerCase();
+                const state = filter.value;
+                let visible = 0;
+                items.forEach(item => {
+                    const matchesQuery = !query || item.dataset[`${dataPrefix}Search`].includes(query);
+                    const matchesState = state === 'all' || item.dataset[`${dataPrefix}Active`] === (state === 'active' ? 'true' : 'false');
+                    item.classList.toggle('hidden', !matchesQuery || !matchesState);
+                    if (matchesQuery && matchesState) visible += 1;
+                });
+                empty.classList.toggle('hidden', visible > 0);
+            };
+
+            search.addEventListener('input', apply);
+            filter.addEventListener('change', apply);
+        }
+
+        setupCollectionFilters('serverSearch', 'serverFilter', '[data-server-item]', 'Серверы по заданным условиям не найдены.');
+        setupCollectionFilters('userSearch', 'userFilter', '[data-user-item]', 'Пользователи по заданным условиям не найдены.');
+
         function formatBytes(bytes) {
             if (bytes === 0) return '0 B';
             const k = 1024;
