@@ -15,6 +15,7 @@ const subscriptionRoutes = require('./routes/subscriptions');
 const subscriptionSourceRoutes = require('./routes/subscriptionSources');
 const adminRoutes = require('./routes/admin');
 const subscriptionView = require('./utils/subscriptionView');
+const health = require('./services/subscriptionHealth');
 const { hashPassword, verifyPassword } = require('./utils/passwords');
 const { csrfToken, requireCsrf } = require('./middleware/csrf');
 const logger = require('./utils/logger');
@@ -216,6 +217,14 @@ app.get('/admin', requireAuth, (req, res) => {
     });
     const users = dbAll('SELECT * FROM users ORDER BY created_at DESC');
 
+    const subscriptionSources = dbAll('SELECT * FROM subscription_sources ORDER BY name, id');
+    let healthyNodes = 0;
+    subscriptionSources.forEach(source => {
+        health.getNodes(source.id).forEach(node => {
+            if (node.is_present && health.eligibility(node, subscriptionConfig) === 'healthy') healthyNodes += 1;
+        });
+    });
+
     // Add traffic data to users
     const usersWithTraffic = users.map(user => {
         const traffic = getUserTraffic(user.id);
@@ -230,7 +239,7 @@ app.get('/admin', requireAuth, (req, res) => {
         };
     });
 
-    res.render('dashboard', { servers: serversWithInfo, users: usersWithTraffic, username: req.session.username, appName: APP_NAME });
+    res.render('dashboard', { servers: serversWithInfo, users: usersWithTraffic, username: req.session.username, appName: APP_NAME, stats: { totalSources: subscriptionSources.length, healthyNodes } });
 });
 
 app.get('/admin/servers/new', requireAuth, (req, res) => {
