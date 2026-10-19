@@ -5,9 +5,14 @@
       <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-300">VPN subscription service</p>
       <h1 class="mt-1 break-words text-xl font-semibold tracking-tight"><%= heading %></h1>
     </div>
-    <nav aria-label="Админ-панель" class="flex flex-wrap gap-2 text-sm">
+    <button type="button" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-slate-700 px-3 py-2 text-slate-200 hover:bg-white/10 md:hidden" aria-controls="admin-navigation" aria-expanded="false" aria-label="Открыть меню" data-nav-toggle>
+      <span class="sr-only">Меню</span>
+      <span aria-hidden="true" class="text-xl leading-none">☰</span>
+    </button>
+    <nav id="admin-navigation" aria-label="Админ-панель" class="hidden w-full flex-col gap-2 text-sm md:flex md:w-auto md:flex-row" data-nav-menu>
       <a href="/admin" class="rounded-lg px-3 py-2 text-slate-300 underline-offset-4 transition hover:bg-white/10 hover:text-white hover:underline">Серверы и пользователи</a>
       <a href="/admin/subscription-sources" class="rounded-lg px-3 py-2 text-slate-300 underline-offset-4 transition hover:bg-white/10 hover:text-white hover:underline">Источники подписок</a>
     </nav>
   </div>
+  <script src="/navigation.js" defer></script>
 </header>
