@@ -48,6 +48,11 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   for (const url of [`/admin/subscription-sources/${source.id}/edit`, `/admin/subscription-sources/${source.id}/nodes`, '/admin/users/u/servers']) {
     assert.equal((await request(url, { headers: { cookie } })).status, 200);
   }
+  for (const month of ['', '?month=2026-01', '?month=../bad']) {
+    const stats = await request(`/admin/stats${month}`, { headers: { cookie } });
+    assert.equal(stats.status, 200);
+    assert.ok((await stats.text()).includes('Общая статистика'));
+  }
   const assigned = await post('/admin/users/u/servers', { _csrf: csrf, sources: source.id, [`source_limits[${source.id}]`]: '2' }, cookie);
   assert.equal(assigned.status, 302);
   assert.equal((await request('/join/u')).status, 404);

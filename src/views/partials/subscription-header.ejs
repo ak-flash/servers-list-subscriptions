@@ -5,13 +5,14 @@
       <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-300">VPN subscription service</p>
       <h1 class="mt-1 break-words text-xl font-semibold tracking-tight"><%= heading %></h1>
     </div>
-    <button type="button" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-slate-700 px-3 py-2 text-slate-200 hover:bg-white/10 md:hidden" aria-controls="admin-navigation" aria-expanded="false" aria-label="Открыть меню" data-nav-toggle>
+    <button type="button" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-white/5 px-3 py-2 text-slate-100 shadow-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300 md:hidden" aria-controls="admin-navigation" aria-expanded="false" aria-label="Открыть меню" data-nav-toggle>
       <span class="sr-only">Меню</span>
-      <span aria-hidden="true" class="text-xl leading-none">☰</span>
+      <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" data-nav-icon-open><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <svg viewBox="0 0 24 24" class="hidden h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" data-nav-icon-close><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
-    <nav id="admin-navigation" aria-label="Админ-панель" class="hidden w-full flex-col gap-2 text-sm md:flex md:w-auto md:flex-row" data-nav-menu>
-      <a href="/admin" class="rounded-lg px-3 py-2 text-slate-300 underline-offset-4 transition hover:bg-white/10 hover:text-white hover:underline">Серверы и пользователи</a>
-      <a href="/admin/subscription-sources" class="rounded-lg px-3 py-2 text-slate-300 underline-offset-4 transition hover:bg-white/10 hover:text-white hover:underline">Источники подписок</a>
+    <nav id="admin-navigation" aria-label="Админ-панель" class="hidden w-full flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm shadow-xl md:flex md:w-auto md:flex-row md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none" data-nav-menu>
+      <a href="/admin" class="rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:underline">Серверы и пользователи</a>
+      <a href="/admin/subscription-sources" class="rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:underline">Источники подписок</a>
     </nav>
   </div>
   <script src="/navigation.js" defer></script>

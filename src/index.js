@@ -623,7 +623,7 @@ function formatBytes(bytes) {
 }
 
 app.get('/admin/stats', requireAuth, (req, res) => {
-    const selectedMonth = req.query.month || null;
+    const selectedMonth = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : null;
 
     const totalUsers = dbGet('SELECT COUNT(*) as count FROM users')?.count || 0;
     const activeUsers = dbGet('SELECT COUNT(*) as count FROM users WHERE is_active = 1')?.count || 0;
@@ -633,12 +633,8 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const weekRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-7 days')`)?.count || 0;
     const monthRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-30 days')`)?.count || 0;
 
-    let dateFilter = '';
-    let trafficParams = [];
-    if (selectedMonth) {
-        dateFilter = `AND strftime('%Y-%m', st.recorded_at) = ?`;
-        trafficParams = [selectedMonth];
-    }
+    const dateFilter = selectedMonth ? `AND strftime('%Y-%m', st.recorded_at) = ?` : '';
+    const trafficParams = selectedMonth ? [selectedMonth] : [];
 
     const allServersTraffic = dbAll(`
         SELECT
@@ -649,9 +645,8 @@ app.get('/admin/stats', requireAuth, (req, res) => {
             COALESCE(SUM(st.download_bytes), 0) as total_download,
             COALESCE(SUM(st.total_bytes), 0) as total_traffic
         FROM servers s
-        LEFT JOIN server_traffic st ON s.id = st.server_id
+        LEFT JOIN server_traffic st ON s.id = st.server_id ${dateFilter}
         WHERE s.is_active = 1
-        ${dateFilter}
         GROUP BY s.id, s.name, s.tag
         ORDER BY total_traffic DESC
     `, trafficParams);
