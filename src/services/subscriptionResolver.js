@@ -41,7 +41,8 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     for (const node of candidates) {
       const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
-        last_checked_at: node.last_checked_at, latency_ms: node.latency_ms, test_target_id: node.test_target_id };
+        last_checked_at: node.last_checked_at, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
+        proxy_status: node.proxy_status, proxy_latency_ms: node.proxy_latency_ms, proxy_checked_at: node.proxy_checked_at };
       const key = effectiveFingerprint(server.link);
       if (seen.has(key)) { exclude('duplicate'); continue; }
       const limit = binding.node_limit;
@@ -61,7 +62,8 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
 function subscriptionPreview(result) {
   return { user: result.user, sources: result.sources, resolved_at: result.resolved_at, servers: result.servers.map(server => ({
     id: server.id, name: server.name, origin: server.origin, host: server.host, port: server.port,
-    latency_ms: server.latency_ms ?? null, last_checked_at: server.last_checked_at ?? null
+    latency_ms: server.latency_ms ?? null, last_checked_at: server.last_checked_at ?? null,
+    proxy_status: server.proxy_status ?? null, proxy_latency_ms: server.proxy_latency_ms ?? null, proxy_checked_at: server.proxy_checked_at ?? null
   })) };
 }
 

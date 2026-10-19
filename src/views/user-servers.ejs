@@ -52,7 +52,6 @@
           <% sources.forEach(source => {
             const binding = bindings.find(item => item.source_id === source.id);
             const selected = selectedSources ? selectedSources.includes(source.id) : !!binding?.is_active;
-            const limit = values?.source_limits?.[source.id] ?? binding?.node_limit ?? 10000;
             const maxLatency = values?.max_latency?.[source.id] ?? binding?.max_latency_ms ?? '';
             const priority = values?.priorities?.[source.id] ?? binding?.priority ?? 0;
           %>
@@ -63,7 +62,7 @@
               </label>
               <fieldset class="grid sm:grid-cols-3 gap-4 mt-4" data-source-fields>
                 <legend class="sr-only">Отбор узлов из источника «<%= source.name %>»</legend>
-                <div><label for="limit-<%= source.id %>" class="block text-sm font-medium mb-2">Количество узлов</label><input id="limit-<%= source.id %>" name="source_limits[<%= source.id %>]" type="number" min="1" max="10000" step="1" value="<%= limit %>" class="w-full min-w-0 max-w-full border border-gray-300 rounded px-3 py-2"></div>
+                <div><label for="limit-<%= source.id %>" class="block text-sm font-medium mb-2">Количество узлов</label><input id="limit-<%= source.id %>" name="source_limits[<%= source.id %>]" type="number" min="1" max="10000" step="1" value="<%= values?.source_limits?.[source.id] ?? binding?.node_limit ?? '' %>" placeholder="без ограничений" class="w-full min-w-0 max-w-full border border-gray-300 rounded px-3 py-2" aria-describedby="limit-hint-<%= source.id %>"><p id="limit-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Пусто — без ограничения</p></div>
                 <div><label for="latency-<%= source.id %>" class="block text-sm font-medium mb-2">Задержка до, мс</label><input id="latency-<%= source.id %>" name="max_latency[<%= source.id %>]" type="number" min="1" max="60000" step="1" value="<%= maxLatency %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="latency-hint-<%= source.id %>"><p id="latency-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Пусто — без ограничения</p></div>
                 <div><label for="priority-<%= source.id %>" class="block text-sm font-medium mb-2">Приоритет</label><input id="priority-<%= source.id %>" name="priorities[<%= source.id %>]" type="number" min="0" max="1000" step="1" value="<%= priority %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="priority-hint-<%= source.id %>"><p id="priority-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Меньшее число — раньше</p></div>
               </fieldset>
@@ -100,6 +99,9 @@
               <% } else { %>
                 <div class="mt-1 flex flex-wrap items-center gap-2">
                   <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums <%= server.latency_ms !== null && server.latency_ms !== undefined ? (server.latency_ms <= 150 ? 'bg-emerald-100 text-emerald-800' : server.latency_ms <= 400 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800') : 'bg-slate-200 text-slate-600' %>"><%= latency(server.latency_ms) %></span>
+                  <% if (server.proxy_checked_at && ['healthy', 'degraded'].includes(server.proxy_status) && server.proxy_latency_ms !== null && server.proxy_latency_ms !== undefined) { %>
+                    <span class="inline-flex rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600" title="Дополнительная задержка через HTTP-прокси">Прокси: <%= latency(server.proxy_latency_ms) %></span>
+                  <% } %>
                 </div>
                 <p class="mt-1 truncate text-xs text-slate-500">Проверено <%= ago(server.last_checked_at) %> (<%= time(server.last_checked_at) %>)</p>
               <% } %>

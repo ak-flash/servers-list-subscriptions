@@ -1,5 +1,6 @@
 const path = require('path');
 const crypto = require('crypto');
+const { normalizeHost } = require('../utils/protocolParsers');
 
 function integer(env, key, fallback, min, max) {
   const raw = env[key];
@@ -8,6 +9,26 @@ function integer(env, key, fallback, min, max) {
   const value = Number(raw);
   if (!Number.isSafeInteger(value) || value < min || value > max) throw new Error(`${key}: допустимо ${min}–${max}`);
   return value;
+}
+
+function parseHttpProxy(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  let url;
+  try { url = new URL(String(raw).trim()); } catch { throw new Error('PROBE_HTTP_PROXY: ожидается URL вида http://host:port'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('PROBE_HTTP_PROXY: ожидается URL http(s)://host:port без пути и параметров');
+  }
+  if (!url.port) throw new Error('PROBE_HTTP_PROXY: требуется порт');
+  const port = Number(url.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PROBE_HTTP_PROXY: некорректный порт');
+  let address;
+  try { address = normalizeHost(url.hostname); } catch { throw new Error('PROBE_HTTP_PROXY: некорректный адрес прокси'); }
+  const user = url.username ? decodeURIComponent(url.username) : '';
+  const pass = url.password ? decodeURIComponent(url.password) : '';
+  if (/[\r\n\u0000-\u001f]/.test(user) || /[\r\n\u0000-\u001f]/.test(pass) || user.length > 128 || pass.length > 256) {
+    throw new Error('PROBE_HTTP_PROXY: некорректные учётные данные прокси');
+  }
+  return { protocol: url.protocol === 'https:' ? 'https' : 'http', address, port, user, pass };
 }
 
 function loadConfig(env = process.env) {
@@ -31,6 +52,7 @@ function loadConfig(env = process.env) {
   }
   const config = {
     publicDomain,
+    httpProxy: parseHttpProxy(env.PROBE_HTTP_PROXY),
     xrayPath: env.XRAY_PATH || (process.platform === 'win32' ? path.join(__dirname, '../../tools/xray/xray.exe') : '/usr/local/bin/xray'),
     xrayVersion: env.XRAY_VERSION || '26.3.27',
     xraySha256: env.XRAY_SHA256 || '',
@@ -55,6 +77,10 @@ function loadConfig(env = process.env) {
     attempts: 3,
     minSuccess: 2
   };
+  const proxyMode = env.PROBE_HTTP_PROXY_MODE === undefined || env.PROBE_HTTP_PROXY_MODE === '' ? 'extra' : env.PROBE_HTTP_PROXY_MODE;
+  if (!['extra', 'only'].includes(proxyMode)) throw new Error('PROBE_HTTP_PROXY_MODE: допустимо extra или only');
+  if (!config.httpProxy && proxyMode === 'only') throw new Error('PROBE_HTTP_PROXY_MODE=only требует заданный PROBE_HTTP_PROXY');
+  config.httpProxyMode = proxyMode;
   if (!path.isAbsolute(config.xrayPath)) throw new Error('XRAY_PATH должен быть абсолютным путём');
   if (!/^\d+\.\d+\.\d+$/.test(config.xrayVersion)) throw new Error('XRAY_VERSION: ожидается версия вида 26.3.27');
   if (config.xraySha256 && !/^[a-f\d]{64}$/i.test(config.xraySha256)) throw new Error('XRAY_SHA256: ожидается SHA-256 бинарника');
@@ -64,7 +90,8 @@ function loadConfig(env = process.env) {
   }
   config.profileVersion = crypto.createHash('sha256').update(JSON.stringify({
     adapter: 2, version: config.xrayVersion, targets, location: config.probeLocation,
-    attempts: config.attempts, minSuccess: config.minSuccess, timeout: config.attemptTimeoutMs
+    attempts: config.attempts, minSuccess: config.minSuccess, timeout: config.attemptTimeoutMs,
+    proxy: config.httpProxy ? `${config.httpProxyMode}:${config.httpProxy.protocol}://${config.httpProxy.address}:${config.httpProxy.port}` : ''
   })).digest('hex');
   return Object.freeze(config);
 }

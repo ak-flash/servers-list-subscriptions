@@ -15,6 +15,22 @@ test('configuration validates public domains', () => {
   }
 });
 
+test('configuration validates the HTTP proxy for additional probe checks', () => {
+  const { loadConfig } = require('../src/config/subscriptions');
+  assert.equal(loadConfig({}).httpProxy, null);
+  const proxy = loadConfig({ PROBE_HTTP_PROXY: 'http://12.34.56.78:3128' }).httpProxy;
+  assert.deepEqual(proxy, { protocol: 'http', address: '12.34.56.78', port: 3128, user: '', pass: '' });
+  const credentialed = loadConfig({ PROBE_HTTP_PROXY: 'https://user:pa%40ss@proxy.example.com:6443' });
+  assert.deepEqual(credentialed.httpProxy, { protocol: 'https', address: 'proxy.example.com', port: 6443, user: 'user', pass: 'pa@ss' });
+  assert.equal(credentialed.httpProxyMode, 'extra');
+  for (const value of ['ftp://12.34.56.78:3128', 'http://12.34.56.78', 'http://12.34.56.78:3128/path', 'https://12.34.56.78:3128?x=1', 'not a url']) {
+    assert.throws(() => loadConfig({ PROBE_HTTP_PROXY: value }), /PROBE_HTTP_PROXY/);
+  }
+  assert.equal(loadConfig({ PROBE_HTTP_PROXY: 'http://12.34.56.78:3128', PROBE_HTTP_PROXY_MODE: 'only' }).httpProxyMode, 'only');
+  assert.throws(() => loadConfig({ PROBE_HTTP_PROXY_MODE: 'sometimes' }), /PROBE_HTTP_PROXY_MODE/);
+  assert.throws(() => loadConfig({ PROBE_HTTP_PROXY_MODE: 'only' }), /PROBE_HTTP_PROXY/);
+});
+
 test('SSRF: private/metadata/mapped addresses, unusual numeric IPs and mixed DNS answers', async () => {
   for (const address of ['127.0.0.1', '10.0.0.1', '169.254.169.254', '100.64.0.1', '::1', 'fc00::1', '::ffff:127.0.0.1', '0.0.0.0']) assert.equal(isPublicAddress(address), false);
   assert.equal(isPublicAddress('8.8.8.8'), true);

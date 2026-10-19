@@ -60,6 +60,8 @@ cp .env.example .env
 | `XRAY_PATH` | Абсолютный путь к бинарнику Xray | Linux: `/usr/local/bin/xray`; Windows: `tools/xray/xray.exe` в проекте |
 | `XRAY_VERSION` | Проверяемая версия Xray | `26.3.27` |
 | `PROBE_CONCURRENCY` | Одновременные VPN-проверки | `4` |
+| `PROBE_HTTP_PROXY` | HTTP(S)-прокси для дополнительной проверки узлов: Xray дозванивается до узла через этот прокси, отдельно измеряется задержка (бейдж «Прокси») | Пусто — проверка без прокси |
+| `PROBE_HTTP_PROXY_MODE` | `extra` — обычная проверка + дополнительная через прокси; `only` — все проверки только через прокси | `extra` |
 | `PROFILE_UPDATE_INTERVAL_HOURS` | Интервал обновления профиля для клиента | `1` |
 
 Перед первым запуском задайте `SESSION_SECRET`, `WEBHOOK_SECRET` и временный `ADMIN_PASSWORD`. При первом входе приложение потребует сменить его на новый пароль. После создания администратора `ADMIN_PASSWORD` можно удалить из `.env`. Полный набор настроек с ограничениями приведён в `.env.example` и [документации](docs/EXTERNAL_SUBSCRIPTIONS.md).

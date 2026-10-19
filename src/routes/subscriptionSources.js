@@ -92,7 +92,8 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
       source: sources.publicSource(source), nodes: nodes.slice((page - 1) * 50, page * 50), total: nodes.length,
       healthy: all.filter(node => node.effective_status === 'healthy').length, page, pages, filter,
       showRemoved: req.query.removed === '1', job: currentJob(req), metrics: scheduler.metrics(),
-      report: source.report_json ? JSON.parse(source.report_json) : null
+      report: source.report_json ? JSON.parse(source.report_json) : null,
+      proxyConfigured: !!config.httpProxy
     });
   });
 

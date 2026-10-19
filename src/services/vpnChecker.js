@@ -162,6 +162,63 @@ class VpnChecker {
     this.status = { available: null, error: null, version: config.xrayVersion };
   }
 
+  // Additional probe cycle: the connection to the VPN node is dialed through the configured HTTP proxy.
+  // Failures here never affect the node's main health verdict; they are stored alongside as proxy_* fields.
+  async runProxyCycle(parsed, address, parentSignal) {
+    const config = this.config;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), config.deadlineMs);
+    const combined = parentSignal ? AbortSignal.any([controller.signal, parentSignal]) : controller.signal;
+    let directory = null;
+    let child = null;
+    let port = null;
+    try {
+      await fs.promises.mkdir(config.tempDir, { recursive: true, mode: 0o700 });
+      directory = await fs.promises.mkdtemp(path.join(config.tempDir, 'probe-'));
+      const credentials = { user: crypto.randomBytes(12).toString('hex'), password: crypto.randomBytes(24).toString('hex') };
+      for (let attempt = 0; attempt < 3; attempt++) {
+        combined.throwIfAborted();
+        port = await freePort();
+        const filename = path.join(directory, 'config-proxy.json');
+        const xrayConfig = buildXrayConfig(parsed, address.address, port, credentials, this.ca, config.httpProxy);
+        if (this.diagnostic) xrayConfig.log.loglevel = 'debug';
+        await fs.promises.writeFile(filename, JSON.stringify(xrayConfig), { mode: 0o600 });
+        child = spawn(config.xrayPath, ['run', '-c', filename], {
+          cwd: directory, shell: false, windowsHide: true, detached: process.platform === 'linux',
+          env: cleanEnvironment(directory), stdio: ['ignore', 'pipe', 'pipe']
+        });
+        child.on('error', () => { child.spawnError = true; });
+        const inspect = data => {
+          if (/address already in use|Only one usage of each socket/i.test(data.toString())) child.portConflict = true;
+          if (this.diagnostic) this.diagnostic(data.toString());
+        };
+        child.stdout.on('data', inspect);
+        child.stderr.on('data', inspect);
+        try {
+          await waitForPort(port, child, config.readyTimeoutMs, combined);
+          break;
+        } catch (error) {
+          await stopChild(child);
+          if (!child.portConflict || attempt === 2) throw error;
+          child = null;
+        }
+      }
+      const socksUrl = `socks5h://${credentials.user}:${credentials.password}@127.0.0.1:${port}`;
+      return await evaluateTargets(config, async target => {
+        if (!child || child.exitCode !== null || child.spawnError) throw new SubscriptionError('xray_exit');
+        return requestThroughSocks(target, socksUrl, config.attemptTimeoutMs, combined, this.targetCa);
+      }, combined);
+    } catch (error) {
+      const safe = safeError(error);
+      return { status: 'proxy_error', errorCode: safe.code, errorMessage: safe.message, attempts: [], latencyMs: null, httpStatus: null };
+    } finally {
+      clearTimeout(timer);
+      controller.abort(new SubscriptionError('cancelled'));
+      await stopChild(child);
+      if (directory) await fs.promises.rm(directory, { recursive: true, force: true });
+    }
+  }
+
   async verifyBinary() {
     const { xrayPath, xrayVersion, xraySha256, tempDir } = this.config;
     try {
@@ -205,7 +262,7 @@ class VpnChecker {
     let child;
     let networkStarted = false;
     const token = crypto.randomUUID();
-    this.active.set(token, { controller, child: null });
+    this.active.set(token, { controller, children: [] });
     try {
       await abortable(this.verifyBinary(), combined);
       const parsed = JSON.parse(node.normalized_config_json);
@@ -213,19 +270,20 @@ class VpnChecker {
       await fs.promises.mkdir(config.tempDir, { recursive: true, mode: 0o700 });
       directory = await fs.promises.mkdtemp(path.join(config.tempDir, 'probe-'));
       const credentials = { user: crypto.randomBytes(12).toString('hex'), password: crypto.randomBytes(24).toString('hex') };
+      const chainedProxy = config.httpProxy && config.httpProxyMode === 'only' ? config.httpProxy : null;
       let port;
       for (let attempt = 0; attempt < 3; attempt++) {
         combined.throwIfAborted();
         port = await freePort();
         const filename = path.join(directory, 'config.json');
-        const xrayConfig = buildXrayConfig(parsed, address.address, port, credentials, this.ca);
+        const xrayConfig = buildXrayConfig(parsed, address.address, port, credentials, this.ca, chainedProxy);
         if (this.diagnostic) xrayConfig.log.loglevel = 'debug';
         await fs.promises.writeFile(filename, JSON.stringify(xrayConfig), { mode: 0o600 });
         child = spawn(config.xrayPath, ['run', '-c', filename], {
           cwd: directory, shell: false, windowsHide: true, detached: process.platform === 'linux',
           env: cleanEnvironment(directory), stdio: ['ignore', 'pipe', 'pipe']
         });
-        this.active.get(token).child = child;
+        this.active.get(token).children.push(child);
         child.on('error', () => { child.spawnError = true; });
         const inspect = data => {
           if (/address already in use|Only one usage of each socket/i.test(data.toString())) child.portConflict = true;
@@ -248,7 +306,15 @@ class VpnChecker {
         if (child.exitCode !== null || child.spawnError) throw new SubscriptionError('xray_exit');
         return requestThroughSocks(target, socksUrl, config.attemptTimeoutMs, combined, this.targetCa);
       }, combined);
-      return { ...result, startupMs, durationMs: performance.now() - started };
+      let proxy = null;
+      if (config.httpProxy && config.httpProxyMode === 'extra') {
+        // The main verdict already reflects the direct cycle; release its deadline so the
+        // additional proxy cycle gets its own full budget and cannot misclassify the node.
+        clearTimeout(timer);
+        const proxySignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
+        proxy = await this.runProxyCycle(parsed, address, proxySignal);
+      }
+      return { ...result, proxy, startupMs, durationMs: performance.now() - started };
     } catch (error) {
       const actual = combined.aborted ? combined.reason : error;
       const safe = safeError(actual);
@@ -269,7 +335,7 @@ class VpnChecker {
 
   async stop() {
     for (const entry of this.active.values()) entry.controller.abort(new SubscriptionError('cancelled'));
-    await Promise.all([...this.active.values()].map(entry => stopChild(entry.child)));
+    await Promise.all([...this.active.values()].flatMap(entry => entry.children.map(stopChild)));
   }
 }
 

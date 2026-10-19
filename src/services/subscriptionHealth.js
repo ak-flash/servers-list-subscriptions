@@ -4,7 +4,8 @@ const NODE_SELECT = `SELECT n.*, s.revision AS source_revision, s.is_active AS s
   h.status, h.generation AS health_generation, h.config_fingerprint, h.probe_profile_version, h.probe_location,
   h.last_attempt_at, h.last_checked_at, h.last_success_at, h.latency_ms, h.test_target_id, h.target_priority,
   h.successful_attempts, h.total_attempts, h.http_status, h.error_code, h.error_message,
-  h.runner_error_code, h.runner_error_message, h.pending_cycle_id
+  h.runner_error_code, h.runner_error_message, h.pending_cycle_id,
+  h.proxy_status, h.proxy_latency_ms, h.proxy_http_status, h.proxy_error_code, h.proxy_checked_at
   FROM subscription_nodes n JOIN subscription_sources s ON s.id = n.source_id
   LEFT JOIN subscription_node_health h ON h.node_id = n.id`;
 
@@ -44,11 +45,12 @@ function recordResult(node, cycleId, result, config, jobId = null, now = Date.no
   if (!current || !current.source_active || !current.is_present || !current.is_enabled ||
       current.source_revision !== node.source_revision || current.generation !== node.generation ||
       current.fingerprint !== node.fingerprint || current.pending_cycle_id !== cycleId) return false;
+  const hasProxyResult = Object.hasOwn(result, 'proxy');
   db.transaction(() => {
     for (const attempt of result.attempts || []) {
       db.run(`INSERT INTO subscription_node_checks (job_id, cycle_id, node_id, config_fingerprint, generation,
-        probe_profile_version, test_target_id, attempt, outcome, latency_ms, http_status, error_code, checked_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        probe_profile_version, test_target_id, attempt, outcome, latency_ms, http_status, error_code, checked_at, via)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'direct')`,
       [jobId, cycleId, node.id, node.fingerprint, node.generation, config.profileVersion, attempt.targetId || null,
         attempt.attempt ?? null, attempt.outcome, attempt.latencyMs ?? null, attempt.httpStatus ?? null, attempt.errorCode || null, now]);
     }
@@ -67,6 +69,25 @@ function recordResult(node, cycleId, result, config, jobId = null, now = Date.no
     }
     const interval = result.status === 'degraded' ? Math.min(60000, config.checkIntervalMs) : config.checkIntervalMs;
     db.run('UPDATE subscription_nodes SET next_check_at = ? WHERE id = ?', [now + interval + Math.floor(Math.random() * Math.min(interval * 0.05, 10000)), node.id]);
+    // Proxy measurements live in their own columns; a runner-level retry keeps the last valid proxy reading.
+    if (hasProxyResult && !(result.status === 'runner_error' || result.status === 'cancelled')) {
+      const proxy = result.proxy || null;
+      for (const attempt of proxy?.attempts || []) {
+        db.run(`INSERT INTO subscription_node_checks (job_id, cycle_id, node_id, config_fingerprint, generation,
+          probe_profile_version, test_target_id, attempt, outcome, latency_ms, http_status, error_code, checked_at, via)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proxy')`,
+        [jobId, cycleId, node.id, node.fingerprint, node.generation, config.profileVersion, attempt.targetId || null,
+          attempt.attempt ?? null, attempt.outcome, attempt.latencyMs ?? null, attempt.httpStatus ?? null, attempt.errorCode || null, now]);
+      }
+      db.run(`UPDATE subscription_node_health SET proxy_status = ?, proxy_latency_ms = ?, proxy_http_status = ?,
+        proxy_error_code = ?, proxy_checked_at = ? WHERE node_id = ?`,
+      [proxy ? proxy.status || null : null, proxy ? proxy.latencyMs ?? null : null, proxy ? proxy.httpStatus ?? null : null,
+        proxy ? proxy.errorCode ?? null : null, proxy ? now : null, node.id]);
+    } else if (!hasProxyResult && config.httpProxyMode === 'only') {
+      // In "only" mode the proxy path IS the main measurement; stale extra-readings are cleared.
+      db.run(`UPDATE subscription_node_health SET proxy_status = NULL, proxy_latency_ms = NULL,
+        proxy_http_status = NULL, proxy_error_code = NULL, proxy_checked_at = NULL WHERE node_id = ?`, [node.id]);
+    }
   });
   return true;
 }

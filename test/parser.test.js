@@ -150,3 +150,24 @@ test('plain, Base64/Base64URL, BOM, CRLF, duplicates, partial and limits', () =>
     assert.throws(() => parseSubscription(raw));
   }
 });
+
+test('buildXrayConfig dials the node through the configured HTTP proxy', () => {
+  const node = parseVless(link()).config;
+  const credentialed = buildXrayConfig(node, '8.8.8.8', 12000, { user: 'test', password: 'test' },
+    null, { protocol: 'http', address: 'proxy.example.com', port: 3128, user: 'puser', pass: 'ppass' });
+  assert.equal(credentialed.outbounds.length, 2);
+  assert.equal(credentialed.outbounds[1].tag, 'probe-http-proxy');
+  assert.equal(credentialed.outbounds[1].protocol, 'http');
+  assert.deepEqual(credentialed.outbounds[1].settings.servers[0], { address: 'proxy.example.com', port: 3128, users: [{ user: 'puser', pass: 'ppass' }] });
+  assert.equal(credentialed.outbounds[1].streamSettings, undefined);
+  assert.equal(credentialed.outbounds[0].streamSettings.sockopt.dialerProxy, 'probe-http-proxy');
+  assert.equal(credentialed.routing.rules[0].outboundTag, 'probe-vpn');
+  const authless = buildXrayConfig(node, '8.8.8.8', 12000, { user: 'test', password: 'test' },
+    null, { protocol: 'https', address: '10.0.0.2', port: 443, user: '', pass: '' });
+  assert.equal('users' in authless.outbounds[1].settings.servers[0], false);
+  assert.equal(authless.outbounds[1].streamSettings.security, 'tls');
+  assert.equal(authless.outbounds[1].streamSettings.tlsSettings.serverName, '10.0.0.2');
+  const plain = buildXrayConfig(node, '8.8.8.8', 12000, { user: 'test', password: 'test' });
+  assert.equal(plain.outbounds.length, 1);
+  assert.equal(plain.outbounds[0].streamSettings.sockopt, undefined);
+});

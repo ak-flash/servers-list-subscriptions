@@ -55,7 +55,20 @@ function buildXhttpSettings(node) {
   return settings;
 }
 
-function buildXrayConfig(node, address, port, credentials, certificateAuthority) {
+function buildHttpProxyOutbound(proxy) {
+  const outbound = {
+    tag: 'probe-http-proxy',
+    protocol: 'http',
+    settings: { servers: [{ address: proxy.address, port: proxy.port }] }
+  };
+  if (proxy.user) outbound.settings.servers[0].users = [{ user: proxy.user, pass: proxy.pass }];
+  if (proxy.protocol === 'https') {
+    outbound.streamSettings = { security: 'tls', tlsSettings: { serverName: proxy.address } };
+  }
+  return outbound;
+}
+
+function buildXrayConfig(node, address, port, credentials, certificateAuthority, httpProxy = null) {
   const support = vlessCapability(node);
   if (support.capability !== 'supported') throw new SubscriptionError(support.capability === 'invalid' ? 'invalid_link' : 'unsupported');
   const streamSettings = { network: node.network, security: node.security };
@@ -80,17 +93,23 @@ function buildXrayConfig(node, address, port, credentials, certificateAuthority)
   if (node.network === 'xhttp') streamSettings.xhttpSettings = buildXhttpSettings(node);
   if (node.network === 'grpc') streamSettings.grpcSettings = { serviceName: node.grpc.serviceName, multiMode: node.grpc.mode === 'multi' };
   if (node.finalmask) streamSettings.finalmask = buildFinalmask(node);
+  const outbounds = [{
+    tag: 'probe-vpn', protocol: 'vless',
+    settings: { vnext: [{ address, port: node.port, users: [{ id: node.uuid, encryption: node.encryption, flow: node.flow }] }] },
+    streamSettings, mux: { enabled: false }
+  }];
+  if (httpProxy) {
+    const proxyOutbound = buildHttpProxyOutbound(httpProxy);
+    streamSettings.sockopt = { dialerProxy: proxyOutbound.tag };
+    outbounds.push(proxyOutbound);
+  }
   return {
     log: { loglevel: 'none' },
     inbounds: [{
       tag: 'probe-in', listen: '127.0.0.1', port, protocol: 'socks',
       settings: { auth: 'password', accounts: [{ user: credentials.user, pass: credentials.password }], udp: false }
     }],
-    outbounds: [{
-      tag: 'probe-vpn', protocol: 'vless',
-      settings: { vnext: [{ address, port: node.port, users: [{ id: node.uuid, encryption: node.encryption, flow: node.flow }] }] },
-      streamSettings, mux: { enabled: false }
-    }],
+    outbounds,
     routing: { rules: [{ type: 'field', inboundTag: ['probe-in'], outboundTag: 'probe-vpn' }] }
   };
 }
