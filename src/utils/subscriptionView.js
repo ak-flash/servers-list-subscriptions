@@ -28,4 +28,4 @@ function ago(value, now = Date.now()) {
 }
 function latency(value) { return value === null || value === undefined ? '—' : `${Math.round(value)} мс`; }
 
-module.exports = { statusLabel, time, date, ago, latency, timezone };
+module.exports = { statusLabel, time, date, ago, latency, timezone, formatDate };
