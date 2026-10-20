@@ -203,13 +203,13 @@ sudo /www/server/panel/pyenv/bin/supervisorctl restart subcsriptions:subcsriptio
 
 Имя процесса можно посмотреть командой `status`; оно формируется из имени секции `[program:...]` и `process_name`.
 
-Для автоматического обновления проекта, установки зависимостей, сборки CSS и перезапуска приложения используйте универсальный скрипт [`deploy/deploy.sh`](deploy/deploy.sh). Настройки вынесены в файл `deploy/.deploy.env`, который не добавляется в Git:
+Для автоматического обновления проекта, установки зависимостей, сборки CSS и перезапуска приложения используйте универсальный скрипт [`deploy/deploy.sh`](deploy/deploy.sh). Настройки вынесены в файл `.deploy.env` в корне проекта, который не добавляется в Git:
 
 ```bash
 cd /home/ubuntu/servers-list-subscriptions
-cp deploy/.deploy.env.example deploy/.deploy.env
+cp .deploy.env.example .deploy.env
 chmod +x deploy/deploy.sh
-nano deploy/.deploy.env
+nano .deploy.env
 ./deploy/deploy.sh
 ```
 

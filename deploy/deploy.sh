@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${DEPLOY_CONFIG_FILE:-${SCRIPT_DIR}/.deploy.env}"
+CONFIG_FILE="${DEPLOY_CONFIG_FILE:-${SCRIPT_DIR}/../.deploy.env}"
 
 if [[ -f "$CONFIG_FILE" ]]; then
   set -a
