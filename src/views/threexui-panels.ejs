@@ -54,7 +54,7 @@
                     <% } %>
                   </td>
                   <td class="py-3 pr-4"><%= panel.syncIntervalSeconds %> с</td>
-                  <td class="py-3 pr-4"><%= panel.lastSyncAt ? date(panel.lastSyncAt) : 'Никогда' %></td>
+                  <td class="py-3 pr-4"><%= panel.lastSyncAt ? time(panel.lastSyncAt) : 'Никогда' %></td>
                   <td class="py-3">
                     <div class="flex flex-wrap justify-end gap-2">
                       <button type="button" data-sync-panel="<%= panel.id %>" class="inline-flex min-h-[38px] items-center rounded-lg bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800">Синхронизировать</button>
