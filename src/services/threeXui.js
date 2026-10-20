@@ -14,6 +14,15 @@ function normalizeText(value, fallback = '') {
   return typeof value === 'string' ? value.trim() : fallback;
 }
 
+function syncManualServerTraffic(inbounds) {
+  for (const inbound of inbounds) {
+    const tag = normalizeText(inbound.tag);
+    if (!tag) continue;
+    const server = db.getServerByTag(tag);
+    if (server) db.syncServerTraffic(server.id, inbound.up, inbound.down);
+  }
+}
+
 function normalizeName(value) {
   const name = normalizeText(value);
   if (!name || name.length > MAX_PANEL_NAME) throw new SubscriptionError('validation', `Укажите название панели длиной до ${MAX_PANEL_NAME} символов.`);
@@ -208,6 +217,7 @@ async function syncPanel(id, options = {}) {
     const inbounds = Array.isArray(response.obj) ? response.obj : [];
     db.transaction(() => {
       for (const inbound of inbounds) saveInboundTraffic(id, inbound);
+      syncManualServerTraffic(inbounds);
     });
     markSyncSuccess(id, new Date().toISOString());
     logger.info('threexui_sync_completed', { panelId: id, inbounds: inbounds.length });

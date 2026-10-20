@@ -177,6 +177,34 @@ function getServerByTag(tag) {
   return result;
 }
 
+function syncServerTraffic(serverId, uploadBytes, downloadBytes) {
+  const today = new Date().toISOString().split('T')[0];
+  const up = normalizeTrafficValue(uploadBytes);
+  const down = normalizeTrafficValue(downloadBytes);
+
+  const existingStmt = db.prepare(
+    "SELECT id FROM server_traffic WHERE server_id = ? AND date(recorded_at) = date('now')"
+  );
+  existingStmt.bind([serverId]);
+  const existing = existingStmt.step() ? existingStmt.getAsObject() : null;
+  existingStmt.free();
+
+  if (existing) {
+    const updateStmt = db.prepare(
+      "UPDATE server_traffic SET upload_bytes = ?, download_bytes = ?, total_bytes = ?, recorded_at = datetime('now') WHERE id = ?"
+    );
+    updateStmt.run([up, down, up + down, existing.id]);
+    updateStmt.free();
+  } else {
+    const insertStmt = db.prepare(
+      "INSERT INTO server_traffic (server_id, upload_bytes, download_bytes, total_bytes, recorded_at) VALUES (?, ?, ?, ?, datetime('now'))"
+    );
+    insertStmt.run([serverId, up, down, up + down]);
+    insertStmt.free();
+  }
+  saveDb();
+}
+
 function updateServerTraffic(serverId, uploadBytes, downloadBytes) {
   const today = new Date().toISOString().split('T')[0];
 
@@ -479,6 +507,7 @@ module.exports = {
   getUserServerAssignments,
   getServerByTag,
   updateServerTraffic,
+  syncServerTraffic,
   getServerTraffic,
   getAllServersTraffic,
   getAvailableMonths,
