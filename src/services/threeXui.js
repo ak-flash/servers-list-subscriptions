@@ -143,19 +143,28 @@ function markSyncError(id, error) {
 }
 
 function saveInboundTraffic(panelId, inbound) {
-  db.upsertThreeXuiInboundTraffic(panelId, inbound);
   const inboundId = Number.parseInt(inbound.id, 10);
   const clients = Array.isArray(inbound.clientStats) ? inbound.clientStats : [];
+  let clientsUpload = 0;
+  let clientsDownload = 0;
+  let clientsTotal = 0;
   for (const client of clients) {
     const email = normalizeText(client?.email || client?.client?.email);
     if (!email) continue;
     const up = trafficValue(client.up);
     const down = trafficValue(client.down);
     const total = trafficValue(client.total) || up + down;
+    clientsUpload += up;
+    clientsDownload += down;
+    clientsTotal += total;
     const updatedAt = toIsoTimestamp(client.lastOnline);
     db.upsertThreeXuiClientTraffic(panelId, email, up, down, total, updatedAt);
     if (Number.isInteger(inboundId) && inboundId >= 0) db.upsertThreeXuiInboundClientTraffic(panelId, inboundId, email, up, down, total, updatedAt);
   }
+  const upload = trafficValue(inbound.up) || clientsUpload;
+  const download = trafficValue(inbound.down) || clientsDownload;
+  const total = trafficValue(inbound.total) || clientsTotal || upload + download;
+  db.upsertThreeXuiInboundTraffic(panelId, { ...inbound, up: upload, down: download, total });
 }
 
 async function requestJson(panel, path, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
