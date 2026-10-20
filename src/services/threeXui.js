@@ -163,7 +163,7 @@ function saveInboundTraffic(panelId, inbound) {
   }
   const upload = trafficValue(inbound.up) || clientsUpload;
   const download = trafficValue(inbound.down) || clientsDownload;
-  const total = trafficValue(inbound.total) || clientsTotal || upload + download;
+  const total = trafficValue(inbound.total) || upload + download;
   db.upsertThreeXuiInboundTraffic(panelId, { ...inbound, up: upload, down: download, total });
 }
 

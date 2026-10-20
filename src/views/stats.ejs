@@ -60,7 +60,7 @@
 
         <div class="stats-card mb-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Подключения 3x-ui по трафику</h2>
-            <% if (threeXuiConnections.length===0) { %>
+            <% if (threeXuiInbounds.length===0) { %>
                 <p class="text-gray-500 text-center py-4">Нет данных подключений 3x-ui</p>
                 <% } else { %>
                     <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="stats-table">
@@ -69,24 +69,26 @@
                                 <th class="pb-2">#</th>
                                 <th class="pb-2">Панель</th>
                                 <th class="pb-2">Подключение</th>
-                                <th class="pb-2">Пользователь</th>
+                                <th class="pb-2">Тег</th>
+                                <th class="pb-2">Протокол</th>
+                                <th class="pb-2">Порт</th>
                                 <th class="pb-2">Загрузка</th>
                                 <th class="pb-2">Отдача</th>
                                 <th class="pb-2">Всего</th>
-                                <th class="pb-2">Обновлено</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <% threeXuiConnections.forEach(function(connection, index) { %>
+                            <% threeXuiInbounds.forEach(function(inbound, index) { %>
                                 <tr class="border-b last:border-0">
                                     <td class="py-2 text-gray-500"><%= index + 1 %></td>
-                                    <td class="py-2 font-medium"><%= connection.panel_name %></td>
-                                    <td class="py-2"><%= connection.remark || connection.inbound_id %></td>
-                                    <td class="py-2"><%= connection.email %></td>
-                                    <td class="py-2 text-sm text-blue-600"><%= connection.formatted_download %></td>
-                                    <td class="py-2 text-sm text-emerald-600"><%= connection.formatted_upload %></td>
-                                    <td class="py-2 text-sm font-medium"><%= connection.formatted_total %></td>
-                                    <td class="py-2 text-sm text-gray-500"><%= connection.updated_at ? time(connection.updated_at) : '—' %></td>
+                                    <td class="py-2 font-medium"><%= inbound.panel_name %></td>
+                                    <td class="py-2"><%= inbound.remark || inbound.inbound_id %></td>
+                                    <td class="py-2 text-sm text-gray-500"><%= inbound.tag || '—' %></td>
+                                    <td class="py-2 text-sm text-gray-500"><%= inbound.protocol || '—' %></td>
+                                    <td class="py-2 text-sm text-gray-500"><%= inbound.port || '—' %></td>
+                                    <td class="py-2 text-sm text-blue-600"><%= inbound.formatted_download %></td>
+                                    <td class="py-2 text-sm text-emerald-600"><%= inbound.formatted_upload %></td>
+                                    <td class="py-2 text-sm font-medium"><%= inbound.formatted_total %></td>
                                 </tr>
                             <% }); %>
                         </tbody>
