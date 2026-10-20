@@ -698,11 +698,17 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     };
     const formattedThreeXuiTotalTraffic = formatBytes(threeXuiTotalsView.total);
 
-    const topServersTraffic = allServersTraffic.slice(0, 10).map(server => ({
-        ...server,
-        formatted_upload: formatBytes(server.total_upload || 0),
-        formatted_download: formatBytes(server.total_download || 0),
-        formatted_total: formatBytes(server.total_traffic || 0)
+    const topServersTraffic = threeXuiInbounds.slice(0, 10).map(inbound => ({
+        id: `${inbound.panel_id}:${inbound.inbound_id}`,
+        name: inbound.remark || inbound.tag || `Inbound ${inbound.inbound_id}`,
+        tag: inbound.tag,
+        panel_name: inbound.panel_name,
+        total_upload: inbound.up_bytes || 0,
+        total_download: inbound.down_bytes || 0,
+        total_traffic: inbound.total_bytes || 0,
+        formatted_upload: formatBytes(inbound.up_bytes || 0),
+        formatted_download: formatBytes(inbound.down_bytes || 0),
+        formatted_total: formatBytes(inbound.total_bytes || 0)
     }));
 
     const topThreeXuiInbounds = threeXuiInbounds.slice(0, 10).map(inbound => ({
