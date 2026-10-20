@@ -377,6 +377,17 @@ function upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upBytes,
   stmt.free();
 }
 
+function getThreeXuiClientMonthlyTraffic(month = null) {
+  const params = month ? [month] : [];
+  const filter = month ? ' AND m.month = ?' : '';
+  return connection.all(`SELECT m.panel_id, p.name as panel_name, m.email,
+      m.up_bytes, m.down_bytes, m.total_bytes, m.month, m.updated_at
+    FROM threexui_client_monthly_traffic m
+    JOIN threexui_panels p ON p.id = m.panel_id
+    WHERE p.is_active = 1${filter}
+    ORDER BY m.total_bytes DESC, p.name, m.email`, params);
+}
+
 function getThreeXuiInboundMonthlyTraffic(month = null) {
   const params = month ? [month] : [];
   const filter = month ? ' AND m.month = ?' : '';
@@ -479,6 +490,7 @@ module.exports = {
   getThreeXuiInboundTraffic,
   getThreeXuiInboundTrafficTotals,
   upsertThreeXuiClientMonthlyTraffic,
+  getThreeXuiClientMonthlyTraffic,
   upsertThreeXuiInboundMonthlyTraffic,
   getThreeXuiInboundMonthlyTraffic,
   upsertThreeXuiInboundClientTraffic,

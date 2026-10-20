@@ -5,7 +5,7 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
-const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic } = require('./db/database');
+const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
 const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
@@ -680,6 +680,10 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const totalTraffic = allServersTraffic.reduce((sum, server) => sum + (server.total_traffic || 0), 0);
     const activeTrafficUsers = allServersTraffic.filter(server => server.total_traffic > 0).length;
     const formattedTotalTraffic = formatBytes(totalTraffic);
+    const totalDownload = allServersTraffic.reduce((sum, server) => sum + (server.total_download || 0), 0);
+    const totalUpload = allServersTraffic.reduce((sum, server) => sum + (server.total_upload || 0), 0);
+    const formattedTotalDownload = formatBytes(totalDownload);
+    const formattedTotalUpload = formatBytes(totalUpload);
 
     const threeXuiInbounds = selectedMonth ? getThreeXuiInboundMonthlyTraffic(selectedMonth) : getThreeXuiInboundTraffic();
     const threeXuiTotals = selectedMonth ? getThreeXuiInboundTrafficTotals(selectedMonth) : threeXuiInbounds.reduce((totals, inbound) => ({
@@ -760,12 +764,14 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     ])].filter(Boolean).sort().reverse().slice(0, 24);
 
     const trafficByUsername = new Map();
-    for (const client of threeXuiUsersTraffic) {
-        const current = trafficByUsername.get(client.username) || { total_upload: 0, total_download: 0, total_traffic: 0 };
+    const threeXuiUsersForTraffic = selectedMonth ? getThreeXuiClientMonthlyTraffic(selectedMonth) : threeXuiUsersTraffic;
+    for (const client of threeXuiUsersForTraffic) {
+        const username = selectedMonth ? client.email : client.username;
+        const current = trafficByUsername.get(username) || { total_upload: 0, total_download: 0, total_traffic: 0 };
         current.total_upload += client.up_bytes || 0;
         current.total_download += client.down_bytes || 0;
         current.total_traffic += client.total_bytes || 0;
-        trafficByUsername.set(client.username, current);
+        trafficByUsername.set(username, current);
     }
     const topTrafficUsers = getAllUsersTraffic(selectedMonth).map(user => {
         const xuiTraffic = trafficByUsername.get(user.username) || {};
@@ -805,6 +811,8 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         formattedThreeXuiTotalTraffic,
         formattedThreeXuiDownload: formatBytes(threeXuiTotalsView.down),
         formattedThreeXuiUpload: formatBytes(threeXuiTotalsView.up),
+        formattedTotalDownload,
+        formattedTotalUpload,
         totalUsers,
         activeUsers,
         totalRequests,

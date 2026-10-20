@@ -38,7 +38,7 @@
                 <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalUsers %></div><div class="text-sm text-slate-500">Пользователей</div></div>
                 <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= activeUsers %></div><div class="text-sm text-slate-500">Активных</div></div>
                 <div class="rounded-lg bg-blue-50 p-4"><div class="text-2xl font-bold text-blue-900"><%= formattedThreeXuiTotalTraffic %></div><div class="text-sm text-blue-700">3x-ui трафик</div><div class="mt-1 text-xs text-blue-600">↓ <%= formattedThreeXuiDownload %> · ↑ <%= formattedThreeXuiUpload %></div></div>
-                <div class="rounded-lg bg-slate-900 p-4"><div class="text-2xl font-bold text-white"><%= formattedTotalTraffic %></div><div class="text-sm text-slate-300">Общий трафик</div><div class="mt-1 text-xs text-slate-400">Локальная статистика</div></div>
+                <div class="rounded-lg bg-slate-900 p-4"><div class="text-2xl font-bold text-white"><%= formattedTotalTraffic %></div><div class="text-sm text-slate-300">Общий трафик</div><div class="mt-1 text-xs text-slate-400">↓ <%= formattedTotalDownload %> · ↑ <%= formattedTotalUpload %></div></div>
             </div>
         </div>
 
@@ -46,11 +46,6 @@
             <div class="flex flex-wrap items-end justify-between gap-3 mb-5 pb-4 border-b">
                 <div><p class="text-xs font-semibold uppercase tracking-wider text-blue-600">Контроль использования</p><h2 class="mt-1 text-xl font-semibold text-gray-800">Пользователи, подключения и трафик</h2><p class="mt-1 text-sm text-gray-500">Сводка по назначенным серверам и накопленному трафику каждого пользователя.</p></div>
                 <div class="flex gap-2 text-sm"><span class="rounded-lg bg-blue-50 px-3 py-2 font-semibold text-blue-700"><%= topTrafficUsers.length %> пользователей</span><span class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700"><%= userConnectionTotal %> подключений</span></div>
-            </div>
-            <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div class="rounded-xl bg-slate-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-slate-500">Общий трафик</div><div class="mt-1 text-2xl font-bold text-slate-900"><%= formattedUserTrafficTotal %></div></div>
-                <div class="rounded-xl bg-slate-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-slate-500">Загрузка</div><div class="mt-1 text-2xl font-bold text-slate-900"><%= formattedUserDownloadTotal %></div></div>
-                <div class="rounded-xl bg-slate-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-slate-500">Отдача</div><div class="mt-1 text-2xl font-bold text-slate-900"><%= formattedUserUploadTotal %></div></div>
             </div>
             <% if (topTrafficUsers.length === 0) { %><p class="py-6 text-center text-gray-500">Нет данных о пользователях</p><% } else { %>
                 <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="stats-table"><thead><tr class="border-b text-left text-xs uppercase tracking-wide text-gray-500"><th class="pb-3">Пользователь</th><th class="pb-3">Статус</th><th class="pb-3">Подключения</th><th class="pb-3">Загрузка</th><th class="pb-3">Отдача</th><th class="pb-3">Всего</th><th class="pb-3">Запросов</th></tr></thead><tbody>
