@@ -4,7 +4,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
-const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, getAllUsersTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
+const { initDb, getDb, saveDb, closeDb, transaction, getAllUsersTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
 const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
@@ -239,25 +239,35 @@ app.get('/admin', requireAuth, (req, res) => {
         subscriptionSourcesByUser.get(row.user_id).push(row.name);
     });
 
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const monthlyPanelTrafficByEmail = new Map();
+    getThreeXuiClientMonthlyTraffic(currentMonth).forEach(traffic => {
+        const current = monthlyPanelTrafficByEmail.get(traffic.email) || { total_upload: 0, total_download: 0, total_traffic: 0 };
+        current.total_upload += traffic.up_bytes || 0;
+        current.total_download += traffic.down_bytes || 0;
+        current.total_traffic += traffic.total_bytes || 0;
+        monthlyPanelTrafficByEmail.set(traffic.email, current);
+    });
+
     // Add traffic and assignments data to users
     const usersWithTraffic = users.map(user => {
-        const localTraffic = getUserTraffic(user.id);
         const panelTraffic = getThreeXuiClientTraffic(user.username);
+        const monthlyTraffic = monthlyPanelTrafficByEmail.get(user.username) || { total_upload: 0, total_download: 0, total_traffic: 0 };
         const traffic = {
-            total_upload: Math.max(localTraffic.total_upload || 0, panelTraffic.total_upload || 0),
-            total_download: Math.max(localTraffic.total_download || 0, panelTraffic.total_download || 0),
-            total_traffic: Math.max(localTraffic.total_traffic || 0, panelTraffic.total_traffic || 0)
+            total_upload: panelTraffic.total_upload || 0,
+            total_download: panelTraffic.total_download || 0,
+            total_traffic: panelTraffic.total_traffic || 0
         };
         return {
             ...user,
             total_upload: traffic.total_upload,
             total_download: traffic.total_download,
             total_traffic: traffic.total_traffic,
-            monthly_traffic: localTraffic.total_traffic || 0,
+            monthly_traffic: monthlyTraffic.total_traffic,
             formatted_upload: formatBytes(traffic.total_upload),
             formatted_download: formatBytes(traffic.total_download),
             formatted_total: formatBytes(traffic.total_traffic),
-            formatted_monthly: formatBytes(localTraffic.total_traffic || 0),
+            formatted_monthly: formatBytes(monthlyTraffic.total_traffic),
             manual_servers: manualServersByUser.get(user.id) || [],
             subscription_sources: subscriptionSourcesByUser.get(user.id) || []
         };

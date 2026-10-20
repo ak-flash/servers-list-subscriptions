@@ -79,7 +79,7 @@
                                     <td class="py-2 text-sm text-gray-500"><%= inbound.tag || '—' %></td>
                                     <td class="py-2 text-sm text-gray-500"><%= inbound.protocol || '—' %></td>
                                     <td class="py-2 text-sm text-gray-500"><%= inbound.port || '—' %></td>
-                                    <td class="py-2 text-sm font-medium"><%= inbound.formatted_total %><div class="text-xs font-normal text-gray-500">Исходящий: <%= inbound.formatted_upload %> · Входящий: <%= inbound.formatted_download %></div></td>
+                                    <td class="py-2 text-sm font-medium"><%= inbound.formatted_total %><div class="text-xs font-normal text-gray-500">↑ <%= inbound.formatted_upload %> · ↓ <%= inbound.formatted_download %></div></td>
                                 </tr>
                             <% }); %>
                         </tbody>
