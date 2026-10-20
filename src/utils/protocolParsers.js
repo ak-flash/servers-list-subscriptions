@@ -4,7 +4,7 @@ const { domainToASCII } = require('url');
 const { SubscriptionError } = require('./subscriptionErrors');
 
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
-const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'extra', 'mode', 'serviceName', 'fm']);
+const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'extra', 'mode', 'serviceName', 'fm', 'x_padding_bytes']);
 const REALITY_PARAMS = new Set(['pbk', 'sid', 'spx', 'pqv']);
 const FINGERPRINTS = new Set(['', 'chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'random', 'randomized']);
 
@@ -138,6 +138,10 @@ function parseVless(raw) {
     } catch {
       throw new SubscriptionError('invalid_link');
     }
+  }
+  if (network === 'xhttp' && params.x_padding_bytes) {
+    if (config.xhttp.extra === null) config.xhttp.extra = {};
+    if (config.xhttp.extra.xPaddingBytes === undefined) config.xhttp.extra.xPaddingBytes = params.x_padding_bytes;
   }
   if (security === 'reality') {
     config.reality = { publicKey: params.pbk || '', shortId: (params.sid || '').toLowerCase(), spiderX: params.spx || '/', mldsa65Verify: params.pqv || '' };

@@ -230,7 +230,28 @@ app.get('/admin', requireAuth, (req, res) => {
         });
     });
 
-    // Add traffic data to users
+    const manualServersByUser = new Map();
+    dbAll(`
+        SELECT us.user_id, s.name
+        FROM user_servers us
+        JOIN servers s ON s.id = us.server_id
+        ORDER BY s.name, us.server_id
+    `).forEach(row => {
+        if (!manualServersByUser.has(row.user_id)) manualServersByUser.set(row.user_id, []);
+        manualServersByUser.get(row.user_id).push(row.name);
+    });
+    const subscriptionSourcesByUser = new Map();
+    dbAll(`
+        SELECT us.user_id, s.name
+        FROM user_subscription_sources us
+        JOIN subscription_sources s ON s.id = us.source_id
+        ORDER BY s.name, us.source_id
+    `).forEach(row => {
+        if (!subscriptionSourcesByUser.has(row.user_id)) subscriptionSourcesByUser.set(row.user_id, []);
+        subscriptionSourcesByUser.get(row.user_id).push(row.name);
+    });
+
+    // Add traffic and assignments data to users
     const usersWithTraffic = users.map(user => {
         const localTraffic = getUserTraffic(user.id);
         const panelTraffic = getThreeXuiClientTraffic(user.username);
@@ -248,7 +269,9 @@ app.get('/admin', requireAuth, (req, res) => {
             formatted_upload: formatBytes(traffic.total_upload),
             formatted_download: formatBytes(traffic.total_download),
             formatted_total: formatBytes(traffic.total_traffic),
-            formatted_monthly: formatBytes(localTraffic.total_traffic || 0)
+            formatted_monthly: formatBytes(localTraffic.total_traffic || 0),
+            manual_servers: manualServersByUser.get(user.id) || [],
+            subscription_sources: subscriptionSourcesByUser.get(user.id) || []
         };
     });
 

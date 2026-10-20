@@ -173,8 +173,10 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                         <tbody>
                             <% users.forEach(function(user) { %>
                                 <tr class="border-b last:border-0" data-user-item data-user-search="<%= `${user.username} ${user.id}`.toLowerCase() %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
-                                    <td class="py-3">
-                                        <%= user.username %>
+                                    <td class="py-3 align-top">
+                                        <div class="font-medium"><%= user.username %></div>
+                                        <div class="mt-1 max-w-[18rem] truncate text-xs text-slate-500" title="Ручные серверы: <%= user.manual_servers.join(', ') || 'нет' %>">Ручные: <%= user.manual_servers.join(', ') || 'нет' %></div>
+                                        <div class="max-w-[18rem] truncate text-xs text-slate-500" title="Источники подписок: <%= user.subscription_sources.join(', ') || 'нет' %>">Подписки: <%= user.subscription_sources.join(', ') || 'нет' %></div>
                                     </td>
                                     <td class="py-3">
                                         <span
@@ -230,12 +232,12 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                         <%= user.is_active ? 'Активен' : 'Отключен' %>
                                     </span>
                                 </div>
-                                <div class="text-xs text-gray-400 mb-3">ID: <%= user.id %>
+                                <div class="text-xs text-gray-400 mb-3">ID: <%= user.id %></div>
+                                <div class="mb-3 space-y-0.5 text-xs text-slate-500">
+                                    <div class="truncate" title="Ручные серверы: <%= user.manual_servers.join(', ') || 'нет' %>">Сервера: <%= user.manual_servers.join(', ') || 'нет' %></div>
+                                    <div class="truncate" title="Источники подписок: <%= user.subscription_sources.join(', ') || 'нет' %>">Подписки: <%= user.subscription_sources.join(', ') || 'нет' %></div>
                                 </div>
-                                <div class="mb-3">
-                                    <div class="text-sm font-semibold text-slate-800"><%= user.formatted_total %></div>
-                                    <div class="mt-1 text-xs text-slate-500">Месяц: <%= user.formatted_monthly %></div>
-                                </div>
+                                <div class="mb-3 text-sm font-semibold text-slate-800"><%= user.formatted_monthly %></div>
                                         <div class="flex flex-wrap gap-2 mb-3">
                                             <button onclick="showQrModal('<%= user.id %>', '<%= user.username %>')"
                                                 class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
