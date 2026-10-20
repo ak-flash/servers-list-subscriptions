@@ -5,7 +5,7 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
-const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
+const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, syncServerTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
 const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
@@ -504,7 +504,7 @@ if (WEBHOOK_ENABLED) app.post('/api/webhook/traffic/:webhookSecret', (req, res) 
             }
 
             try {
-                updateServerTraffic(server.id, Up, Down);
+                syncServerTraffic(server.id, Up, Down);
                 logWebhook('SUCCESS', { tag: Tag, server_id: server.id, server_name: server.name, upload_bytes: Up, download_bytes: Down }, ip);
                 results.push({ tag: Tag, server_id: server.id, server_name: server.name, status: 'success' });
             } catch (error) {

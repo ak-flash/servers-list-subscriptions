@@ -36,8 +36,8 @@
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalRequests %></div><div class="text-sm text-slate-500">Запросов</div></div>
                 <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalUsers %></div><div class="text-sm text-slate-500">Пользователей</div></div>
-                <div class="rounded-lg bg-blue-50 p-4"><div class="text-2xl font-bold text-blue-900"><%= formattedThreeXuiTotalTraffic %></div><div class="text-sm text-blue-700">3x-ui трафик</div><div class="mt-1 text-xs text-blue-600">↓ <%= formattedThreeXuiDownload %> · ↑ <%= formattedThreeXuiUpload %></div></div>
-                <div class="rounded-lg bg-slate-900 p-4"><div class="text-2xl font-bold text-white"><%= formattedTotalTraffic %></div><div class="text-sm text-slate-300">Общий трафик</div><div class="mt-1 text-xs text-slate-400">↓ <%= formattedTotalDownload %> · ↑ <%= formattedTotalUpload %></div></div>
+                <div class="rounded-lg bg-blue-50 p-4"><div class="text-2xl font-bold text-blue-900"><%= formattedThreeXuiTotalTraffic %></div><div class="text-sm text-blue-700">3x-ui трафик</div><div class="mt-1 space-y-0.5 text-xs text-blue-600"><div>Входящий: <%= formattedThreeXuiDownload %></div><div>Исходящий: <%= formattedThreeXuiUpload %></div></div></div>
+                <div class="rounded-lg bg-slate-900 p-4"><div class="text-2xl font-bold text-white"><%= formattedTotalTraffic %></div><div class="text-sm text-slate-300">Общий трафик</div><div class="mt-1 space-y-0.5 text-xs text-slate-400"><div>Входящий: <%= formattedTotalDownload %></div><div>Исходящий: <%= formattedTotalUpload %></div></div></div>
             </div>
         </div>
 

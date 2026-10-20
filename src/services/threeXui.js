@@ -172,8 +172,10 @@ function saveInboundTraffic(panelId, inbound) {
     db.upsertThreeXuiClientMonthlyTraffic(panelId, email, month, up, down, total);
     if (Number.isInteger(inboundId) && inboundId >= 0) db.upsertThreeXuiInboundClientTraffic(panelId, inboundId, email, up, down, total, updatedAt);
   }
-  const upload = trafficValue(inbound.up) || clientsUpload;
-  const download = trafficValue(inbound.down) || clientsDownload;
+  const hasInboundUpload = inbound.up !== undefined && inbound.up !== null;
+  const hasInboundDownload = inbound.down !== undefined && inbound.down !== null;
+  const upload = hasInboundUpload ? trafficValue(inbound.up) : clientsUpload;
+  const download = hasInboundDownload ? trafficValue(inbound.down) : clientsDownload;
   const total = upload + download;
   db.upsertThreeXuiInboundTraffic(panelId, { ...inbound, up: upload, down: download, total });
   db.upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upload, download, total);
