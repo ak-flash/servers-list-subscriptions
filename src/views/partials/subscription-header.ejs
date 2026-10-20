@@ -1,18 +1,15 @@
 <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:bg-white focus:p-4 focus:text-slate-950 focus:z-50">Перейти к содержимому</a>
 <header class="bg-slate-950 text-white shadow-lg">
-  <div class="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 md:px-8" data-nav-root>
+  <div class="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-8" data-nav-root>
     <div class="flex min-w-0 items-center gap-3">
       <a href="/admin" class="shrink-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="На главную админ-панели">
-        <img src="/logo.svg" alt="" class="h-10 w-10" aria-hidden="true">
+        <img src="/logo.svg" alt="" class="h-11 w-11" aria-hidden="true">
       </a>
-      <div class="min-w-0">
-        <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-300">VPN subscription service</p>
-        <h1 class="mt-1 break-words text-xl font-semibold tracking-tight"><%= heading %></h1>
-      </div>
+      <h1 class="min-w-0 break-words text-lg font-semibold tracking-tight md:text-xl"><%= heading %></h1>
     </div>
 
-    <nav id="admin-navigation" aria-label="Админ-панель" class="absolute right-4 top-full z-40 hidden w-[min(18rem,calc(100vw-2rem))] flex-col gap-1 rounded-2xl border border-white/10 bg-slate-900 p-2 text-sm shadow-2xl md:static md:flex md:w-auto md:flex-row md:border-0 md:bg-transparent md:p-0 md:shadow-none" data-nav-menu>
-      <a href="/admin" class="flex items-center gap-3 rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:underline">
+    <nav id="admin-navigation" aria-label="Админ-панель" class="absolute right-4 top-full z-40 hidden w-[min(18rem,calc(100vw-2rem))] flex-col gap-1 rounded-2xl border border-white/10 bg-slate-900 p-2 text-sm shadow-2xl md:static md:flex md:w-auto md:flex-row md:items-center md:gap-0.5 md:rounded-xl md:border-white/10 md:bg-white/5 md:p-1 md:shadow-none" data-nav-menu>
+      <a href="/admin" class="flex items-center gap-3 rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:bg-white/10 md:hover:no-underline">
         <svg viewBox="0 0 24 24" class="h-5 w-5 text-blue-300 md:hidden" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z"/><path d="M4 21a8 8 0 0116 0"/></svg>
         <span>Серверы и пользователи</span>
       </a>

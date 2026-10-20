@@ -13,7 +13,7 @@
                 <button onclick="clearStatistics()" class="min-h-[44px] rounded-lg border border-red-300/40 bg-red-500/10 px-4 py-3 font-semibold text-red-100 hover:bg-red-500/20">Очистить статистику</button>
             </div>
         </section>
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6">
+        <div class="stats-card mb-6">
             <div class="flex flex-wrap items-center gap-4 mb-4 pb-4 border-b">
                 <h2 class="text-lg font-semibold text-gray-800">Выберите месяц:</h2>
                 <form method="GET" action="/admin/stats" class="flex items-center gap-2">
@@ -41,7 +41,7 @@
             </div>
         </div>
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6">
+        <section class="stats-card mb-6">
             <div class="flex flex-wrap items-end justify-between gap-3 mb-5 pb-4 border-b">
                 <div><p class="text-xs font-semibold uppercase tracking-wider text-blue-600">Контроль использования</p><h2 class="mt-1 text-xl font-semibold text-gray-800">Пользователи, подключения и трафик</h2><p class="mt-1 text-sm text-gray-500">Сводка по назначенным серверам и накопленному трафику каждого пользователя.</p></div>
                 <div class="flex gap-2 text-sm"><span class="rounded-lg bg-blue-50 px-3 py-2 font-semibold text-blue-700"><%= topTrafficUsers.length %> пользователей</span><span class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700"><%= userConnectionTotal %> подключений</span></div>
@@ -52,39 +52,41 @@
                 <div class="rounded-xl bg-slate-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-slate-500">Отдача</div><div class="mt-1 text-2xl font-bold text-slate-900"><%= formattedUserUploadTotal %></div></div>
             </div>
             <% if (topTrafficUsers.length === 0) { %><p class="py-6 text-center text-gray-500">Нет данных о пользователях</p><% } else { %>
-                <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="w-full min-w-[760px]"><thead><tr class="border-b text-left text-xs uppercase tracking-wide text-gray-500"><th class="pb-3">Пользователь</th><th class="pb-3">Статус</th><th class="pb-3">Подключения</th><th class="pb-3">Загрузка</th><th class="pb-3">Отдача</th><th class="pb-3">Всего</th><th class="pb-3">Запросов</th></tr></thead><tbody>
+                <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="stats-table"><thead><tr class="border-b text-left text-xs uppercase tracking-wide text-gray-500"><th class="pb-3">Пользователь</th><th class="pb-3">Статус</th><th class="pb-3">Подключения</th><th class="pb-3">Загрузка</th><th class="pb-3">Отдача</th><th class="pb-3">Всего</th><th class="pb-3">Запросов</th></tr></thead><tbody>
                 <% topTrafficUsers.forEach(function(user) { %><tr class="border-b last:border-0"><td class="py-3 font-semibold"><%= user.username %><div class="text-xs font-normal text-gray-500"><%= user.last_request ? date(user.last_request) : 'Нет запросов' %></div></td><td class="py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold <%= user.total_traffic > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' %>"><%= user.total_traffic > 0 ? 'Активен' : 'Нет трафика' %></span></td><td class="py-3 font-medium"><%= user.connection_count || 0 %></td><td class="py-3 text-sm text-blue-600"><%= user.formatted_download %></td><td class="py-3 text-sm text-emerald-600"><%= user.formatted_upload %></td><td class="py-3 font-bold"><%= user.formatted_total %></td><td class="py-3 text-sm text-gray-500"><%= user.request_count || 0 %></td></tr><% }); %>
                 </tbody></table></div>
             <% } %>
         </section>
 
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6">
+        <div class="stats-card mb-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Подключения 3x-ui по трафику</h2>
-            <% if (threeXuiInbounds.length===0) { %>
+            <% if (threeXuiConnections.length===0) { %>
                 <p class="text-gray-500 text-center py-4">Нет данных подключений 3x-ui</p>
                 <% } else { %>
-                    <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="w-full min-w-[680px]">
+                    <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="stats-table">
                         <thead>
                             <tr class="text-left text-gray-600 border-b">
                                 <th class="pb-2">#</th>
                                 <th class="pb-2">Панель</th>
                                 <th class="pb-2">Подключение</th>
-                                <th class="pb-2">Тег</th>
-                                <th class="pb-2">Протокол</th>
-                                <th class="pb-2">Порт</th>
+                                <th class="pb-2">Пользователь</th>
+                                <th class="pb-2">Загрузка</th>
+                                <th class="pb-2">Отдача</th>
                                 <th class="pb-2">Всего</th>
+                                <th class="pb-2">Обновлено</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <% threeXuiInbounds.forEach(function(inbound, index) { %>
+                            <% threeXuiConnections.forEach(function(connection, index) { %>
                                 <tr class="border-b last:border-0">
                                     <td class="py-2 text-gray-500"><%= index + 1 %></td>
-                                    <td class="py-2 font-medium"><%= inbound.panel_name %></td>
-                                    <td class="py-2"><%= inbound.remark || inbound.inbound_id %></td>
-                                    <td class="py-2 text-sm text-gray-500"><%= inbound.tag || '—' %></td>
-                                    <td class="py-2 text-sm text-gray-500"><%= inbound.protocol || '—' %></td>
-                                    <td class="py-2 text-sm text-gray-500"><%= inbound.port || '—' %></td>
-                                    <td class="py-2 text-sm font-medium"><%= inbound.formatted_total %></td>
+                                    <td class="py-2 font-medium"><%= connection.panel_name %></td>
+                                    <td class="py-2"><%= connection.remark || connection.inbound_id %></td>
+                                    <td class="py-2"><%= connection.email %></td>
+                                    <td class="py-2 text-sm text-blue-600"><%= connection.formatted_download %></td>
+                                    <td class="py-2 text-sm text-emerald-600"><%= connection.formatted_upload %></td>
+                                    <td class="py-2 text-sm font-medium"><%= connection.formatted_total %></td>
+                                    <td class="py-2 text-sm text-gray-500"><%= connection.updated_at ? time(connection.updated_at) : '—' %></td>
                                 </tr>
                             <% }); %>
                         </tbody>
@@ -93,12 +95,12 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+            <div class="stats-card">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ пользователей</h2>
                 <% if (topUsers.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных</p>
                     <% } else { %>
-                        <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="w-full min-w-[680px]">
+                        <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="stats-table">
                             <thead>
                                 <tr class="text-left text-gray-600 border-b">
                                     <th class="pb-2">#</th>
@@ -129,12 +131,12 @@
                          <% } %>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+            <div class="stats-card">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ по трафику (серверы)</h2>
                 <% if (topServersTraffic.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных о трафике</p>
                     <% } else { %>
-                        <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="w-full min-w-[680px]">
+                        <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="stats-table">
                             <thead>
                                 <tr class="text-left text-gray-600 border-b">
                                     <th class="pb-2">#</th>
@@ -177,7 +179,7 @@
                          <% } %>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+            <div class="stats-card">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Запросов по дням (30 дней)</h2>
                 <% if (requestsByDay.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных</p>
@@ -202,12 +204,12 @@
             </div>
         </div>
 
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-4">
+        <div class="stats-card mb-4">
             <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Последние запросы</h2>
             <% if (lastRequests.length===0) { %>
                 <p class="text-gray-500 text-center py-8">Нет запросов подписок</p>
                 <% } else { %>
-                    <table class="w-full hidden md:table">
+                    <table class="stats-table hidden md:table">
                         <thead>
                             <tr class="text-left text-gray-600 border-b">
                                 <th class="pb-3">ID</th>

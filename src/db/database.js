@@ -97,9 +97,10 @@ function resetAllTraffic() {
   saveDb();
 }
 
-function getAllUsersTraffic() {
+function getAllUsersTraffic(yearMonth = null) {
+  const monthFilter = yearMonth ? 'AND strftime(\'%Y-%m\', ut.recorded_at) = ?' : '';
   const stmt = db.prepare(`
-    SELECT 
+    SELECT
       u.id,
       u.username,
       COALESCE(SUM(ut.upload_bytes), 0) as total_upload,
@@ -107,10 +108,11 @@ function getAllUsersTraffic() {
       COALESCE(SUM(ut.total_bytes), 0) as total_traffic,
       MAX(ut.recorded_at) as last_traffic_update
     FROM users u
-    LEFT JOIN user_traffic ut ON u.id = ut.user_id
+    LEFT JOIN user_traffic ut ON u.id = ut.user_id ${monthFilter}
     GROUP BY u.id, u.username
     ORDER BY total_traffic DESC
   `);
+  if (yearMonth) stmt.bind([yearMonth]);
 
   const rows = [];
   while (stmt.step()) {

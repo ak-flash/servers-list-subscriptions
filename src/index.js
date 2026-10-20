@@ -652,10 +652,12 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const totalUsers = dbGet('SELECT COUNT(*) as count FROM users')?.count || 0;
     const activeUsers = dbGet('SELECT COUNT(*) as count FROM users WHERE is_active = 1')?.count || 0;
 
-    const totalRequests = dbGet('SELECT COUNT(*) as count FROM subscription_requests')?.count || 0;
-    const todayRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE date(requested_at) = date('now')`)?.count || 0;
-    const weekRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-7 days')`)?.count || 0;
-    const monthRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-30 days')`)?.count || 0;
+    const requestMonthFilter = selectedMonth ? " WHERE strftime('%Y-%m', requested_at) = ?" : '';
+    const requestMonthParams = selectedMonth ? [selectedMonth] : [];
+    const totalRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests${requestMonthFilter}`, requestMonthParams)?.count || 0;
+    const todayRequests = selectedMonth ? 0 : dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE date(requested_at) = date('now')`)?.count || 0;
+    const weekRequests = selectedMonth ? 0 : dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-7 days')`)?.count || 0;
+    const monthRequests = selectedMonth ? 0 : dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-30 days')`)?.count || 0;
 
     const dateFilter = selectedMonth ? `AND strftime('%Y-%m', st.recorded_at) = ?` : '';
     const trafficParams = selectedMonth ? [selectedMonth] : [];
@@ -680,6 +682,8 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const formattedTotalTraffic = formatBytes(totalTraffic);
 
     const threeXuiInbounds = getThreeXuiInboundTraffic();
+    const threeXuiMonthFilter = selectedMonth ? ' AND strftime(\'%Y-%m\', updated_at) = ?' : '';
+    const threeXuiMonthParams = selectedMonth ? [selectedMonth] : [];
     const threeXuiTotals = threeXuiInbounds.reduce((totals, inbound) => ({
         up: totals.up + (inbound.up_bytes || 0),
         down: totals.down + (inbound.down_bytes || 0),
@@ -763,7 +767,7 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         current.total_traffic += client.total_bytes || 0;
         trafficByUsername.set(client.username, current);
     }
-    const topTrafficUsers = getAllUsersTraffic().map(user => {
+    const topTrafficUsers = getAllUsersTraffic(selectedMonth).map(user => {
         const xuiTraffic = trafficByUsername.get(user.username) || {};
         user.total_upload = Math.max(user.total_upload || 0, xuiTraffic.total_upload || 0);
         user.total_download = Math.max(user.total_download || 0, xuiTraffic.total_download || 0);

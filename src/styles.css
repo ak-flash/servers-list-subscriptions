@@ -2,6 +2,58 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+.stats-card {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 1rem;
+  background: white;
+  padding: 1.25rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.stats-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.stats-table th {
+  padding: 0.75rem 0.75rem;
+  border-bottom: 1px solid rgb(226 232 240);
+  color: rgb(100 116 139);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stats-table td {
+  padding: 0.85rem 0.75rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  vertical-align: middle;
+}
+
+.stats-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.stats-table tbody tr:hover {
+  background: rgb(248 250 252);
+}
+
+@media (max-width: 640px) {
+  .stats-card {
+    padding: 1rem;
+    border-radius: 0.75rem;
+  }
+
+  .stats-table th,
+  .stats-table td {
+    padding: 0.7rem 0.5rem;
+  }
+}
+
 @layer base {
   :root {
     color-scheme: light;
