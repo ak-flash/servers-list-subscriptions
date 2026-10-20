@@ -67,9 +67,7 @@
                                 <th class="pb-2">Тег</th>
                                 <th class="pb-2">Протокол</th>
                                 <th class="pb-2">Порт</th>
-                                <th class="pb-2">Загрузка</th>
-                                <th class="pb-2">Отдача</th>
-                                <th class="pb-2">Всего</th>
+                                <th class="pb-2">Трафик</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -81,9 +79,7 @@
                                     <td class="py-2 text-sm text-gray-500"><%= inbound.tag || '—' %></td>
                                     <td class="py-2 text-sm text-gray-500"><%= inbound.protocol || '—' %></td>
                                     <td class="py-2 text-sm text-gray-500"><%= inbound.port || '—' %></td>
-                                    <td class="py-2 text-sm text-blue-600"><%= inbound.formatted_download %></td>
-                                    <td class="py-2 text-sm text-emerald-600"><%= inbound.formatted_upload %></td>
-                                    <td class="py-2 text-sm font-medium"><%= inbound.formatted_total %></td>
+                                    <td class="py-2 text-sm font-medium"><%= inbound.formatted_total %><div class="text-xs font-normal text-gray-500">Исходящий: <%= inbound.formatted_upload %> · Входящий: <%= inbound.formatted_download %></div></td>
                                 </tr>
                             <% }); %>
                         </tbody>

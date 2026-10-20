@@ -174,7 +174,7 @@ function saveInboundTraffic(panelId, inbound) {
   }
   const upload = trafficValue(inbound.up) || clientsUpload;
   const download = trafficValue(inbound.down) || clientsDownload;
-  const total = trafficValue(inbound.total) || upload + download;
+  const total = upload + download;
   db.upsertThreeXuiInboundTraffic(panelId, { ...inbound, up: upload, down: download, total });
   db.upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upload, download, total);
 }
