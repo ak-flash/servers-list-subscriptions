@@ -731,15 +731,15 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         total_traffic: inbound.total_bytes || 0,
         formatted_upload: formatBytes(inbound.up_bytes || 0),
         formatted_download: formatBytes(inbound.down_bytes || 0),
-        formatted_total: formatBytes(inbound.total_bytes || 0)
-    }));
+         formatted_total: formatBytes((inbound.up_bytes || 0) + (inbound.down_bytes || 0))
+     }));
 
-    const topThreeXuiInbounds = threeXuiInbounds.slice(0, 10).map(inbound => ({
-        ...inbound,
-        formatted_upload: formatBytes(inbound.up_bytes || 0),
-        formatted_download: formatBytes(inbound.down_bytes || 0),
-        formatted_total: formatBytes(inbound.total_bytes || 0)
-    }));
+     const topThreeXuiInbounds = threeXuiInbounds.slice(0, 10).map(inbound => ({
+         ...inbound,
+         formatted_upload: formatBytes(inbound.up_bytes || 0),
+         formatted_download: formatBytes(inbound.down_bytes || 0),
+         formatted_total: formatBytes((inbound.up_bytes || 0) + (inbound.down_bytes || 0))
+     }));
 
     const topThreeXuiClients = getThreeXuiClientsTraffic().slice(0, 10).map(client => ({
         ...client,
