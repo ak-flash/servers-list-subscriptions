@@ -175,8 +175,16 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                 <tr class="border-b last:border-0" data-user-item data-user-search="<%= `${user.username} ${user.id}`.toLowerCase() %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
                                     <td class="py-3 align-top">
                                         <div class="font-medium"><%= user.username %></div>
-                                        <div class="mt-1 max-w-[18rem] truncate text-xs text-slate-500" title="Ручные серверы: <%= user.manual_servers.join(', ') || 'нет' %>">Ручные: <%= user.manual_servers.join(', ') || 'нет' %></div>
-                                        <div class="max-w-[18rem] truncate text-xs text-slate-500" title="Источники подписок: <%= user.subscription_sources.join(', ') || 'нет' %>">Подписки: <%= user.subscription_sources.join(', ') || 'нет' %></div>
+                                        <div class="mt-2 flex max-w-[19rem] flex-wrap gap-1" aria-label="Ручные серверы">
+                                            <% if (user.manual_servers.length) { %>
+                                                <% user.manual_servers.forEach(server => { %><span class="inline-flex max-w-[10rem] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600" title="<%= server %>"><%= server %></span><% }); %>
+                                            <% } else { %><span class="text-xs text-slate-400">Нет ручных серверов</span><% } %>
+                                        </div>
+                                        <div class="mt-1 flex max-w-[19rem] flex-wrap gap-1" aria-label="Подписки">
+                                            <% if (user.subscription_sources.length) { %>
+                                                <% user.subscription_sources.forEach(source => { %><span class="inline-flex max-w-[10rem] truncate rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700" title="<%= source %>"><%= source %></span><% }); %>
+                                            <% } else { %><span class="text-xs text-slate-400">Нет подписок</span><% } %>
+                                        </div>
                                     </td>
                                     <td class="py-3">
                                         <span
@@ -233,9 +241,17 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                     </span>
                                 </div>
                                 <div class="text-xs text-gray-400 mb-3">ID: <%= user.id %></div>
-                                <div class="mb-3 space-y-0.5 text-xs text-slate-500">
-                                    <div class="truncate" title="Ручные серверы: <%= user.manual_servers.join(', ') || 'нет' %>">Сервера: <%= user.manual_servers.join(', ') || 'нет' %></div>
-                                    <div class="truncate" title="Источники подписок: <%= user.subscription_sources.join(', ') || 'нет' %>">Подписки: <%= user.subscription_sources.join(', ') || 'нет' %></div>
+                                <div class="mb-3 space-y-1" aria-label="Привязки пользователя">
+                                    <div class="flex flex-wrap gap-1">
+                                        <% if (user.manual_servers.length) { %>
+                                            <% user.manual_servers.forEach(server => { %><span class="inline-flex max-w-[14rem] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600" title="<%= server %>"><%= server %></span><% }); %>
+                                        <% } else { %><span class="text-xs text-slate-400">Нет ручных серверов</span><% } %>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <% if (user.subscription_sources.length) { %>
+                                            <% user.subscription_sources.forEach(source => { %><span class="inline-flex max-w-[14rem] truncate rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700" title="<%= source %>"><%= source %></span><% }); %>
+                                        <% } else { %><span class="text-xs text-slate-400">Нет подписок</span><% } %>
+                                    </div>
                                 </div>
                                 <div class="mb-3 text-sm font-semibold text-slate-800"><%= user.formatted_monthly %></div>
                                         <div class="flex flex-wrap gap-2 mb-3">
