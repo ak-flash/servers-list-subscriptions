@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head><%- include('partials/subscription-head', { title: `${panel ? 'Редактирование' : 'Добавление'} панели 3x-ui — ${appName}` }) %></head>
+<body class="bg-slate-100 text-slate-900">
+  <%- include('partials/subscription-header', { heading: panel ? 'Редактирование 3x-ui панели' : 'Добавление 3x-ui панели' }) %>
+  <main id="main" class="mx-auto max-w-3xl px-4 py-6 md:py-8">
+    <section class="mb-6 rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">3x-ui API</p>
+      <h2 class="mt-2 text-2xl font-semibold"><%= panel ? 'Обновите подключение к панели' : 'Подключите панель 3x-ui' %></h2>
+      <p class="mt-2 max-w-xl text-sm leading-6 text-slate-300">Укажите URL панели и API token из Settings → Security → API Token. Статистика сохраняется локально и отображается на странице статистики.</p>
+    </section>
+
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+      <% if (error) { %>
+        <div role="alert" class="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><%= error %></div>
+      <% } %>
+
+      <form method="POST" action="/admin/threexui<%= panel ? '/' + panel.id : '' %>">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="mb-4">
+          <label class="mb-2 block text-sm font-semibold text-slate-700" for="name">Название панели</label>
+          <input id="name" type="text" name="name" value="<%= values.name || '' %>" required maxlength="120" placeholder="Основная панель" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
+        </div>
+
+        <div class="mb-4">
+          <label class="mb-2 block text-sm font-semibold text-slate-700" for="base_url">URL панели</label>
+          <input id="base_url" type="url" name="base_url" value="<%= values.base_url || values.baseUrl || '' %>" required placeholder="https://panel.example.com или https://panel.example.com/secret-path" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
+          <p class="mt-2 text-sm text-slate-500">Если в панели настроен секретный base path, включите его в URL. Например: https://panel.example.com/secret.</p>
+        </div>
+
+        <div class="mb-4">
+          <label class="mb-2 block text-sm font-semibold text-slate-700" for="token">API token</label>
+          <input id="token" type="password" name="token" value="<%= values.token || '' %>" required autocomplete="off" class="w-full rounded-lg border border-slate-300 px-4 py-3 font-mono text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
+        </div>
+
+        <div class="mb-4">
+          <label class="mb-2 block text-sm font-semibold text-slate-700" for="sync_interval_seconds">Интервал синхронизации, секунд</label>
+          <input id="sync_interval_seconds" type="number" name="sync_interval_seconds" min="30" max="86400" value="<%= values.sync_interval_seconds || values.syncIntervalSeconds || 300 %>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
+        </div>
+
+        <div class="mb-6">
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="is_active" value="1" <%= String(values.is_active ?? 1) !== '0' && values.is_active !== false ? 'checked' : '' %> class="h-5 w-5 rounded border-slate-300 text-blue-700 focus:ring-blue-600">
+            <span class="text-sm font-medium text-slate-700">Панель активна</span>
+          </label>
+        </div>
+
+        <div class="flex flex-wrap gap-3 border-t border-slate-100 pt-5">
+          <button type="submit" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"><%= panel ? 'Сохранить панель' : 'Добавить панель' %></button>
+          <a href="/admin/threexui" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

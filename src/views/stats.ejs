@@ -88,7 +88,113 @@
                     </div>
                     <div class="text-sm text-gray-600">С трафиком</div>
                 </div>
+                <div class="bg-rose-50 rounded-lg p-4">
+                    <div class="text-2xl md:text-3xl font-bold text-rose-600">
+                        <%= formattedThreeXuiTotalTraffic %>
+                    </div>
+                    <div class="text-sm text-gray-600">Трафик подключений 3x-ui</div>
+                </div>
             </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Пользователи 3x-ui по трафику</h2>
+                <% if (threeXuiUsers.length===0) { %>
+                    <p class="text-gray-500 text-center py-4">Нет данных пользователей 3x-ui</p>
+                    <% } else { %>
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-600 border-b">
+                                    <th class="pb-2">#</th>
+                                    <th class="pb-2">Панель</th>
+                                    <th class="pb-2">Пользователь</th>
+                                    <th class="pb-2">Загрузка</th>
+                                    <th class="pb-2">Отдача</th>
+                                    <th class="pb-2">Всего</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% threeXuiUsers.forEach(function(client, index) { %>
+                                    <tr class="border-b last:border-0">
+                                        <td class="py-2 text-gray-500"><%= index + 1 %></td>
+                                        <td class="py-2 font-medium"><%= client.panel_name %></td>
+                                        <td class="py-2"><%= client.username %><div class="text-xs text-gray-500"><%= client.email %></div></td>
+                                        <td class="py-2 text-sm text-blue-600"><%= client.formatted_download %></td>
+                                        <td class="py-2 text-sm text-green-600"><%= client.formatted_upload %></td>
+                                        <td class="py-2 text-sm font-medium"><%= client.formatted_total %></td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    <% } %>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Подключения пользователей 3x-ui</h2>
+                <% if (threeXuiConnections.length===0) { %>
+                    <p class="text-gray-500 text-center py-4">Нет данных подключений пользователей 3x-ui</p>
+                    <% } else { %>
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-600 border-b">
+                                    <th class="pb-2">#</th>
+                                    <th class="pb-2">Панель</th>
+                                    <th class="pb-2">Пользователь</th>
+                                    <th class="pb-2">Подключение</th>
+                                    <th class="pb-2">Тег</th>
+                                    <th class="pb-2">Всего</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% threeXuiConnections.forEach(function(client, index) { %>
+                                    <tr class="border-b last:border-0">
+                                        <td class="py-2 text-gray-500"><%= index + 1 %></td>
+                                        <td class="py-2 font-medium"><%= client.panel_name %></td>
+                                        <td class="py-2"><%= client.email %></td>
+                                        <td class="py-2"><%= client.remark %><div class="text-xs text-gray-500"><%= client.protocol %>:<%= client.port %></div></td>
+                                        <td class="py-2 text-sm text-gray-500"><%= client.tag || '—' %></td>
+                                        <td class="py-2 text-sm font-medium"><%= client.formatted_total %></td>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    <% } %>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Подключения 3x-ui по трафику</h2>
+            <% if (threeXuiInbounds.length===0) { %>
+                <p class="text-gray-500 text-center py-4">Нет данных подключений 3x-ui</p>
+                <% } else { %>
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-gray-600 border-b">
+                                <th class="pb-2">#</th>
+                                <th class="pb-2">Панель</th>
+                                <th class="pb-2">Подключение</th>
+                                <th class="pb-2">Тег</th>
+                                <th class="pb-2">Протокол</th>
+                                <th class="pb-2">Порт</th>
+                                <th class="pb-2">Всего</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% threeXuiInbounds.forEach(function(inbound, index) { %>
+                                <tr class="border-b last:border-0">
+                                    <td class="py-2 text-gray-500"><%= index + 1 %></td>
+                                    <td class="py-2 font-medium"><%= inbound.panel_name %></td>
+                                    <td class="py-2"><%= inbound.remark || inbound.inbound_id %></td>
+                                    <td class="py-2 text-sm text-gray-500"><%= inbound.tag || '—' %></td>
+                                    <td class="py-2 text-sm text-gray-500"><%= inbound.protocol || '—' %></td>
+                                    <td class="py-2 text-sm text-gray-500"><%= inbound.port || '—' %></td>
+                                    <td class="py-2 text-sm font-medium"><%= inbound.formatted_total %></td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                <% } %>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

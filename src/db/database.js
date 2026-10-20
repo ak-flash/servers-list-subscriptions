@@ -285,6 +285,133 @@ function getServersTrafficByMonth(yearMonth) {
   return rows;
 }
 
+function normalizeTrafficValue(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return 0;
+  return Math.trunc(number);
+}
+
+function upsertThreeXuiClientTraffic(panelId, email, upBytes, downBytes, totalBytes = null, updatedAt = null) {
+  const up = normalizeTrafficValue(upBytes);
+  const down = normalizeTrafficValue(downBytes);
+  const total = totalBytes === null || totalBytes === undefined ? up + down : normalizeTrafficValue(totalBytes);
+  const stmt = db.prepare(`INSERT INTO threexui_client_traffic (panel_id, email, up_bytes, down_bytes, total_bytes, updated_at)
+    VALUES (?, ?, ?, ?, ?, COALESCE(?, datetime('now')))
+    ON CONFLICT(panel_id, email) DO UPDATE SET
+      up_bytes = excluded.up_bytes,
+      down_bytes = excluded.down_bytes,
+      total_bytes = excluded.total_bytes,
+      updated_at = excluded.updated_at`);
+  stmt.run([panelId, email, up, down, total, updatedAt]);
+  stmt.free();
+}
+
+function upsertThreeXuiInboundTraffic(panelId, inbound) {
+  const inboundId = Number.parseInt(inbound.id, 10);
+  if (!Number.isInteger(inboundId) || inboundId < 0) return;
+  const up = normalizeTrafficValue(inbound.up);
+  const down = normalizeTrafficValue(inbound.down);
+  const stmt = db.prepare(`INSERT INTO threexui_inbounds (id, panel_id, inbound_id, remark, tag, protocol, port, up_bytes, down_bytes, total_bytes, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(panel_id, inbound_id) DO UPDATE SET
+      remark = excluded.remark,
+      tag = excluded.tag,
+      protocol = excluded.protocol,
+      port = excluded.port,
+      up_bytes = excluded.up_bytes,
+      down_bytes = excluded.down_bytes,
+      total_bytes = excluded.total_bytes,
+      updated_at = excluded.updated_at`);
+  stmt.run([`${panelId}:${inboundId}`, panelId, inboundId, inbound.remark || null, inbound.tag || null,
+    inbound.protocol || null, Number.parseInt(inbound.port, 10) || null, up, down, normalizeTrafficValue(inbound.total ?? up + down)]);
+  stmt.free();
+}
+
+function getThreeXuiClientTraffic(email) {
+  const row = connection.get(`SELECT COALESCE(SUM(up_bytes), 0) as total_upload, COALESCE(SUM(down_bytes), 0) as total_download,
+    COALESCE(SUM(total_bytes), 0) as total_traffic, MAX(updated_at) as updated_at
+    FROM threexui_client_traffic WHERE email = ?`, [email]);
+  return row || { total_upload: 0, total_download: 0, total_traffic: 0, updated_at: null };
+}
+
+function getThreeXuiClientsTraffic() {
+  return connection.all(`SELECT email, COALESCE(SUM(up_bytes), 0) as total_upload, COALESCE(SUM(down_bytes), 0) as total_download,
+    COALESCE(SUM(total_bytes), 0) as total_traffic, MAX(updated_at) as updated_at
+    FROM threexui_client_traffic GROUP BY email ORDER BY total_traffic DESC`);
+}
+
+function getThreeXuiInboundTraffic() {
+  return connection.all(`SELECT i.*, p.name as panel_name
+    FROM threexui_inbounds i
+    JOIN threexui_panels p ON p.id = i.panel_id
+    WHERE p.is_active = 1
+    ORDER BY i.total_bytes DESC, i.remark, i.id`);
+}
+
+function getThreeXuiInboundTrafficTotals() {
+  return connection.get(`SELECT COALESCE(SUM(up_bytes), 0) as total_upload, COALESCE(SUM(down_bytes), 0) as total_download,
+    COALESCE(SUM(total_bytes), 0) as total_traffic
+    FROM threexui_inbounds i
+    JOIN threexui_panels p ON p.id = i.panel_id
+    WHERE p.is_active = 1`);
+}
+
+function upsertThreeXuiInboundClientTraffic(panelId, inboundId, email, upBytes, downBytes, totalBytes = null, updatedAt = null) {
+  const id = Number.parseInt(inboundId, 10);
+  if (!Number.isInteger(id) || id < 0) return;
+  const up = normalizeTrafficValue(upBytes);
+  const down = normalizeTrafficValue(downBytes);
+  const total = totalBytes === null || totalBytes === undefined ? up + down : normalizeTrafficValue(totalBytes);
+  const stmt = db.prepare(`INSERT INTO threexui_inbound_client_traffic (panel_id, inbound_id, email, up_bytes, down_bytes, total_bytes, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, datetime('now')))
+    ON CONFLICT(panel_id, inbound_id, email) DO UPDATE SET
+      up_bytes = excluded.up_bytes,
+      down_bytes = excluded.down_bytes,
+      total_bytes = excluded.total_bytes,
+      updated_at = excluded.updated_at`);
+  stmt.run([panelId, id, email, up, down, total, updatedAt]);
+  stmt.free();
+}
+
+function getThreeXuiInboundClientTraffic() {
+  return connection.all(`SELECT
+      t.panel_id,
+      p.name as panel_name,
+      t.inbound_id,
+      COALESCE(i.remark, t.inbound_id) as remark,
+      COALESCE(i.tag, '') as tag,
+      COALESCE(i.protocol, '') as protocol,
+      COALESCE(i.port, 0) as port,
+      t.email,
+      t.up_bytes,
+      t.down_bytes,
+      t.total_bytes,
+      t.updated_at
+    FROM threexui_inbound_client_traffic t
+    JOIN threexui_panels p ON p.id = t.panel_id
+    LEFT JOIN threexui_inbounds i ON i.panel_id = t.panel_id AND i.inbound_id = t.inbound_id
+    WHERE p.is_active = 1
+    ORDER BY t.total_bytes DESC, p.name, t.inbound_id, t.email`);
+}
+
+function getThreeXuiUsersTraffic() {
+  return connection.all(`SELECT
+      t.panel_id,
+      p.name as panel_name,
+      t.email,
+      u.id as user_id,
+      COALESCE(u.username, t.email) as username,
+      t.up_bytes,
+      t.down_bytes,
+      t.total_bytes,
+      t.updated_at
+    FROM threexui_client_traffic t
+    JOIN threexui_panels p ON p.id = t.panel_id
+    LEFT JOIN users u ON u.username = t.email
+    WHERE p.is_active = 1
+    ORDER BY t.total_bytes DESC, p.name, t.email`);
+}
+
 module.exports = {
   ...connection,
   getUserTraffic,
@@ -301,5 +428,14 @@ module.exports = {
   getAllServersTraffic,
   getAvailableMonths,
   getServersTrafficByMonth,
+  upsertThreeXuiClientTraffic,
+  upsertThreeXuiInboundTraffic,
+  getThreeXuiClientTraffic,
+  getThreeXuiClientsTraffic,
+  getThreeXuiInboundTraffic,
+  getThreeXuiInboundTrafficTotals,
+  upsertThreeXuiInboundClientTraffic,
+  getThreeXuiInboundClientTraffic,
+  getThreeXuiUsersTraffic,
   resetAllTraffic
 };

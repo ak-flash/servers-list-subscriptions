@@ -5,14 +5,16 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
-const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic } = require('./db/database');
+const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
 const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
 const { ProbeScheduler } = require('./services/probeScheduler');
+const { ThreeXuiScheduler } = require('./services/threeXuiScheduler');
 const { deleteUser, deleteServer } = require('./services/subscriptionAssignments');
 const subscriptionRoutes = require('./routes/subscriptions');
 const subscriptionSourceRoutes = require('./routes/subscriptionSources');
+const threeXuiRoutes = require('./routes/threexui');
 const adminRoutes = require('./routes/admin');
 const subscriptionView = require('./utils/subscriptionView');
 const health = require('./services/subscriptionHealth');
@@ -28,6 +30,7 @@ const sessionCookieSecure = process.env.SESSION_COOKIE_SECURE === '1' ? true
 
 const WEBHOOK_LOG_FILE = path.join(__dirname, '..', 'data', 'webhook-traffic.log');
 const WEBHOOK_LOG_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
+const WEBHOOK_ENABLED = process.env.WEBHOOK_ENABLED === '1';
 
 function generateShortId(length = 6) {
     return crypto.randomBytes(length).toString('base64url').slice(0, length);
@@ -39,7 +42,7 @@ const APP_NAME = process.env.APP_NAME || 'VPN Подписки';
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) throw new Error('SESSION_SECRET не задан');
-if (process.env.NODE_ENV === 'production' && !WEBHOOK_SECRET) throw new Error('WEBHOOK_SECRET не задан в production');
+if (process.env.NODE_ENV === 'production' && WEBHOOK_ENABLED && !WEBHOOK_SECRET) throw new Error('WEBHOOK_SECRET не задан в production');
 
 const loginAttempts = new Map();
 const LOGIN_RATE_WINDOW_MS = 15 * 60 * 1000;
@@ -62,6 +65,7 @@ function webhookAuthorized(req) {
 }
 const subscriptionConfig = loadConfig();
 const scheduler = new ProbeScheduler(subscriptionConfig);
+const threeXuiScheduler = new ThreeXuiScheduler(process.env.THREEXUI_SYNC_ENABLED === '0' ? { disabled: true } : {});
 const manualVpnChecker = scheduler.checker;
 
 app.set('view engine', 'ejs');
@@ -149,6 +153,7 @@ function recordSubscriptionRequest(userId, req) {
 
 app.use(subscriptionRoutes({ config: subscriptionConfig, recordRequest: recordSubscriptionRequest }));
 app.use(subscriptionSourceRoutes({ config: subscriptionConfig, scheduler, requireAuth, appName: APP_NAME }));
+app.use(threeXuiRoutes({ requireAuth, appName: APP_NAME }));
 app.use(adminRoutes({ requireAuth, dbGet, dbAll, dbRun, appName: APP_NAME }));
 app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
 
@@ -227,15 +232,21 @@ app.get('/admin', requireAuth, (req, res) => {
 
     // Add traffic data to users
     const usersWithTraffic = users.map(user => {
-        const traffic = getUserTraffic(user.id);
+        const localTraffic = getUserTraffic(user.id);
+        const panelTraffic = getThreeXuiClientTraffic(user.username);
+        const traffic = {
+            total_upload: Math.max(localTraffic.total_upload || 0, panelTraffic.total_upload || 0),
+            total_download: Math.max(localTraffic.total_download || 0, panelTraffic.total_download || 0),
+            total_traffic: Math.max(localTraffic.total_traffic || 0, panelTraffic.total_traffic || 0)
+        };
         return {
             ...user,
-            total_upload: traffic.total_upload || 0,
-            total_download: traffic.total_download || 0,
-            total_traffic: traffic.total_traffic || 0,
-            formatted_upload: formatBytes(traffic.total_upload || 0),
-            formatted_download: formatBytes(traffic.total_download || 0),
-            formatted_total: formatBytes(traffic.total_traffic || 0)
+            total_upload: traffic.total_upload,
+            total_download: traffic.total_download,
+            total_traffic: traffic.total_traffic,
+            formatted_upload: formatBytes(traffic.total_upload),
+            formatted_download: formatBytes(traffic.total_download),
+            formatted_total: formatBytes(traffic.total_traffic)
         };
     });
 
@@ -386,7 +397,7 @@ app.post('/api/servers/:id/check', requireAuth, requireCsrf, async (req, res) =>
 });
 
 // Traffic reporting API endpoints
-app.post('/api/traffic/report/:webhookSecret', (req, res) => {
+if (WEBHOOK_ENABLED) app.post('/api/traffic/report/:webhookSecret', (req, res) => {
     if (!webhookAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
     const { user_id, server_id, upload_bytes, download_bytes } = req.body;
 
@@ -443,7 +454,7 @@ function logWebhook(type, data, ip) {
     }
 }
 
-app.post('/api/webhook/traffic/:webhookSecret', (req, res) => {
+if (WEBHOOK_ENABLED) app.post('/api/webhook/traffic/:webhookSecret', (req, res) => {
     if (!webhookAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
@@ -564,6 +575,7 @@ async function startServer() {
     }
 
     await scheduler.start();
+    await threeXuiScheduler.start();
     const server = app.listen(PORT, process.env.HOST || '0.0.0.0', () => {
         logger.info('server_started', { port: PORT, host: process.env.HOST || '0.0.0.0' });
     });
@@ -579,6 +591,7 @@ async function startServer() {
         const closed = new Promise(resolve => server.close(resolve));
         server.closeIdleConnections();
         try {
+            threeXuiScheduler.stop();
             await scheduler.stop();
             await closed;
             saveDb();
@@ -664,11 +677,47 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const activeTrafficUsers = allServersTraffic.filter(server => server.total_traffic > 0).length;
     const formattedTotalTraffic = formatBytes(totalTraffic);
 
+    const threeXuiInbounds = getThreeXuiInboundTraffic();
+    const threeXuiTotals = threeXuiInbounds.reduce((totals, inbound) => ({
+        up: totals.up + (inbound.up_bytes || 0),
+        down: totals.down + (inbound.down_bytes || 0),
+        total: totals.total + (inbound.total_bytes || 0)
+    }), { up: 0, down: 0, total: 0 });
+    const formattedThreeXuiTotalTraffic = formatBytes(threeXuiTotals.total);
+
     const topServersTraffic = allServersTraffic.slice(0, 10).map(server => ({
         ...server,
         formatted_upload: formatBytes(server.total_upload || 0),
         formatted_download: formatBytes(server.total_download || 0),
         formatted_total: formatBytes(server.total_traffic || 0)
+    }));
+
+    const topThreeXuiInbounds = threeXuiInbounds.slice(0, 10).map(inbound => ({
+        ...inbound,
+        formatted_upload: formatBytes(inbound.up_bytes || 0),
+        formatted_download: formatBytes(inbound.down_bytes || 0),
+        formatted_total: formatBytes(inbound.total_bytes || 0)
+    }));
+
+    const topThreeXuiClients = getThreeXuiClientsTraffic().slice(0, 10).map(client => ({
+        ...client,
+        formatted_upload: formatBytes(client.total_upload || 0),
+        formatted_download: formatBytes(client.total_download || 0),
+        formatted_total: formatBytes(client.total_traffic || 0)
+    }));
+
+    const threeXuiUsersTraffic = getThreeXuiUsersTraffic().slice(0, 10).map(client => ({
+        ...client,
+        formatted_upload: formatBytes(client.up_bytes || 0),
+        formatted_download: formatBytes(client.down_bytes || 0),
+        formatted_total: formatBytes(client.total_bytes || 0)
+    }));
+
+    const threeXuiConnectionsTraffic = getThreeXuiInboundClientTraffic().slice(0, 10).map(client => ({
+        ...client,
+        formatted_upload: formatBytes(client.up_bytes || 0),
+        formatted_download: formatBytes(client.down_bytes || 0),
+        formatted_total: formatBytes(client.total_bytes || 0)
     }));
 
     const lastRequests = dbAll(`
@@ -707,6 +756,12 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const topTrafficUsers = [];
 
     res.render('stats', {
+        threeXuiInbounds: topThreeXuiInbounds,
+        threeXuiClients: topThreeXuiClients,
+        threeXuiUsers: threeXuiUsersTraffic,
+        threeXuiConnections: threeXuiConnectionsTraffic,
+        threeXuiTotals,
+        formattedThreeXuiTotalTraffic,
         totalUsers,
         activeUsers,
         totalRequests,
@@ -735,4 +790,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, startServer, scheduler, subscriptionConfig };
+module.exports = { app, startServer, scheduler, threeXuiScheduler, subscriptionConfig };
