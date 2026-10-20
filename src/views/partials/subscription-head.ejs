@@ -4,3 +4,15 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <% if (typeof csrfToken !== 'undefined') { %><meta name="csrf-token" content="<%= csrfToken %>"><% } %>
 <link rel="stylesheet" href="/app.css">
+<script>
+  (function () {
+    try {
+      var stored = localStorage.getItem('theme');
+      var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('dark', dark);
+    } catch (error) {
+      // Ignore unavailable storage and keep the system preference.
+    }
+  })();
+</script>
+<script src="/theme.js" defer></script>

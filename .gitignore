@@ -12,3 +12,4 @@ data/
 !data/.gitkeep
 .playwright-mcp/
 tools/xray/
+deploy/.deploy.env

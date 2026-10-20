@@ -51,7 +51,7 @@ function stripTrailingSlash(value) {
 }
 
 function resolveEndpoint(baseUrl, path) {
-  const url = new URL(baseUrl.href);
+  const url = new URL(baseUrl instanceof URL ? baseUrl.href : baseUrl);
   url.pathname = `${stripTrailingSlash(url.pathname)}${path.startsWith('/') ? path : `/${path}`}`;
   return url;
 }
@@ -139,7 +139,7 @@ function markSyncSuccess(id, timestamp) {
 }
 
 function markSyncError(id, error) {
-  db.run(`UPDATE threexui_panels SET last_sync_error = ?, updated_at = datetime('now') WHERE id = ?`, [normalizeText(error?.message || String(error)).slice(0, 500)]);
+  db.run(`UPDATE threexui_panels SET last_sync_error = ?, updated_at = datetime('now') WHERE id = ?`, [normalizeText(error?.message || String(error)).slice(0, 500), id]);
 }
 
 function saveInboundTraffic(panelId, inbound) {

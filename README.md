@@ -54,7 +54,8 @@ cp .env.example .env
 | `PORT` | Порт сервера | `4000` в `.env.example`, `2096` без настройки |
 | `APP_NAME` | Название приложения (в интерфейсе) | `VPN Подписки` |
 | `SESSION_SECRET` | Секрет для сессий | Задать в `.env` |
-| `WEBHOOK_SECRET` | Секретный сегмент URL webhook 3x-ui | Задать в `.env` |
+| `WEBHOOK_ENABLED` | Включить устаревший webhook трафика 3x-ui | `0` (выключен) |
+| `WEBHOOK_SECRET` | Секретный сегмент URL webhook 3x-ui, нужен только при `WEBHOOK_ENABLED=1` | Не требуется при сборе через API |
 | `PUBLIC_DOMAIN` | Публичный домен для QR кодов | `your-domain.com` |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Временные данные первого администратора; после первого входа задаётся новый пароль | Задаются только при первом запуске |
 | `XRAY_PATH` | Абсолютный путь к бинарнику Xray | Linux: `/usr/local/bin/xray`; Windows: `tools/xray/xray.exe` в проекте |
@@ -64,7 +65,7 @@ cp .env.example .env
 | `PROBE_HTTP_PROXY_MODE` | `extra` — обычная проверка + дополнительная через прокси; `only` — все проверки только через прокси | `extra` |
 | `PROFILE_UPDATE_INTERVAL_HOURS` | Интервал обновления профиля для клиента | `1` |
 
-Перед первым запуском задайте `SESSION_SECRET`, `WEBHOOK_SECRET` и временный `ADMIN_PASSWORD`. При первом входе приложение потребует сменить его на новый пароль. После создания администратора `ADMIN_PASSWORD` можно удалить из `.env`. Полный набор настроек с ограничениями приведён в `.env.example` и [документации](docs/EXTERNAL_SUBSCRIPTIONS.md).
+Перед первым запуском задайте `SESSION_SECRET` и временный `ADMIN_PASSWORD`. При первом входе приложение потребует сменить его на новый пароль. После создания администратора `ADMIN_PASSWORD` можно удалить из `.env`. `WEBHOOK_ENABLED=0` оставляет устаревший webhook выключенным; статистика 3x-ui собирается через API после добавления панели в админке. Полный набор настроек с ограничениями приведён в `.env.example` и [документации](docs/EXTERNAL_SUBSCRIPTIONS.md).
 
 ### Установка Xray на Linux
 
@@ -106,7 +107,7 @@ docker build -t vpn-subscription-service .
 docker run --name vpn-subscription-service --env-file .env -p 2096:2096 -v vpn-subscription-data:/app/data vpn-subscription-service
 ```
 
-Для production задайте `PORT`, соответствующий проброшенному порту, и сохраните `SESSION_SECRET`, `WEBHOOK_SECRET`, `PUBLIC_DOMAIN` и `ADMIN_PASSWORD` в `.env` до первого входа.
+Для production задайте `PORT`, соответствующий проброшенному порту, и сохраните `SESSION_SECRET`, `PUBLIC_DOMAIN` и `ADMIN_PASSWORD` в `.env` до первого входа. При стандартной конфигурации `WEBHOOK_ENABLED=0` параметр `WEBHOOK_SECRET` не нужен.
 
 Перед запуском или после изменения шаблонов пересоберите локальные стили:
 
@@ -187,7 +188,121 @@ handle @sub {
 
 Готовый unit: [`deploy/vpn-subscriptions.service`](deploy/vpn-subscriptions.service). Инструкция создания системного пользователя, настройки прав и запуска — в [документации](docs/EXTERNAL_SUBSCRIPTIONS.md#linux-и-systemd).
 
-### Вариант 2: PM2
+### Вариант 2: Supervisor 3.1
+
+Supervisor запускает приложение от пользователя `ubuntu` и автоматически перезапускает его после сбоя. Конфигурация должна использовать команду `npm start`, чтобы запускался production-процесс приложения.
+
+Если Supervisor установлен как плагин aaPanel, системный `supervisorctl` может быть недоступен. В этом случае используйте путь из окружения aaPanel:
+
+```bash
+sudo /www/server/panel/pyenv/bin/supervisorctl status
+sudo /www/server/panel/pyenv/bin/supervisorctl reread
+sudo /www/server/panel/pyenv/bin/supervisorctl update
+sudo /www/server/panel/pyenv/bin/supervisorctl restart subcsriptions:subcsriptions_00
+```
+
+Имя процесса можно посмотреть командой `status`; оно формируется из имени секции `[program:...]` и `process_name`.
+
+Для автоматического обновления проекта, установки зависимостей, сборки CSS и перезапуска приложения используйте универсальный скрипт [`deploy/deploy.sh`](deploy/deploy.sh). Настройки вынесены в файл `deploy/.deploy.env`, который не добавляется в Git:
+
+```bash
+cd /home/ubuntu/servers-list-subscriptions
+cp deploy/.deploy.env.example deploy/.deploy.env
+chmod +x deploy/deploy.sh
+nano deploy/.deploy.env
+./deploy/deploy.sh
+```
+
+Пример настроек для aaPanel Supervisor:
+
+```env
+PROJECT_DIR=/home/ubuntu/servers-list-subscriptions
+DEPLOY_BRANCH=main
+INSTALL_COMMAND="npm ci"
+BUILD_COMMAND="npm run build:css"
+RESTART_COMMAND="sudo /www/server/panel/pyenv/bin/supervisorctl restart subcsriptions:subcsriptions_00"
+```
+
+Для systemd замените `RESTART_COMMAND`:
+
+```env
+RESTART_COMMAND="sudo systemctl restart vpn-subscriptions.service"
+```
+
+Для Docker Compose:
+
+```env
+RESTART_COMMAND="docker compose up -d --build"
+```
+
+Скрипт использует `git pull --ff-only`, останавливается при первой ошибке и не перезапускает приложение, если `RESTART_COMMAND` пустой.
+
+Создайте конфигурацию, например `/etc/supervisor/conf.d/subcsriptions.conf`:
+
+```ini
+[program:subcsriptions]
+command=npm start
+directory=/home/ubuntu/servers-list-subscriptions/
+autorestart=true
+startsecs=3
+startretries=3
+stdout_logfile=/www/server/panel/plugin/supervisor/log/subcsriptions.out.log
+stderr_logfile=/www/server/panel/plugin/supervisor/log/subcsriptions.err.log
+stdout_logfile_maxbytes=2MB
+stderr_logfile_maxbytes=2MB
+user=ubuntu
+priority=999
+numprocs=1
+stopsignal=SIGTERM
+stopwaitsecs=5
+process_name=%(program_name)s_%(process_num)02d
+```
+
+Перед запуском убедитесь, что каталог проекта принадлежит `ubuntu`, `.env` заполнен, зависимости установлены, а CSS собран:
+
+```bash
+cd /home/ubuntu/servers-list-subscriptions
+npm ci
+npm run build:css
+```
+
+Команды Supervisor:
+
+```bash
+sudo /www/server/panel/pyenv/bin/supervisorctl reread
+sudo /www/server/panel/pyenv/bin/supervisorctl update
+sudo /www/server/panel/pyenv/bin/supervisorctl status subcsriptions:subcsriptions_00
+sudo /www/server/panel/pyenv/bin/supervisorctl start subcsriptions:subcsriptions_00
+sudo /www/server/panel/pyenv/bin/supervisorctl stop subcsriptions:subcsriptions_00
+sudo /www/server/panel/pyenv/bin/supervisorctl restart subcsriptions:subcsriptions_00
+```
+
+После изменения `.env`, кода или шаблонов пересоберите CSS при необходимости и выполните:
+
+```bash
+cd /home/ubuntu/servers-list-subscriptions
+npm run build:css
+sudo /www/server/panel/pyenv/bin/supervisorctl restart subcsriptions:subcsriptions_00
+```
+
+Просмотр логов:
+
+```bash
+tail -f /www/server/panel/plugin/supervisor/log/subcsriptions.out.log
+tail -f /www/server/panel/plugin/supervisor/log/subcsriptions.err.log
+```
+
+Если `supervisorctl` не находит процесс, проверьте имя секции и список процессов:
+
+```bash
+sudo /www/server/panel/pyenv/bin/supervisorctl status
+sudo /www/server/panel/pyenv/bin/supervisorctl reread
+sudo /www/server/panel/pyenv/bin/supervisorctl update
+```
+
+Используйте один экземпляр приложения. `sql.js` владеет БД в памяти; cluster-режим с несколькими экземплярами не поддерживается. Второй экземпляр останавливается при обнаружении блокировки БД.
+
+### Вариант 3: PM2
 
 PM2 — менеджер процессов для Node.js, который автоматически перезапускает приложение при сбоях и после перезагрузки сервера.
 
@@ -216,27 +331,34 @@ pm2 stop vpn-subscriptions    # Остановить
 ```
 
 
-## Webhook 3x-ui
+## Статистика 3x-ui через API
 
-3x-ui не требует кастомных HTTP-заголовков. В `.env` задайте секрет:
+Webhook отключён по умолчанию. Для получения трафика пользователей и inbound-подключений:
+
+1. В 3x-ui откройте **Settings → Security → API Token** и создайте токен.
+2. В приложении откройте **Админка → 3x-ui → Добавить панель**.
+3. Укажите URL панели, включая секретный base path, если он настроен, например `https://panel.example.com/secret-path`.
+4. Вставьте API token и сохраните панель.
+
+Приложение автоматически опрашивает endpoint 3x-ui `/panel/api/inbounds/list`, сохраняет статистику локально и показывает её в **Админка → Статистика**. Интервал синхронизации задаётся для каждой панели.
+
+Токен хранится в локальной базе приложения. Не публикуйте его и не добавляйте в `.env`, shell history или сторонние логи.
+
+### Старый webhook 3x-ui
+
+Старый webhook отключён настройкой по умолчанию:
 
 ```env
-WEBHOOK_SECRET=случайная-длинная-строка
+WEBHOOK_ENABLED=0
 ```
 
-В настройках webhook 3x-ui укажите URL с этим секретом:
+Для временного включения задайте `WEBHOOK_ENABLED=1` и `WEBHOOK_SECRET`, затем используйте URL:
 
 ```text
 https://your-domain.com/api/webhook/traffic/<WEBHOOK_SECRET>
 ```
 
-Например, при `WEBHOOK_SECRET=my-secret`:
-
-```text
-https://your-domain.com/api/webhook/traffic/my-secret
-```
-
-Старый URL `/api/webhook/traffic` без секретного сегмента возвращает `404`. Секрет не публикуйте и не включайте в сторонние логи.
+В обычной конфигурации webhook в 3x-ui лучше удалить или отключить.
 
 ## API эндпоинты
 
@@ -253,7 +375,10 @@ https://your-domain.com/api/webhook/traffic/my-secret
 | GET | `/admin/subscription-sources` | Источники, каталог и сохранённые VPN-проверки |
 | POST | `/api/subscription-sources/:id/sync` | Фоновая загрузка, `202 + jobId` |
 | POST | `/api/subscription-sources/:id/check` | Фоновая VPN-проверка, `202 + jobId` |
-| POST | `/api/webhook/traffic/:webhookSecret` | Webhook трафика 3x-ui; секрет передаётся в URL |
+| GET | `/admin/threexui` | Настройка панелей 3x-ui и запуск синхронизации |
+| POST | `/api/threexui/sync` | Принудительная синхронизация всех активных панелей 3x-ui |
+| POST | `/api/threexui/:id/sync` | Принудительная синхронизация одной панели 3x-ui |
+| POST | `/api/webhook/traffic/:webhookSecret` | Устаревший webhook трафика 3x-ui; доступен только при `WEBHOOK_ENABLED=1` |
 | GET | `/api/background-jobs/:id` | Прогресс задачи (требует авторизации) |
 | GET | `/api/users/:id/subscription-preview` | Сохранённый состав и причины недобора (требует авторизации) |
 
