@@ -145,6 +145,7 @@ function markSyncError(id, error) {
 function saveInboundTraffic(panelId, inbound) {
   const inboundId = Number.parseInt(inbound.id, 10);
   const clients = Array.isArray(inbound.clientStats) ? inbound.clientStats : [];
+  const month = new Date().toISOString().slice(0, 7);
   let clientsUpload = 0;
   let clientsDownload = 0;
   let clientsTotal = 0;
@@ -159,12 +160,14 @@ function saveInboundTraffic(panelId, inbound) {
     clientsTotal += total;
     const updatedAt = toIsoTimestamp(client.lastOnline);
     db.upsertThreeXuiClientTraffic(panelId, email, up, down, total, updatedAt);
+    db.upsertThreeXuiClientMonthlyTraffic(panelId, email, month, up, down, total);
     if (Number.isInteger(inboundId) && inboundId >= 0) db.upsertThreeXuiInboundClientTraffic(panelId, inboundId, email, up, down, total, updatedAt);
   }
   const upload = trafficValue(inbound.up) || clientsUpload;
   const download = trafficValue(inbound.down) || clientsDownload;
   const total = trafficValue(inbound.total) || upload + download;
   db.upsertThreeXuiInboundTraffic(panelId, { ...inbound, up: upload, down: download, total });
+  db.upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upload, download, total);
 }
 
 async function requestJson(panel, path, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {

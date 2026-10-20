@@ -13,7 +13,7 @@ test('fresh database, nested rollback, persistence and cascading source/user del
   const filePath = path.join(directory, 'test.db');
   t.after(() => { db.closeDb(); fs.rmSync(directory, { recursive: true, force: true }); });
   await db.initDb({ filePath });
-  assert.equal(db.get('SELECT count(*) AS n FROM schema_migrations').n, 7);
+  assert.equal(db.get('SELECT count(*) AS n FROM schema_migrations').n, 8);
   db.transaction(() => {
     db.run('INSERT INTO users (id, username) VALUES (?, ?)', ['u', 'user']);
     assert.throws(() => db.transaction(() => {
@@ -36,7 +36,7 @@ test('fresh database, nested rollback, persistence and cascading source/user del
   assert.equal(db.get('PRAGMA foreign_keys').foreign_keys, 1);
   db.closeDb();
   await db.initDb({ filePath });
-  assert.equal(db.get('SELECT count(*) AS n FROM schema_migrations').n, 7);
+  assert.equal(db.get('SELECT count(*) AS n FROM schema_migrations').n, 8);
   assert.equal(db.get('SELECT count(*) AS n FROM user_subscription_sources').n, 1);
   db.run("DELETE FROM users WHERE id = 'u'");
   assert.equal(db.get('SELECT count(*) AS n FROM user_subscription_sources').n, 0);

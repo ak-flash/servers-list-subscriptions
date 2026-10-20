@@ -5,7 +5,7 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
-const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic } = require('./db/database');
+const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, updateServerTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
 const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
@@ -681,15 +681,18 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const activeTrafficUsers = allServersTraffic.filter(server => server.total_traffic > 0).length;
     const formattedTotalTraffic = formatBytes(totalTraffic);
 
-    const threeXuiInbounds = getThreeXuiInboundTraffic();
-    const threeXuiMonthFilter = selectedMonth ? ' AND strftime(\'%Y-%m\', updated_at) = ?' : '';
-    const threeXuiMonthParams = selectedMonth ? [selectedMonth] : [];
-    const threeXuiTotals = threeXuiInbounds.reduce((totals, inbound) => ({
-        up: totals.up + (inbound.up_bytes || 0),
-        down: totals.down + (inbound.down_bytes || 0),
-        total: totals.total + (inbound.total_bytes || 0)
-    }), { up: 0, down: 0, total: 0 });
-    const formattedThreeXuiTotalTraffic = formatBytes(threeXuiTotals.total);
+    const threeXuiInbounds = selectedMonth ? getThreeXuiInboundMonthlyTraffic(selectedMonth) : getThreeXuiInboundTraffic();
+    const threeXuiTotals = selectedMonth ? getThreeXuiInboundTrafficTotals(selectedMonth) : threeXuiInbounds.reduce((totals, inbound) => ({
+        total_upload: totals.total_upload + (inbound.up_bytes || 0),
+        total_download: totals.total_download + (inbound.down_bytes || 0),
+        total_traffic: totals.total_traffic + (inbound.total_bytes || 0)
+    }), { total_upload: 0, total_download: 0, total_traffic: 0 });
+    const threeXuiTotalsView = {
+        up: threeXuiTotals.total_upload || 0,
+        down: threeXuiTotals.total_download || 0,
+        total: threeXuiTotals.total_traffic || 0
+    };
+    const formattedThreeXuiTotalTraffic = formatBytes(threeXuiTotalsView.total);
 
     const topServersTraffic = allServersTraffic.slice(0, 10).map(server => ({
         ...server,
@@ -751,13 +754,10 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         ORDER BY day DESC
     `);
 
-    const availableMonths = dbAll(`
-        SELECT DISTINCT strftime('%Y-%m', recorded_at) as month
-        FROM server_traffic
-        WHERE recorded_at IS NOT NULL
-        ORDER BY month DESC
-        LIMIT 12
-    `).map(row => row.month);
+    const availableMonths = [...new Set([
+        ...dbAll(`SELECT DISTINCT strftime('%Y-%m', recorded_at) as month FROM server_traffic WHERE recorded_at IS NOT NULL`).map(row => row.month),
+        ...dbAll('SELECT DISTINCT month FROM threexui_inbound_monthly_traffic').map(row => row.month)
+    ])].filter(Boolean).sort().reverse().slice(0, 24);
 
     const trafficByUsername = new Map();
     for (const client of threeXuiUsersTraffic) {
@@ -801,8 +801,10 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         threeXuiClients: topThreeXuiClients,
         threeXuiUsers: threeXuiUsersTraffic,
         threeXuiConnections: threeXuiConnectionsTraffic,
-        threeXuiTotals,
+        threeXuiTotals: threeXuiTotalsView,
         formattedThreeXuiTotalTraffic,
+        formattedThreeXuiDownload: formatBytes(threeXuiTotalsView.down),
+        formattedThreeXuiUpload: formatBytes(threeXuiTotalsView.up),
         totalUsers,
         activeUsers,
         totalRequests,

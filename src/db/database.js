@@ -350,12 +350,54 @@ function getThreeXuiInboundTraffic() {
     ORDER BY i.total_bytes DESC, i.remark, i.id`);
 }
 
-function getThreeXuiInboundTrafficTotals() {
+function upsertThreeXuiClientMonthlyTraffic(panelId, email, month, upBytes, downBytes, totalBytes) {
+  if (!email || !/^\d{4}-\d{2}$/.test(month)) return;
+  const stmt = db.prepare(`INSERT INTO threexui_client_monthly_traffic (panel_id, email, month, up_bytes, down_bytes, total_bytes, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(panel_id, email, month) DO UPDATE SET
+      up_bytes = excluded.up_bytes,
+      down_bytes = excluded.down_bytes,
+      total_bytes = excluded.total_bytes,
+      updated_at = excluded.updated_at`);
+  stmt.run([panelId, email, month, normalizeTrafficValue(upBytes), normalizeTrafficValue(downBytes), normalizeTrafficValue(totalBytes)]);
+  stmt.free();
+}
+
+function upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upBytes, downBytes, totalBytes) {
+  const id = Number.parseInt(inboundId, 10);
+  if (!Number.isInteger(id) || id < 0 || !/^\d{4}-\d{2}$/.test(month)) return;
+  const stmt = db.prepare(`INSERT INTO threexui_inbound_monthly_traffic (panel_id, inbound_id, month, up_bytes, down_bytes, total_bytes, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(panel_id, inbound_id, month) DO UPDATE SET
+      up_bytes = excluded.up_bytes,
+      down_bytes = excluded.down_bytes,
+      total_bytes = excluded.total_bytes,
+      updated_at = excluded.updated_at`);
+  stmt.run([panelId, id, month, normalizeTrafficValue(upBytes), normalizeTrafficValue(downBytes), normalizeTrafficValue(totalBytes)]);
+  stmt.free();
+}
+
+function getThreeXuiInboundMonthlyTraffic(month = null) {
+  const params = month ? [month] : [];
+  const filter = month ? ' AND m.month = ?' : '';
+  return connection.all(`SELECT m.panel_id, p.name as panel_name, m.inbound_id,
+      COALESCE(i.remark, m.inbound_id) as remark, COALESCE(i.tag, '') as tag,
+      COALESCE(i.protocol, '') as protocol, COALESCE(i.port, 0) as port,
+      m.up_bytes, m.down_bytes, m.total_bytes, m.month, m.updated_at
+    FROM threexui_inbound_monthly_traffic m
+    JOIN threexui_panels p ON p.id = m.panel_id
+    LEFT JOIN threexui_inbounds i ON i.panel_id = m.panel_id AND i.inbound_id = m.inbound_id
+    WHERE p.is_active = 1${filter}
+    ORDER BY m.total_bytes DESC, p.name, m.inbound_id`, params);
+}
+
+function getThreeXuiInboundTrafficTotals(month = null) {
+  if (month) return connection.get(`SELECT COALESCE(SUM(up_bytes), 0) as total_upload, COALESCE(SUM(down_bytes), 0) as total_download,
+    COALESCE(SUM(total_bytes), 0) as total_traffic FROM threexui_inbound_monthly_traffic m
+    JOIN threexui_panels p ON p.id = m.panel_id WHERE p.is_active = 1 AND m.month = ?`, [month]);
   return connection.get(`SELECT COALESCE(SUM(up_bytes), 0) as total_upload, COALESCE(SUM(down_bytes), 0) as total_download,
     COALESCE(SUM(total_bytes), 0) as total_traffic
-    FROM threexui_inbounds i
-    JOIN threexui_panels p ON p.id = i.panel_id
-    WHERE p.is_active = 1`);
+    FROM threexui_inbounds i JOIN threexui_panels p ON p.id = i.panel_id WHERE p.is_active = 1`);
 }
 
 function upsertThreeXuiInboundClientTraffic(panelId, inboundId, email, upBytes, downBytes, totalBytes = null, updatedAt = null) {
@@ -436,6 +478,9 @@ module.exports = {
   getThreeXuiClientsTraffic,
   getThreeXuiInboundTraffic,
   getThreeXuiInboundTrafficTotals,
+  upsertThreeXuiClientMonthlyTraffic,
+  upsertThreeXuiInboundMonthlyTraffic,
+  getThreeXuiInboundMonthlyTraffic,
   upsertThreeXuiInboundClientTraffic,
   getThreeXuiInboundClientTraffic,
   getThreeXuiUsersTraffic,
