@@ -33,61 +33,11 @@
                 <% } %>
             </div>
             <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Общая статистика</h2>
-            <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div class="bg-blue-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-blue-600">
-                        <%= totalRequests %>
-                    </div>
-                    <div class="text-sm text-gray-600">Всего запросов</div>
-                </div>
-                <div class="bg-green-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-green-600">
-                        <%= todayRequests %>
-                    </div>
-                    <div class="text-sm text-gray-600">Сегодня</div>
-                </div>
-                <div class="bg-purple-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-purple-600">
-                        <%= weekRequests %>
-                    </div>
-                    <div class="text-sm text-gray-600">За неделю</div>
-                </div>
-                <div class="bg-indigo-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-indigo-600">
-                        <%= monthRequests %>
-                    </div>
-                    <div class="text-sm text-gray-600">За месяц</div>
-                </div>
-                <div class="bg-teal-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-teal-600">
-                        <%= totalUsers %>
-                    </div>
-                    <div class="text-sm text-gray-600">Всего пользователей</div>
-                </div>
-                <div class="bg-emerald-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-emerald-600">
-                        <%= activeUsers %>
-                    </div>
-                    <div class="text-sm text-gray-600">Активных</div>
-                </div>
-                <div class="bg-orange-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-orange-600">
-                        <%= formattedTotalTraffic %>
-                    </div>
-                    <div class="text-sm text-gray-600">Общий трафик</div>
-                </div>
-                <div class="bg-cyan-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-cyan-600">
-                        <%= activeTrafficUsers %>
-                    </div>
-                    <div class="text-sm text-gray-600">С трафиком</div>
-                </div>
-                <div class="bg-rose-50 rounded-lg p-4">
-                    <div class="text-2xl md:text-3xl font-bold text-rose-600">
-                        <%= formattedThreeXuiTotalTraffic %>
-                    </div>
-                    <div class="text-sm text-gray-600">Трафик подключений 3x-ui</div>
-                </div>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalRequests %></div><div class="text-sm text-slate-500">Запросов</div></div>
+                <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalUsers %></div><div class="text-sm text-slate-500">Пользователей</div></div>
+                <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= activeUsers %></div><div class="text-sm text-slate-500">Активных</div></div>
+                <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= formattedTotalTraffic %></div><div class="text-sm text-slate-500">Общий трафик</div></div>
             </div>
         </div>
 
@@ -97,12 +47,12 @@
                 <div class="flex gap-2 text-sm"><span class="rounded-lg bg-blue-50 px-3 py-2 font-semibold text-blue-700"><%= topTrafficUsers.length %> пользователей</span><span class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700"><%= userConnectionTotal %> подключений</span></div>
             </div>
             <div class="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div class="rounded-xl bg-slate-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-slate-500">Общий трафик пользователей</div><div class="mt-1 text-2xl font-bold text-slate-900"><%= formattedUserTrafficTotal %></div></div>
-                <div class="rounded-xl bg-blue-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-blue-600">Загрузка</div><div class="mt-1 text-2xl font-bold text-blue-700"><%= formattedUserDownloadTotal %></div></div>
-                <div class="rounded-xl bg-emerald-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-emerald-600">Отдача</div><div class="mt-1 text-2xl font-bold text-emerald-700"><%= formattedUserUploadTotal %></div></div>
+                <div class="rounded-xl bg-slate-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-slate-500">Общий трафик</div><div class="mt-1 text-2xl font-bold text-slate-900"><%= formattedUserTrafficTotal %></div></div>
+                <div class="rounded-xl bg-slate-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-slate-500">Загрузка</div><div class="mt-1 text-2xl font-bold text-slate-900"><%= formattedUserDownloadTotal %></div></div>
+                <div class="rounded-xl bg-slate-50 p-4"><div class="text-xs font-medium uppercase tracking-wide text-slate-500">Отдача</div><div class="mt-1 text-2xl font-bold text-slate-900"><%= formattedUserUploadTotal %></div></div>
             </div>
             <% if (topTrafficUsers.length === 0) { %><p class="py-6 text-center text-gray-500">Нет данных о пользователях</p><% } else { %>
-                <div class="overflow-x-auto"><table class="w-full min-w-[760px]"><thead><tr class="border-b text-left text-xs uppercase tracking-wide text-gray-500"><th class="pb-3">Пользователь</th><th class="pb-3">Статус</th><th class="pb-3">Подключения</th><th class="pb-3">Загрузка</th><th class="pb-3">Отдача</th><th class="pb-3">Всего</th><th class="pb-3">Запросов</th></tr></thead><tbody>
+                <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="w-full min-w-[760px]"><thead><tr class="border-b text-left text-xs uppercase tracking-wide text-gray-500"><th class="pb-3">Пользователь</th><th class="pb-3">Статус</th><th class="pb-3">Подключения</th><th class="pb-3">Загрузка</th><th class="pb-3">Отдача</th><th class="pb-3">Всего</th><th class="pb-3">Запросов</th></tr></thead><tbody>
                 <% topTrafficUsers.forEach(function(user) { %><tr class="border-b last:border-0"><td class="py-3 font-semibold"><%= user.username %><div class="text-xs font-normal text-gray-500"><%= user.last_request ? date(user.last_request) : 'Нет запросов' %></div></td><td class="py-3"><span class="rounded-full px-2 py-1 text-xs font-semibold <%= user.total_traffic > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' %>"><%= user.total_traffic > 0 ? 'Активен' : 'Нет трафика' %></span></td><td class="py-3 font-medium"><%= user.connection_count || 0 %></td><td class="py-3 text-sm text-blue-600"><%= user.formatted_download %></td><td class="py-3 text-sm text-emerald-600"><%= user.formatted_upload %></td><td class="py-3 font-bold"><%= user.formatted_total %></td><td class="py-3 text-sm text-gray-500"><%= user.request_count || 0 %></td></tr><% }); %>
                 </tbody></table></div>
             <% } %>
@@ -113,7 +63,7 @@
             <% if (threeXuiInbounds.length===0) { %>
                 <p class="text-gray-500 text-center py-4">Нет данных подключений 3x-ui</p>
                 <% } else { %>
-                    <table class="w-full">
+                    <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="w-full min-w-[680px]">
                         <thead>
                             <tr class="text-left text-gray-600 border-b">
                                 <th class="pb-2">#</th>
@@ -138,7 +88,7 @@
                                 </tr>
                             <% }); %>
                         </tbody>
-                    </table>
+                    </table></div>
                 <% } %>
         </div>
 
@@ -148,7 +98,7 @@
                 <% if (topUsers.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных</p>
                     <% } else { %>
-                        <table class="w-full">
+                        <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="w-full min-w-[680px]">
                             <thead>
                                 <tr class="text-left text-gray-600 border-b">
                                     <th class="pb-2">#</th>
@@ -175,8 +125,8 @@
                                     </tr>
                                     <% }); %>
                             </tbody>
-                        </table>
-                        <% } %>
+                        </table></div>
+                         <% } %>
             </div>
 
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
@@ -184,7 +134,7 @@
                 <% if (topServersTraffic.length===0) { %>
                     <p class="text-gray-500 text-center py-4">Нет данных о трафике</p>
                     <% } else { %>
-                        <table class="w-full">
+                        <div class="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0"><table class="w-full min-w-[680px]">
                             <thead>
                                 <tr class="text-left text-gray-600 border-b">
                                     <th class="pb-2">#</th>
@@ -223,8 +173,8 @@
                                     </tr>
                                     <% }); %>
                             </tbody>
-                        </table>
-                        <% } %>
+                        </table></div>
+                         <% } %>
             </div>
 
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">

@@ -755,7 +755,19 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         LIMIT 12
     `).map(row => row.month);
 
+    const trafficByUsername = new Map();
+    for (const client of threeXuiUsersTraffic) {
+        const current = trafficByUsername.get(client.username) || { total_upload: 0, total_download: 0, total_traffic: 0 };
+        current.total_upload += client.up_bytes || 0;
+        current.total_download += client.down_bytes || 0;
+        current.total_traffic += client.total_bytes || 0;
+        trafficByUsername.set(client.username, current);
+    }
     const topTrafficUsers = getAllUsersTraffic().map(user => {
+        const xuiTraffic = trafficByUsername.get(user.username) || {};
+        user.total_upload = Math.max(user.total_upload || 0, xuiTraffic.total_upload || 0);
+        user.total_download = Math.max(user.total_download || 0, xuiTraffic.total_download || 0);
+        user.total_traffic = Math.max(user.total_traffic || 0, xuiTraffic.total_traffic || 0);
         const details = dbGet(`
             SELECT
                 COUNT(DISTINCT us.server_id) as connection_count,
