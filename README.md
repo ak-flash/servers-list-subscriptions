@@ -54,8 +54,6 @@ cp .env.example .env
 | `PORT` | Порт сервера | `4000` в `.env.example`, `2096` без настройки |
 | `APP_NAME` | Название приложения (в интерфейсе) | `VPN Подписки` |
 | `SESSION_SECRET` | Секрет для сессий | Задать в `.env` |
-| `WEBHOOK_ENABLED` | Включить устаревший webhook трафика 3x-ui | `0` (выключен) |
-| `WEBHOOK_SECRET` | Секретный сегмент URL webhook 3x-ui, нужен только при `WEBHOOK_ENABLED=1` | Не требуется при сборе через API |
 | `PUBLIC_DOMAIN` | Публичный домен для QR кодов | `your-domain.com` |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Временные данные первого администратора; после первого входа задаётся новый пароль | Задаются только при первом запуске |
 | `XRAY_PATH` | Абсолютный путь к бинарнику Xray | Linux: `/usr/local/bin/xray`; Windows: `tools/xray/xray.exe` в проекте |
@@ -65,7 +63,7 @@ cp .env.example .env
 | `PROBE_HTTP_PROXY_MODE` | `extra` — обычная проверка + дополнительная через прокси; `only` — все проверки только через прокси | `extra` |
 | `PROFILE_UPDATE_INTERVAL_HOURS` | Интервал обновления профиля для клиента | `1` |
 
-Перед первым запуском задайте `SESSION_SECRET` и временный `ADMIN_PASSWORD`. При первом входе приложение потребует сменить его на новый пароль. После создания администратора `ADMIN_PASSWORD` можно удалить из `.env`. `WEBHOOK_ENABLED=0` оставляет устаревший webhook выключенным; статистика 3x-ui собирается через API после добавления панели в админке. Полный набор настроек с ограничениями приведён в `.env.example` и [документации](docs/EXTERNAL_SUBSCRIPTIONS.md).
+Перед первым запуском задайте `SESSION_SECRET` и временный `ADMIN_PASSWORD`. При первом входе приложение потребует сменить его на новый пароль. После создания администратора `ADMIN_PASSWORD` можно удалить из `.env`. Статистика 3x-ui собирается через API после добавления панели в админке. Полный набор настроек с ограничениями приведён в `.env.example` и [документации](docs/EXTERNAL_SUBSCRIPTIONS.md).
 
 ### Установка Xray на Linux
 
@@ -107,7 +105,7 @@ docker build -t vpn-subscription-service .
 docker run --name vpn-subscription-service --env-file .env -p 2096:2096 -v vpn-subscription-data:/app/data vpn-subscription-service
 ```
 
-Для production задайте `PORT`, соответствующий проброшенному порту, и сохраните `SESSION_SECRET`, `PUBLIC_DOMAIN` и `ADMIN_PASSWORD` в `.env` до первого входа. При стандартной конфигурации `WEBHOOK_ENABLED=0` параметр `WEBHOOK_SECRET` не нужен.
+Для production задайте `PORT`, соответствующий проброшенному порту, и сохраните `SESSION_SECRET`, `PUBLIC_DOMAIN` и `ADMIN_PASSWORD` в `.env` до первого входа.
 
 Перед запуском или после изменения шаблонов пересоберите локальные стили:
 
@@ -344,22 +342,6 @@ Webhook отключён по умолчанию. Для получения тр
 
 Токен хранится в локальной базе приложения. Не публикуйте его и не добавляйте в `.env`, shell history или сторонние логи.
 
-### Старый webhook 3x-ui
-
-Старый webhook отключён настройкой по умолчанию:
-
-```env
-WEBHOOK_ENABLED=0
-```
-
-Для временного включения задайте `WEBHOOK_ENABLED=1` и `WEBHOOK_SECRET`, затем используйте URL:
-
-```text
-https://your-domain.com/api/webhook/traffic/<WEBHOOK_SECRET>
-```
-
-В обычной конфигурации webhook в 3x-ui лучше удалить или отключить.
-
 ## API эндпоинты
 
 | Метод | Путь | Описание |
@@ -378,7 +360,6 @@ https://your-domain.com/api/webhook/traffic/<WEBHOOK_SECRET>
 | GET | `/admin/threexui` | Настройка панелей 3x-ui и запуск синхронизации |
 | POST | `/api/threexui/sync` | Принудительная синхронизация всех активных панелей 3x-ui |
 | POST | `/api/threexui/:id/sync` | Принудительная синхронизация одной панели 3x-ui |
-| POST | `/api/webhook/traffic/:webhookSecret` | Устаревший webhook трафика 3x-ui; доступен только при `WEBHOOK_ENABLED=1` |
 | GET | `/api/background-jobs/:id` | Прогресс задачи (требует авторизации) |
 | GET | `/api/users/:id/subscription-preview` | Сохранённый состав и причины недобора (требует авторизации) |
 

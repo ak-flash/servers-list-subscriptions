@@ -4,8 +4,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
-const fs = require('fs');
-const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, updateUserTraffic, getAllUsersTraffic, getServerByTag, syncServerTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
+const { initDb, getDb, saveDb, closeDb, transaction, getUserTraffic, getAllUsersTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
 const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
@@ -28,10 +27,6 @@ const sessionCookieSecure = process.env.SESSION_COOKIE_SECURE === '1' ? true
     : process.env.SESSION_COOKIE_SECURE === '0' ? false
     : 'auto';
 
-const WEBHOOK_LOG_FILE = path.join(__dirname, '..', 'data', 'webhook-traffic.log');
-const WEBHOOK_LOG_MAX_SIZE = 50 * 1024 * 1024; // 50 MB
-const WEBHOOK_ENABLED = process.env.WEBHOOK_ENABLED === '1';
-
 function generateShortId(length = 6) {
     return crypto.randomBytes(length).toString('base64url').slice(0, length);
 }
@@ -40,9 +35,7 @@ const app = express();
 const PORT = process.env.PORT || 2096;
 const APP_NAME = process.env.APP_NAME || 'VPN Подписки';
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) throw new Error('SESSION_SECRET не задан');
-if (process.env.NODE_ENV === 'production' && WEBHOOK_ENABLED && !WEBHOOK_SECRET) throw new Error('WEBHOOK_SECRET не задан в production');
 
 const loginAttempts = new Map();
 const LOGIN_RATE_WINDOW_MS = 15 * 60 * 1000;
@@ -57,11 +50,6 @@ function rateLimit(key, windowMs, max) {
     if (entry.count >= max) return false;
     entry.count++;
     return true;
-}
-function webhookAuthorized(req) {
-    if (!WEBHOOK_SECRET) return process.env.NODE_ENV !== 'production';
-    const token = req.params.webhookSecret;
-    return typeof token === 'string' && token.length === WEBHOOK_SECRET.length && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(WEBHOOK_SECRET));
 }
 const subscriptionConfig = loadConfig();
 const scheduler = new ProbeScheduler(subscriptionConfig);
@@ -419,171 +407,6 @@ app.post('/api/servers/:id/check', requireAuth, requireCsrf, async (req, res) =>
     const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
     if (!server) return res.status(404).json({ error: 'Сервер не найден' });
     res.json(await checkManualServer(server));
-});
-
-// Traffic reporting API endpoints
-if (WEBHOOK_ENABLED) app.post('/api/traffic/report/:webhookSecret', (req, res) => {
-    if (!webhookAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
-    const { user_id, server_id, upload_bytes, download_bytes } = req.body;
-
-    if (!user_id || !server_id || upload_bytes === undefined || download_bytes === undefined) {
-        return res.status(400).json({ error: 'Missing required parameters' });
-    }
-
-    try {
-        updateUserTraffic(user_id, server_id, upload_bytes, download_bytes);
-        res.json({ success: true, message: 'Traffic data updated' });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update traffic data' });
-    }
-});
-
-app.get('/api/traffic/user/:userId', requireAuth, (req, res) => {
-    const userId = req.params.userId;
-    const traffic = getUserTraffic(userId);
-
-    res.json({
-        user_id: userId,
-        upload_bytes: traffic.total_upload || 0,
-        download_bytes: traffic.total_download || 0,
-        total_bytes: traffic.total_traffic || 0
-    });
-});
-
-app.get('/api/traffic/all', requireAuth, (req, res) => {
-    const allTraffic = getAllUsersTraffic();
-    res.json({ users: allTraffic });
-});
-
-function logWebhook(type, data, ip) {
-    const now = new Date();
-    const offset = 3 * 60;
-    const localTime = new Date(now.getTime() + (now.getTimezoneOffset() + offset) * 60000);
-    const timestamp = localTime.toISOString().replace('T', ' ').slice(0, 19);
-    const logEntry = `[${timestamp}] [${type}] [IP: ${ip}]\n${JSON.stringify(data, null, 2)}\n${'='.repeat(80)}\n`;
-    try {
-        const dir = path.dirname(WEBHOOK_LOG_FILE);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        if (fs.existsSync(WEBHOOK_LOG_FILE)) {
-            const stat = fs.statSync(WEBHOOK_LOG_FILE);
-            if (stat.size >= WEBHOOK_LOG_MAX_SIZE) {
-                const backup = WEBHOOK_LOG_FILE + '.old';
-                fs.renameSync(WEBHOOK_LOG_FILE, backup);
-            }
-        }
-        fs.appendFileSync(WEBHOOK_LOG_FILE, logEntry);
-    } catch (err) {
-        logger.error('webhook_logging_failed', { error: err.message });
-    }
-}
-
-if (WEBHOOK_ENABLED) app.post('/api/webhook/traffic/:webhookSecret', (req, res) => {
-    if (!webhookAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-
-    logWebhook('INCOMING', req.body, ip);
-
-    if (req.body.inboundTraffics && Array.isArray(req.body.inboundTraffics)) {
-        const results = [];
-
-        for (const inbound of req.body.inboundTraffics) {
-            const { Tag, Up = 0, Down = 0 } = inbound;
-
-            if (!Tag) {
-                continue;
-            }
-
-            const server = getServerByTag(Tag);
-
-            if (!server) {
-                logWebhook('SERVER_NOT_FOUND', { tag: Tag, up: Up, down: Down }, ip);
-                results.push({ tag: Tag, status: 'server_not_found' });
-                continue;
-            }
-
-            try {
-                syncServerTraffic(server.id, Up, Down);
-                logWebhook('SUCCESS', { tag: Tag, server_id: server.id, server_name: server.name, upload_bytes: Up, download_bytes: Down }, ip);
-                results.push({ tag: Tag, server_id: server.id, server_name: server.name, status: 'success' });
-            } catch (error) {
-                logWebhook('ERROR', { tag: Tag, message: error.message }, ip);
-                results.push({ tag: Tag, status: 'error', message: error.message });
-            }
-        }
-
-        return res.json({
-            success: true,
-            message: 'Server traffic updated',
-            processed: results.length,
-            results
-        });
-    }
-
-    const {
-        user_id,
-        server_id,
-        upload_bytes = 0,
-        download_bytes = 0
-    } = req.body;
-
-    if (!user_id || !server_id) {
-        logWebhook('ERROR', { message: 'Missing user_id or server_id', received: req.body }, ip);
-        return res.status(400).json({ error: 'Missing user_id or server_id' });
-    }
-
-    try {
-        updateUserTraffic(user_id, server_id, upload_bytes, download_bytes);
-
-        logWebhook('SUCCESS', {
-            user_id,
-            server_id,
-            upload_bytes,
-            download_bytes,
-            total: upload_bytes + download_bytes
-        }, ip);
-
-        res.json({
-            success: true,
-            message: 'Traffic data updated',
-            received: {
-                user_id,
-                server_id,
-                upload_bytes,
-                download_bytes
-            }
-        });
-    } catch (error) {
-        logWebhook('ERROR', { message: error.message, stack: error.stack }, ip);
-        res.status(500).json({ error: 'Failed to update traffic data' });
-    }
-});
-
-app.get('/api/webhook/logs', requireAuth, (req, res) => {
-    try {
-        if (fs.existsSync(WEBHOOK_LOG_FILE)) {
-            const content = fs.readFileSync(WEBHOOK_LOG_FILE, 'utf-8');
-            res.type('text/plain').send(content);
-        } else {
-            res.type('text/plain').send('No webhook logs yet.');
-        }
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to read logs: ' + err.message });
-    }
-});
-
-app.delete('/api/webhook/logs', requireAuth, (req, res) => {
-    try {
-        if (fs.existsSync(WEBHOOK_LOG_FILE)) {
-            fs.unlinkSync(WEBHOOK_LOG_FILE);
-            res.json({ success: true, message: 'Logs cleared' });
-        } else {
-            res.json({ success: true, message: 'No logs to clear' });
-        }
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to clear logs: ' + err.message });
-    }
 });
 
 async function startServer() {

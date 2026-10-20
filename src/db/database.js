@@ -136,14 +136,17 @@ function getUserServerUuid(userId, serverId) {
 function getUserServersWithUuid(userId) {
   const stmt = db.prepare(`
     SELECT s.*, us.uuid as user_server_uuid,
-      COALESCE(SUM(st.upload_bytes), 0) as total_upload,
-      COALESCE(SUM(st.download_bytes), 0) as total_download,
-      COALESCE(SUM(st.total_bytes), 0) as total_traffic
+      COALESCE(st.upload_bytes, 0) as total_upload,
+      COALESCE(st.download_bytes, 0) as total_download,
+      COALESCE(st.total_bytes, 0) as total_traffic
     FROM servers s
     INNER JOIN user_servers us ON s.id = us.server_id
-    LEFT JOIN server_traffic st ON s.id = st.server_id
+    LEFT JOIN server_traffic st ON st.id = (
+      SELECT latest.id FROM server_traffic latest
+      WHERE latest.server_id = s.id
+      ORDER BY latest.recorded_at DESC, latest.id DESC LIMIT 1
+    )
     WHERE us.user_id = ? AND s.is_active = 1
-    GROUP BY s.id, s.name, s.link, s.remark, s.tag, s.traffic_limit, s.is_active, s.created_at, us.uuid
   `);
   stmt.bind([userId]);
   const rows = [];
