@@ -182,21 +182,8 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                         </span>
                                     </td>
                                     <td class="py-3">
-                                        <% if (user.total_traffic> 0) { %>
-                                            <div class="text-sm">
-                                                <div class="text-blue-600">
-                                                    <%= user.formatted_download %> ↓
-                                                </div>
-                                                <div class="text-green-600">
-                                                    <%= user.formatted_upload %> ↑
-                                                </div>
-                                                <div class="text-gray-500 text-xs">
-                                                    <%= user.formatted_total %> всего
-                                                </div>
-                                            </div>
-                                            <% } else { %>
-                                                <span class="text-gray-400 text-sm">—</span>
-                                                <% } %>
+                                        <div class="text-sm font-semibold text-slate-800"><%= user.formatted_total %></div>
+                                        <div class="mt-1 text-xs text-slate-500">Месяц: <%= user.formatted_monthly %></div>
                                     </td>
                                     <td class="py-3 font-semibold">
                                         <%= user.last_request_at ? date(user.last_request_at) : '—' %>
@@ -245,19 +232,10 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                                 </div>
                                 <div class="text-xs text-gray-400 mb-3">ID: <%= user.id %>
                                 </div>
-                                <% if (user.total_traffic> 0) { %>
-                                    <div class="text-sm mb-3">
-                                        <div class="text-blue-600">
-                                            <%= user.formatted_download %> ↓ загрузка
-                                        </div>
-                                        <div class="text-green-600">
-                                            <%= user.formatted_upload %> ↑ отдача
-                                        </div>
-                                        <div class="text-gray-500 text-xs">
-                                            <%= user.formatted_total %> всего
-                                        </div>
-                                    </div>
-                                    <% } %>
+                                <div class="mb-3">
+                                    <div class="text-sm font-semibold text-slate-800"><%= user.formatted_total %></div>
+                                    <div class="mt-1 text-xs text-slate-500">Месяц: <%= user.formatted_monthly %></div>
+                                </div>
                                         <div class="flex flex-wrap gap-2 mb-3">
                                             <button onclick="showQrModal('<%= user.id %>', '<%= user.username %>')"
                                                 class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">

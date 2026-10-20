@@ -244,9 +244,11 @@ app.get('/admin', requireAuth, (req, res) => {
             total_upload: traffic.total_upload,
             total_download: traffic.total_download,
             total_traffic: traffic.total_traffic,
+            monthly_traffic: localTraffic.total_traffic || 0,
             formatted_upload: formatBytes(traffic.total_upload),
             formatted_download: formatBytes(traffic.total_download),
-            formatted_total: formatBytes(traffic.total_traffic)
+            formatted_total: formatBytes(traffic.total_traffic),
+            formatted_monthly: formatBytes(localTraffic.total_traffic || 0)
         };
     });
 
@@ -753,7 +755,30 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         LIMIT 12
     `).map(row => row.month);
 
-    const topTrafficUsers = [];
+    const topTrafficUsers = getAllUsersTraffic().map(user => {
+        const details = dbGet(`
+            SELECT
+                COUNT(DISTINCT us.server_id) as connection_count,
+                COUNT(DISTINCT sr.id) as request_count,
+                MAX(sr.requested_at) as last_request
+            FROM users u
+            LEFT JOIN user_servers us ON us.user_id = u.id
+            LEFT JOIN subscription_requests sr ON sr.user_id = u.id
+            WHERE u.id = ?
+            GROUP BY u.id
+        `, [user.id]) || {};
+        return {
+            ...user,
+            ...details,
+            formatted_upload: formatBytes(user.total_upload || 0),
+            formatted_download: formatBytes(user.total_download || 0),
+            formatted_total: formatBytes(user.total_traffic || 0)
+        };
+    });
+    const userTrafficTotal = topTrafficUsers.reduce((sum, user) => sum + (user.total_traffic || 0), 0);
+    const userDownloadTotal = topTrafficUsers.reduce((sum, user) => sum + (user.total_download || 0), 0);
+    const userUploadTotal = topTrafficUsers.reduce((sum, user) => sum + (user.total_upload || 0), 0);
+    const userConnectionTotal = topTrafficUsers.reduce((sum, user) => sum + (user.connection_count || 0), 0);
 
     res.render('stats', {
         threeXuiInbounds: topThreeXuiInbounds,
@@ -774,6 +799,11 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         lastRequests,
         topUsers,
         topTrafficUsers,
+        userTrafficTotal,
+        userConnectionTotal,
+        formattedUserTrafficTotal: formatBytes(userTrafficTotal),
+        formattedUserDownloadTotal: formatBytes(userDownloadTotal),
+        formattedUserUploadTotal: formatBytes(userUploadTotal),
         topServersTraffic,
         requestsByDay,
         availableMonths,
