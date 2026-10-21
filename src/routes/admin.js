@@ -42,8 +42,6 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
         probeConcurrency: settings.probeConcurrency ?? config.concurrency,
         syncConcurrency: settings.syncConcurrency ?? config.syncConcurrency,
         maxQueued: settings.maxQueued ?? config.maxQueued,
-        historyDays: settings.historyDays ?? config.historyDays,
-        maxHistoryRows: settings.maxHistoryRows ?? config.maxHistoryRows,
         runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
         error: null, success: req.query.saved === '1', recheckJobs: null
       });
@@ -51,8 +49,8 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
 
   router.post('/admin/settings', requireAuth, requireCsrf, (req, res) => {
     try {
-      const { proxyUrl, proxyMode, checkIntervalSeconds, healthyTtlSeconds } = req.body;
-      proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds, healthyTtlSeconds }, scheduler.config);
+      const { proxyUrl, proxyMode, checkIntervalSeconds, healthyTtlSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, deadlineSeconds, probeConcurrency, syncConcurrency, maxQueued } = req.body;
+      proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds, healthyTtlSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, deadlineSeconds, probeConcurrency, syncConcurrency, maxQueued }, scheduler.config);
       refreshProxyConfig();
       res.redirect('/admin/settings?saved=1');
     } catch (error) {
@@ -70,8 +68,6 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
         probeConcurrency: req.body.probeConcurrency || config.concurrency,
         syncConcurrency: req.body.syncConcurrency || config.syncConcurrency,
         maxQueued: req.body.maxQueued || config.maxQueued,
-        historyDays: req.body.historyDays || config.historyDays,
-        maxHistoryRows: req.body.maxHistoryRows || config.maxHistoryRows,
         runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
         error: error.message, success: false, recheckJobs: null
       });
@@ -94,8 +90,6 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
       probeConcurrency: settings.probeConcurrency ?? config.concurrency,
       syncConcurrency: settings.syncConcurrency ?? config.syncConcurrency,
       maxQueued: settings.maxQueued ?? config.maxQueued,
-      historyDays: settings.historyDays ?? config.historyDays,
-      maxHistoryRows: settings.maxHistoryRows ?? config.maxHistoryRows,
       runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
       error: null, success: false, recheckJobs: jobs.length
     });

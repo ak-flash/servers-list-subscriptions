@@ -13,9 +13,7 @@ const EDITABLE_SETTINGS = [
   ['deadlineSeconds', 'probe_deadline_seconds', 5, 180, 'Общий таймаут VPN-проверки'],
   ['probeConcurrency', 'probe_concurrency', 1, 64, 'Параллельные VPN-проверки'],
   ['syncConcurrency', 'source_sync_concurrency', 1, 8, 'Параллельные загрузки источников'],
-  ['maxQueued', 'probe_max_queued', 1, 20000, 'Максимум задач в очереди'],
-  ['historyDays', 'probe_history_days', 1, 30, 'Срок хранения истории, дней'],
-  ['maxHistoryRows', 'probe_history_max_rows', 100, 200000, 'Максимум записей истории']
+  ['maxQueued', 'probe_max_queued', 1, 20000, 'Максимум задач в очереди']
 ];
 
 function parseInteger(value, min, max, label) {
@@ -56,9 +54,7 @@ function loadSettings(config = {}) {
     deadlineSeconds: config.deadlineMs === undefined ? undefined : config.deadlineMs / 1000,
     probeConcurrency: config.concurrency,
     syncConcurrency: config.syncConcurrency,
-    maxQueued: config.maxQueued,
-    historyDays: config.historyDays,
-    maxHistoryRows: config.maxHistoryRows
+    maxQueued: config.maxQueued
   };
   const values = {};
   for (const [property, key, min, max, label] of EDITABLE_SETTINGS) {
@@ -84,9 +80,7 @@ function saveSettings(values, config = {}) {
     deadlineSeconds: config.deadlineMs / 1000,
     probeConcurrency: config.concurrency,
     syncConcurrency: config.syncConcurrency,
-    maxQueued: config.maxQueued,
-    historyDays: config.historyDays,
-    maxHistoryRows: config.maxHistoryRows
+    maxQueued: config.maxQueued
   };
   for (const [property, , min, max, label] of EDITABLE_SETTINGS) parsed[property] = parseInteger(values[property] ?? defaults[property], min, max, label);
   if (ttlSeconds <= checkSeconds) throw new Error('Срок актуальности VPN-проверки должен быть больше интервала проверки');
@@ -124,8 +118,6 @@ function applySettingsToConfig(config) {
   next.probeConcurrency ??= config.concurrency;
   next.syncConcurrency ??= config.syncConcurrency;
   next.maxQueued ??= config.maxQueued;
-  next.historyDays ??= config.historyDays;
-  next.maxHistoryRows ??= config.maxHistoryRows;
   next.sourceTimeoutMs = next.sourceTimeoutSeconds * 1000;
   next.readyTimeoutMs = next.readyTimeoutSeconds * 1000;
   next.attemptTimeoutMs = next.attemptTimeoutSeconds * 1000;

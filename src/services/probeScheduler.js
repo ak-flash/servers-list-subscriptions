@@ -256,7 +256,7 @@ class ProbeScheduler {
         }
       }
       if (now - this.lastPrune >= 3600000) {
-        health.pruneHistory(this.config, now);
+        health.pruneHistory(now);
         this.lastPrune = now;
       }
       this.pump();

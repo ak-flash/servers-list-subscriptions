@@ -32,9 +32,7 @@
               ['deadlineSeconds', 'Общий таймаут VPN-проверки, секунд', 5, 180],
               ['probeConcurrency', 'Параллельные VPN-проверки', 1, 64],
               ['syncConcurrency', 'Параллельные загрузки источников', 1, 8],
-              ['maxQueued', 'Максимум задач в очереди', 1, 20000],
-              ['historyDays', 'Хранить историю, дней', 1, 30],
-              ['maxHistoryRows', 'Максимум записей истории', 100, 200000]
+              ['maxQueued', 'Максимум задач в очереди', 1, 20000]
             ]; %>
             <% editable.forEach(([name, label, min, max]) => { %>
               <div><label class="block text-sm font-medium mb-1" for="<%= name %>"><%= label %></label><input id="<%= name %>" name="<%= name %>" type="number" min="<%= min %>" max="<%= max %>" step="1" value="<%= locals[name] %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>

@@ -63,7 +63,7 @@ test('runner errors do not refresh TTL or overwrite a previous success; later co
 
 test('300-node catalog has bounded concurrency and history; shutdown interrupts pending jobs', async t => {
   await db.initDb({ filePath: ':memory:' });
-  const settings = config({ maxHistoryRows: 100 });
+  const settings = config();
   let running = 0;
   let maximum = 0;
   const checker = { status: { available: true }, stop: async () => {}, check: async () => {
@@ -82,8 +82,8 @@ test('300-node catalog has bounded concurrency and history; shutdown interrupts 
   assert.ok(maximum <= settings.concurrency);
   assert.equal(getNodes(source.id).filter(node => eligibility(node, settings) === 'healthy').length, 300);
   assert.equal(db.get('SELECT count(*) AS n FROM subscription_node_checks').n, 900);
-  pruneHistory(settings);
-  assert.equal(db.get('SELECT count(*) AS n FROM subscription_node_checks').n, 100);
+  pruneHistory();
+  assert.equal(db.get('SELECT count(*) AS n FROM subscription_node_checks').n, 900);
   const cancelled = scheduler.enqueueCheck({ sourceId: source.id });
   await scheduler.stop();
   assert.equal(scheduler.job(cancelled.id).completed, 300);

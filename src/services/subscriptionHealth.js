@@ -101,14 +101,14 @@ function recordResult(node, cycleId, result, config, jobId = null, now = Date.no
   return true;
 }
 
-function pruneHistory(config, now = Date.now()) {
+function pruneHistory(now = Date.now()) {
   db.transaction(() => {
-    db.run('DELETE FROM subscription_node_checks WHERE checked_at < ?', [now - config.historyDays * 86400000]);
+    db.run('DELETE FROM subscription_node_checks WHERE checked_at < ?', [now - 86400000]);
     db.run(`DELETE FROM subscription_node_checks WHERE id < COALESCE(
-      (SELECT id FROM subscription_node_checks ORDER BY id DESC LIMIT 1 OFFSET ?), 0)`, [config.maxHistoryRows - 1]);
-    db.run(`DELETE FROM background_jobs WHERE state NOT IN ('queued', 'running') AND
-      (created_at < ? OR id NOT IN (SELECT id FROM background_jobs ORDER BY created_at DESC LIMIT 1000))`, [now - config.historyDays * 86400000]);
-    db.run('DELETE FROM subscription_nodes WHERE is_present = 0 AND removed_at < ?', [now - config.historyDays * 86400000]);
+      (SELECT id FROM subscription_node_checks ORDER BY id DESC LIMIT 1 OFFSET ?), 0)`, [9999]);
+    db.run(`DELETE FROM background_jobs WHERE state NOT IN ('queued', 'running') AND id NOT IN (
+      SELECT id FROM background_jobs ORDER BY created_at DESC LIMIT 100)`);
+    db.run('DELETE FROM subscription_nodes WHERE is_present = 0 AND removed_at < ?', [now - 30 * 86400000]);
   });
 }
 
