@@ -5,13 +5,42 @@
   <%- include('partials/subscription-header', { heading: 'Настройки' }) %>
   <main id="main" class="mx-auto max-w-3xl px-4 py-6 md:py-8">
     <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
-      <h2 class="text-lg font-semibold">HTTP-прокси для дополнительной проверки VPN</h2>
-      <p class="mt-1 text-sm text-gray-600">Задаётся для проверки доступности узлов через прокси. Может переопределять переменную окружения PROBE_HTTP_PROXY.</p>
+      <h2 class="text-lg font-semibold">Настройки проверки VPN и HTTP-прокси</h2>
+      <p class="mt-1 text-sm text-gray-600">Интервалы сохраняются в приложении и имеют приоритет над переменными окружения.</p>
       <% if (error) { %><p class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"><%= error %></p><% } %>
       <% if (success) { %><p class="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">Настройки сохранены. Новые проверки будут использовать обновлённый прокси.</p><% } %>
       <% if (recheckJobs !== null) { %><p class="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">Запущено перепроверка узлов: <%= recheckJobs %> задач(а).</p><% } %>
       <form method="post" action="/admin/settings" class="mt-5 space-y-4">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div>
+          <label class="block text-sm font-medium mb-1" for="checkIntervalSeconds">Интервал VPN-проверок, секунд</label>
+          <input id="checkIntervalSeconds" name="checkIntervalSeconds" type="number" min="30" max="86400" step="1" value="<%= checkIntervalSeconds %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+          <p class="mt-1 text-xs text-gray-500">Например, 3600 — проверка не чаще одного раза в час.</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="healthyTtlSeconds">Срок актуальности результата, секунд</label>
+          <input id="healthyTtlSeconds" name="healthyTtlSeconds" type="number" min="60" max="604800" step="1" value="<%= healthyTtlSeconds %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+          <p class="mt-1 text-xs text-gray-500">Должен быть больше интервала VPN-проверок.</p>
+        </div>
+        <details class="rounded-lg border border-slate-200 p-3">
+          <summary class="cursor-pointer font-medium">Дополнительные настройки проверки</summary>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <% const editable = [
+              ['sourceTimeoutSeconds', 'Таймаут загрузки источника, секунд', 1, 120],
+              ['readyTimeoutSeconds', 'Таймаут запуска Xray, секунд', 1, 30],
+              ['attemptTimeoutSeconds', 'Таймаут попытки VPN-проверки, секунд', 1, 30],
+              ['deadlineSeconds', 'Общий таймаут VPN-проверки, секунд', 5, 180],
+              ['probeConcurrency', 'Параллельные VPN-проверки', 1, 64],
+              ['syncConcurrency', 'Параллельные загрузки источников', 1, 8],
+              ['maxQueued', 'Максимум задач в очереди', 1, 20000],
+              ['historyDays', 'Хранить историю, дней', 1, 30],
+              ['maxHistoryRows', 'Максимум записей истории', 100, 200000]
+            ]; %>
+            <% editable.forEach(([name, label, min, max]) => { %>
+              <div><label class="block text-sm font-medium mb-1" for="<%= name %>"><%= label %></label><input id="<%= name %>" name="<%= name %>" type="number" min="<%= min %>" max="<%= max %>" step="1" value="<%= locals[name] %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
+            <% }); %>
+          </div>
+        </details>
         <div>
           <label class="block text-sm font-medium mb-1" for="proxyUrl">URL прокси</label>
           <input id="proxyUrl" name="proxyUrl" type="text" value="<%= proxyUrl %>" placeholder="http://user:pass@host:port" class="w-full rounded-lg border border-slate-300 px-3 py-2">

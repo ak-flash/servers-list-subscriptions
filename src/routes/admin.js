@@ -28,26 +28,32 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
   }
 
   router.get('/admin/settings', requireAuth, (req, res) => {
-    const config = scheduler.config;
-    const { proxy, mode } = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode);
-    res.render('settings', {
-      appName, proxy, proxyMode: mode, proxyUrl: proxySettings.proxyUrlForDisplay(proxy),
-      runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
-      error: null, success: req.query.saved === '1', recheckJobs: null
-    });
+      const config = scheduler.config;
+      const settings = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode, config);
+      const { proxy, mode } = settings;
+      res.render('settings', {
+        ...settings, appName, proxy, proxyMode: mode, proxyUrl: proxySettings.proxyUrlForDisplay(proxy),
+        checkIntervalSeconds: settings.checkIntervalSeconds || config.checkIntervalMs / 1000,
+        healthyTtlSeconds: settings.healthyTtlSeconds || config.healthyTtlMs / 1000,
+        runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
+        error: null, success: req.query.saved === '1', recheckJobs: null
+      });
   });
 
   router.post('/admin/settings', requireAuth, requireCsrf, (req, res) => {
     try {
-      const { proxyUrl, proxyMode } = req.body;
-      proxySettings.saveSettings({ proxyUrl, mode: proxyMode });
+      const { proxyUrl, proxyMode, checkIntervalSeconds, healthyTtlSeconds } = req.body;
+      proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds, healthyTtlSeconds }, scheduler.config);
       refreshProxyConfig();
       res.redirect('/admin/settings?saved=1');
     } catch (error) {
       const config = scheduler.config;
-      const { proxy, mode } = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode);
+      const settings = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode, config);
+      const { proxy, mode } = settings;
       res.render('settings', {
-        appName, proxy, proxyMode: mode, proxyUrl: req.body.proxyUrl || '',
+        ...settings, appName, proxy, proxyMode: mode, proxyUrl: req.body.proxyUrl || '',
+        checkIntervalSeconds: req.body.checkIntervalSeconds || config.checkIntervalMs / 1000,
+        healthyTtlSeconds: req.body.healthyTtlSeconds || config.healthyTtlMs / 1000,
         runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
         error: error.message, success: false, recheckJobs: null
       });
@@ -57,9 +63,12 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
   router.post('/admin/settings/recheck', requireAuth, requireCsrf, (req, res) => {
     const jobs = scheduler.enqueueAllChecks({ reason: 'manual_recheck' });
     const config = scheduler.config;
-    const { proxy, mode } = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode);
+    const settings = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode, config);
+    const { proxy, mode } = settings;
     res.render('settings', {
-      appName, proxy, proxyMode: mode, proxyUrl: proxySettings.proxyUrlForDisplay(proxy),
+      ...settings, appName, proxy, proxyMode: mode, proxyUrl: proxySettings.proxyUrlForDisplay(proxy),
+      checkIntervalSeconds: settings.checkIntervalSeconds || config.checkIntervalMs / 1000,
+      healthyTtlSeconds: settings.healthyTtlSeconds || config.healthyTtlMs / 1000,
       runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
       error: null, success: false, recheckJobs: jobs.length
     });

@@ -51,13 +51,14 @@ function rateLimit(key, windowMs, max) {
     entry.count++;
     return true;
 }
-const { effectiveHttpProxy, applyProxyToConfig } = require('./services/proxySettings');
+const { effectiveHttpProxy, applySettingsToConfig, applyProxyToConfig } = require('./services/proxySettings');
 let subscriptionConfig = loadConfig();
 const scheduler = new ProbeScheduler(subscriptionConfig);
 function refreshProxyConfig() {
   const envConfig = loadConfig();
-  const effective = effectiveHttpProxy(envConfig.httpProxy, envConfig.httpProxyMode);
-  subscriptionConfig = applyProxyToConfig(envConfig, effective);
+  const settingsConfig = applySettingsToConfig(envConfig);
+  const effective = effectiveHttpProxy(settingsConfig.httpProxy, settingsConfig.httpProxyMode, settingsConfig);
+  subscriptionConfig = applyProxyToConfig(settingsConfig, effective);
   scheduler.config = subscriptionConfig;
   scheduler.checker.config = subscriptionConfig;
 }
