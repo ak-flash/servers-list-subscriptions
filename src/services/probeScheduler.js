@@ -65,6 +65,29 @@ class ProbeScheduler {
     return `check:${node.id}:${node.generation}:${node.source_revision}:${this.config.profileVersion}`;
   }
 
+  async checkNodeNow(nodeId) {
+    if (this.closed) throw new SubscriptionError('cancelled', undefined, 503);
+    if (this.storageError) throw new SubscriptionError('storage_error', 'Не удалось сохранить БД. Проверьте свободное место и перезапустите сервис.', 503);
+    const node = health.getNode(nodeId);
+    if (!node || !node.source_active || !node.is_enabled || !node.is_present || node.capability_status !== 'supported') {
+      throw new SubscriptionError('validation', 'Узел недоступен для проверки: он отключён, удалён или не поддерживается.', 409);
+    }
+    const cycleId = crypto.randomUUID();
+    const now = Date.now();
+    health.markStarted(node, cycleId, now);
+    let result;
+    try {
+      result = await this.checker.check(node);
+    } catch (error) {
+      const safe = safeError(error, 'runner_error');
+      result = { status: ['superseded', 'cancelled'].includes(safe.code) ? 'cancelled' : 'runner_error', errorCode: safe.code, errorMessage: safe.message };
+    }
+    if (!health.recordResult(node, cycleId, result, this.config, null, Date.now())) {
+      throw new SubscriptionError('superseded', 'Настройки узла изменились. Повторите проверку.', 409);
+    }
+    return result;
+  }
+
   enqueueCheck({ sourceId, nodeId, reason = 'manual', dueOnly = false } = {}) {
     let nodes = nodeId ? [health.getNode(nodeId)].filter(Boolean) : health.getNodes(sourceId);
     nodes = nodes.filter(node => node.source_active && node.is_enabled && node.is_present && node.capability_status === 'supported');

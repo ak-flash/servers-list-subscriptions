@@ -111,10 +111,14 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
     const job = scheduler.enqueueCheck({ sourceId: req.params.id });
     res.status(202).json({ jobId: job.id, job });
   }));
-  router.post('/api/subscription-nodes/:id/check', ...auth, requireCsrf, action((req, res) => {
-    const job = scheduler.enqueueCheck({ nodeId: req.params.id });
-    res.status(202).json({ jobId: job.id, job });
-  }));
+  router.post('/api/subscription-nodes/:id/check', ...auth, requireCsrf, async (req, res) => {
+    try {
+      const result = await scheduler.checkNodeNow(req.params.id);
+      res.json({ result: { status: result.status, latencyMs: result.latencyMs ?? null, errorMessage: result.errorMessage ?? null } });
+    } catch (error) {
+      res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? error.message : 'Не удалось выполнить проверку. Повторите попытку.' });
+    }
+  });
   router.post('/api/subscription-nodes/:id/settings', ...auth, requireCsrf, action((req, res) => {
     if (!['0', '1', 0, 1, true, false].includes(req.body.is_enabled)) throw new SubscriptionError('validation', 'Укажите состояние узла.');
     const node = sources.setNodeEnabled(req.params.id, ['1', 1, true].includes(req.body.is_enabled));

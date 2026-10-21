@@ -55,7 +55,7 @@
                 <span class="text-sm text-gray-600 break-all"><%= node.protocol.toUpperCase() %> · <%= node.host || 'Адрес не распознан' %><%= node.port ? `:${node.port}` : '' %></span>
               </div>
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
-                <span class="font-medium <%= node.effective_status === 'healthy' ? 'text-green-800' : 'text-gray-700' %>"><%= statusLabel(node.effective_status) %></span>
+                <span data-node-status class="font-medium <%= node.effective_status === 'healthy' ? 'text-green-800' : 'text-gray-700' %>"><%= statusLabel(node.effective_status) %></span>
                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums <%= node.latency_ms !== null && node.latency_ms !== undefined ? (node.latency_ms <= 150 ? 'bg-green-100 text-green-800' : node.latency_ms <= 400 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') : 'bg-gray-100 text-gray-600' %>" title="Задержка HTTPS через VPN"><%= latency(node.latency_ms) %></span>
                 <% if (node.proxy_checked_at) { %>
                   <% if (['healthy', 'degraded'].includes(node.proxy_status) && node.proxy_latency_ms !== null && node.proxy_latency_ms !== undefined) { %>
@@ -64,7 +64,7 @@
                     <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600" title="Проверка через HTTP-прокси">Прокси: <%= node.proxy_status === 'proxy_error' || node.proxy_status === 'offline' || node.proxy_status === 'test_failed' ? 'недоступен' : statusLabel(node.proxy_status) %></span>
                   <% } %>
                 <% } %>
-                <span class="text-gray-500">Проверено: <%= ago(node.last_checked_at) %> (<%= time(node.last_checked_at) %>)</span>
+                <span data-node-checked class="text-gray-500">Проверено: <%= ago(node.last_checked_at) %> (<%= time(node.last_checked_at) %>)</span>
                 <% if (node.parse_error || node.runner_error_message || node.error_message) { %><span class="text-red-700 break-all"><%= node.parse_error || node.runner_error_message || node.error_message %></span><% } %>
               </div>
             </div>
@@ -76,7 +76,7 @@
                 </span>
               <% } %>
               <% if (node.is_present && node.is_enabled && node.capability_status === 'supported' && source.is_active) { %>
-                <form method="post" action="/api/subscription-nodes/<%= node.id %>/check" data-background-action data-node-check><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[40px] text-sm" aria-label="Проверить VPN: <%= node.name %>">Проверить</button><span class="text-xs text-gray-600" data-node-job-status aria-live="polite"></span></form>
+                <form method="post" action="/api/subscription-nodes/<%= node.id %>/check" data-background-action data-node-check><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="relative bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[40px] min-w-[86px] text-sm" aria-label="Проверить VPN: <%= node.name %>"><span data-check-label>Проверить</span><span data-check-spinner class="pointer-events-none absolute inset-0 hidden items-center justify-center" aria-hidden="true"><span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span></span></button></form>
               <% } %>
               <form method="post" action="/api/subscription-nodes/<%= node.id %>/settings" data-node-setting>
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="is_enabled" value="<%= node.is_enabled ? '0' : '1' %>">

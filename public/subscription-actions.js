@@ -56,18 +56,29 @@
     form.addEventListener('submit', async event => {
       event.preventDefault();
       const button = form.querySelector('button');
-      button.disabled = true;
-      form.setAttribute('aria-busy', 'true');
-      show('Отправка запроса…');
+       button.disabled = true;
+       form.setAttribute('aria-busy', 'true');
+       if (form.hasAttribute('data-node-check')) {
+         form.querySelector('[data-check-label]')?.classList.add('invisible');
+         form.querySelector('[data-check-spinner]')?.classList.remove('hidden');
+         form.querySelector('[data-check-spinner]')?.classList.add('flex');
+       }
+       show('Отправка запроса…');
       try {
         const response = await fetch(form.action, { method: 'POST', headers: { 'x-csrf-token': token },
           body: new URLSearchParams(new FormData(form)), signal: controller.signal });
          const data = await response.json();
          if (!response.ok) throw new Error(data.error || 'Не удалось выполнить действие. Повторите попытку.');
          if (form.hasAttribute('data-node-setting')) { window.location.reload(); return; }
-         const nodeMessage = form.querySelector('[data-node-job-status]');
          if (form.hasAttribute('data-node-check')) {
-           poll(data.jobId, ++polling, nodeMessage);
+           const result = data.result || {};
+           const status = form.closest('li')?.querySelector('[data-node-status]');
+           const checked = form.closest('li')?.querySelector('[data-node-checked]');
+           if (status) {
+             status.textContent = result.status === 'healthy' ? 'Работает' : (result.errorMessage || result.status || 'Проверка завершена');
+             status.className = `font-medium ${result.status === 'healthy' ? 'text-green-800' : 'text-gray-700'}`;
+           }
+           if (checked) checked.textContent = 'Проверено: только что';
            return;
          }
          clearTimeout(timer);
@@ -78,8 +89,13 @@
       } catch (error) {
         if (!controller.signal.aborted) show(error.message);
       } finally {
-        button.disabled = false;
-        form.removeAttribute('aria-busy');
+       button.disabled = false;
+       form.removeAttribute('aria-busy');
+       if (form.hasAttribute('data-node-check')) {
+         form.querySelector('[data-check-label]')?.classList.remove('invisible');
+         form.querySelector('[data-check-spinner]')?.classList.add('hidden');
+         form.querySelector('[data-check-spinner]')?.classList.remove('flex');
+       }
       }
     });
   }
