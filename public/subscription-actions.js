@@ -9,9 +9,17 @@
       const status = button.parentElement.querySelector('[data-copy-status]');
       try {
         await navigator.clipboard.writeText(decodeURIComponent(button.dataset.copyConnection));
-        if (status) status.textContent = 'Скопировано';
+         if (status) {
+           status.textContent = 'Скопировано';
+           status.classList.remove('hidden');
+           window.setTimeout(() => status.classList.add('hidden'), 1800);
+         }
       } catch {
-        if (status) status.textContent = 'Не удалось скопировать. Разрешите доступ к буферу обмена.';
+         if (status) {
+           status.textContent = 'Не удалось скопировать';
+           status.classList.remove('hidden');
+           window.setTimeout(() => status.classList.add('hidden'), 3000);
+         }
       }
     });
   }
@@ -23,18 +31,24 @@
     if (message) message.textContent = text;
   }
 
-  async function poll(id, generation) {
+  async function poll(id, generation, targetMessage = message) {
     try {
       const response = await fetch(`/api/background-jobs/${encodeURIComponent(id)}`, { signal: controller.signal });
       if (!response.ok) throw new Error(response.status === 401 ? 'Сессия истекла. Войдите в админ-панель.' : 'Не удалось получить состояние задачи. Обновите страницу.');
       const job = await response.json();
-      if (generation !== polling) return;
+      if (generation !== polling && targetMessage === message) return;
       const suffix = job.error || job.runner?.error || '';
-      show(`${labels[job.state] || job.state}: ${job.completed} из ${job.total}. ${suffix}`);
-      if (['queued', 'running'].includes(job.state)) timer = setTimeout(() => poll(id, generation), 1500);
-      else show(`${labels[job.state] || job.state}: ${job.completed} из ${job.total}. ${suffix} Обновите результаты.`);
+      const text = `${labels[job.state] || job.state}: ${job.completed} из ${job.total}. ${suffix}`;
+      if (targetMessage) targetMessage.textContent = text;
+      if (['queued', 'running'].includes(job.state)) {
+        const next = () => poll(id, generation, targetMessage);
+        if (targetMessage === message) timer = setTimeout(next, 1500);
+        else window.setTimeout(next, 1500);
+      } else if (targetMessage === message) {
+        show(`${text} Обновите результаты.`);
+      }
     } catch (error) {
-      if (!controller.signal.aborted) show(error.message);
+      if (!controller.signal.aborted && targetMessage) targetMessage.textContent = error.message;
     }
   }
 
@@ -48,14 +62,19 @@
       try {
         const response = await fetch(form.action, { method: 'POST', headers: { 'x-csrf-token': token },
           body: new URLSearchParams(new FormData(form)), signal: controller.signal });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Не удалось выполнить действие. Повторите попытку.');
-        if (form.hasAttribute('data-node-setting')) { window.location.reload(); return; }
-        clearTimeout(timer);
-        const url = new URL(window.location.href);
-        url.searchParams.set('job', data.jobId);
-        window.history.replaceState(null, '', url);
-        poll(data.jobId, ++polling);
+         const data = await response.json();
+         if (!response.ok) throw new Error(data.error || 'Не удалось выполнить действие. Повторите попытку.');
+         if (form.hasAttribute('data-node-setting')) { window.location.reload(); return; }
+         const nodeMessage = form.querySelector('[data-node-job-status]');
+         if (form.hasAttribute('data-node-check')) {
+           poll(data.jobId, ++polling, nodeMessage);
+           return;
+         }
+         clearTimeout(timer);
+         const url = new URL(window.location.href);
+         url.searchParams.set('job', data.jobId);
+         window.history.replaceState(null, '', url);
+         poll(data.jobId, ++polling);
       } catch (error) {
         if (!controller.signal.aborted) show(error.message);
       } finally {
