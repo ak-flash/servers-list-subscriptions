@@ -51,8 +51,16 @@ function rateLimit(key, windowMs, max) {
     entry.count++;
     return true;
 }
-const subscriptionConfig = loadConfig();
+const { effectiveHttpProxy, applyProxyToConfig } = require('./services/proxySettings');
+let subscriptionConfig = loadConfig();
 const scheduler = new ProbeScheduler(subscriptionConfig);
+function refreshProxyConfig() {
+  const envConfig = loadConfig();
+  const effective = effectiveHttpProxy(envConfig.httpProxy, envConfig.httpProxyMode);
+  subscriptionConfig = applyProxyToConfig(envConfig, effective);
+  scheduler.config = subscriptionConfig;
+  scheduler.checker.config = subscriptionConfig;
+}
 const threeXuiScheduler = new ThreeXuiScheduler(process.env.THREEXUI_SYNC_ENABLED === '0' ? { disabled: true } : {});
 const manualVpnChecker = scheduler.checker;
 
@@ -139,10 +147,10 @@ function recordSubscriptionRequest(userId, req) {
     });
 }
 
-app.use(subscriptionRoutes({ config: subscriptionConfig, recordRequest: recordSubscriptionRequest }));
-app.use(subscriptionSourceRoutes({ config: subscriptionConfig, scheduler, requireAuth, appName: APP_NAME }));
+app.use(subscriptionRoutes({ getConfig: () => subscriptionConfig, recordRequest: recordSubscriptionRequest }));
+app.use(subscriptionSourceRoutes({ getConfig: () => subscriptionConfig, scheduler, requireAuth, appName: APP_NAME }));
 app.use(threeXuiRoutes({ requireAuth, appName: APP_NAME }));
-app.use(adminRoutes({ requireAuth, dbGet, dbAll, dbRun, appName: APP_NAME }));
+app.use(adminRoutes({ requireAuth, dbGet, dbAll, dbRun, appName: APP_NAME, scheduler, refreshProxyConfig }));
 app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
 
 app.get('/admin/login', (req, res) => {
@@ -412,6 +420,7 @@ app.post('/api/servers/:id/check', requireAuth, requireCsrf, async (req, res) =>
 
 async function startServer() {
     await initDb();
+    refreshProxyConfig();
 
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
     const adminPassword = process.env.ADMIN_PASSWORD;

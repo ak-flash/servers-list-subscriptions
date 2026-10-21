@@ -34,16 +34,13 @@ function eligibility(node, config, now = Date.now()) {
   if (node.status !== 'healthy') return node.status || 'unknown';
   if (!Number.isFinite(node.latency_ms) || node.latency_ms < 0 || node.successful_attempts < config.minSuccess || node.total_attempts !== config.attempts) return 'unknown';
   if (!node.last_checked_at || now < node.last_checked_at || now - node.last_checked_at >= config.healthyTtlMs) return 'stale';
-  const proxy = proxyEligibility(node, config, now);
-  if (proxy === 'proxy_unknown') return 'unknown';
-  if (proxy === 'proxy_stale') return 'stale';
-  if (proxy !== 'proxy_ok' && proxy !== 'not_required') return proxy === 'proxy_error' ? 'proxy_error' : 'proxy_unavailable';
   return 'healthy';
-}
+} 
 
 function safeNode(node, config, now = Date.now()) {
   const { normalized_config_json, fingerprint, config_fingerprint, pending_cycle_id, ...safe } = node;
-  return { ...safe, effective_status: eligibility(node, config, now) };
+  const effective = eligibility(node, config, now);
+  return { ...safe, effective_status: effective, proxy_effective_status: proxyEligibility(node, config, now) };
 }
 
 function markStarted(node, cycleId, now = Date.now()) {
@@ -115,4 +112,4 @@ function pruneHistory(config, now = Date.now()) {
   });
 }
 
-module.exports = { NODE_SELECT, getNode, getNodes, safeNode, eligibility, markStarted, recordResult, pruneHistory };
+module.exports = { NODE_SELECT, getNode, getNodes, safeNode, eligibility, proxyEligibility, markStarted, recordResult, pruneHistory };

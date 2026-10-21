@@ -96,4 +96,4 @@ function loadConfig(env = process.env) {
   return Object.freeze(config);
 }
 
-module.exports = { loadConfig, integer };
+module.exports = { loadConfig, integer, parseHttpProxy };

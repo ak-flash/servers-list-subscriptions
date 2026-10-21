@@ -106,6 +106,48 @@ async function evaluateTargets(config, request, signal) {
   };
 }
 
+async function requestThroughHttpProxy(target, proxy, timeoutMs, signal, ca) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), timeoutMs);
+  const combined = AbortSignal.any([signal, controller.signal]);
+  const targetUrl = new URL(target.url);
+  const auth = proxy.user ? `Basic ${Buffer.from(`${proxy.user}:${proxy.pass}`).toString('base64')}` : null;
+  const connectOptions = {
+    host: proxy.address, port: proxy.port, method: 'CONNECT', path: `${targetUrl.hostname}:443`,
+    headers: { host: `${targetUrl.hostname}:443` }, timeout: timeoutMs
+  };
+  if (auth) connectOptions.headers['proxy-authorization'] = auth;
+  const started = performance.now();
+  return new Promise(resolve => {
+    const module = proxy.protocol === 'https' ? https : require('http');
+    const req = module.request(connectOptions);
+    req.once('connect', (res, socket) => {
+      if (res.statusCode !== 200) { socket.destroy(); return resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: res.statusCode, errorCode: 'unexpected_http_status' }); }
+      const tls = require('tls');
+      const secure = tls.connect({ socket, servername: targetUrl.hostname, ca, rejectUnauthorized: true }, () => {
+        const httpReq = https.get({ host: targetUrl.hostname, path: targetUrl.pathname + targetUrl.search, port: 443, createConnection: () => secure, agent: false, headers: { 'cache-control': 'no-cache, no-store', connection: 'close' } }, response => {
+          let size = 0;
+          const chunks = [];
+          response.on('data', chunk => { size += chunk.length; if (size > 4096) httpReq.destroy(new SubscriptionError('unexpected_body')); else chunks.push(chunk); });
+          response.once('end', () => {
+            const body = Buffer.concat(chunks).toString('utf8');
+            const correctStatus = response.statusCode === target.status;
+            const correctBody = target.body === undefined ? (target.status !== 204 || size === 0) : body === target.body;
+            resolve({ outcome: correctStatus && correctBody ? 'success' : 'failure', latencyMs: performance.now() - started, httpStatus: response.statusCode,
+              errorCode: !correctStatus ? 'unexpected_http_status' : !correctBody ? 'unexpected_body' : null });
+          });
+        });
+        httpReq.once('error', () => resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'connection_error' }));
+      });
+      secure.once('error', () => resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'tls_error' }));
+    });
+    req.once('error', () => resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'connection_error' }));
+    req.once('timeout', () => { req.destroy(); resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'probe_timeout' }); });
+    req.end();
+    combined.addEventListener('abort', () => { req.destroy(); clearTimeout(timer); }, { once: true });
+  }).finally(() => clearTimeout(timer));
+}
+
 async function requestThroughSocks(target, socksUrl, timeoutMs, signal, ca) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), timeoutMs);
@@ -339,4 +381,4 @@ class VpnChecker {
   }
 }
 
-module.exports = { VpnChecker, evaluateTargets, requestThroughSocks, freePort, stopChild };
+module.exports = { VpnChecker, evaluateTargets, requestThroughSocks, requestThroughHttpProxy, freePort, stopChild };

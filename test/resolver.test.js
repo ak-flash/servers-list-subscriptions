@@ -9,7 +9,7 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { buildFullSubscription, publicServer } = require('../src/utils/linkBuilder');
 const { link, config, UUID } = require('./fixtures');
 
-test('resolver: with an extra HTTP proxy only nodes healthy through both paths are served, best proxy latency first', async t => {
+test('resolver: with an extra HTTP proxy, proxy-healthy nodes come first, direct-only nodes fill the rest by latency', async t => {
   await db.initDb({ filePath: ':memory:' });
   t.after(db.closeDb);
   const settings = config({ httpProxy: { protocol: 'http', address: '127.0.0.1', port: 3128, user: '', pass: '' }, httpProxyMode: 'extra' });
@@ -23,17 +23,18 @@ test('resolver: with an extra HTTP proxy only nodes healthy through both paths a
     'c.example.com': { status: 'offline', errorCode: 'probe_timeout', errorMessage: 'timeout', attempts: [] },
     'd.example.com': { status: 'healthy', latencyMs: 120, httpStatus: 204, attempts: [] }
   };
+  const directLatency = { 'a.example.com': 300, 'b.example.com': 50, 'c.example.com': 100, 'd.example.com': 200 };
   for (const node of health.getNodes(source.id)) {
     health.markStarted(node, node.id, now - 200);
     health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
-      latencyMs: 100, httpStatus: 204, attempts: [], proxy: proxy[node.host] }, settings, null, now - 100);
+      latencyMs: directLatency[node.host], httpStatus: 204, attempts: [], proxy: proxy[node.host] }, settings, null, now - 100);
   }
   db.run("UPDATE subscription_node_health SET proxy_checked_at = ? WHERE node_id = (SELECT id FROM subscription_nodes WHERE host = 'd.example.com')", [now - settings.healthyTtlMs - 1]);
   saveAssignments('u', { sources: [source.id] });
   const result = resolveUserSubscription('u', now, settings);
-  assert.deepEqual(result.servers.map(server => server.host), ['b.example.com', 'a.example.com']);
-  assert.equal(result.sources[0].excluded.proxy_unavailable, 1);
-  assert.equal(result.sources[0].excluded.stale, 1);
+  assert.deepEqual(result.servers.map(server => server.host), ['b.example.com', 'd.example.com', 'a.example.com', 'c.example.com']);
+  assert.equal(result.sources[0].excluded.stale, undefined);
+  assert.equal(result.sources[0].excluded.proxy_unavailable, undefined);
 });
 
 test('resolver: original credentials, manual overrides, dedupe/refill, priority, freshness and user isolation', async t => {

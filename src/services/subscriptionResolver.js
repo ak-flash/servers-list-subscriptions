@@ -34,11 +34,16 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
       if (state !== 'healthy') { exclude(state); return false; }
       if (binding.max_latency_ms && node.latency_ms > binding.max_latency_ms) { exclude('latency'); return false; }
       return true;
-    }).sort((a, b) => (a.proxy_latency_ms ?? 0) - (b.proxy_latency_ms ?? 0) || a.latency_ms - b.latency_ms ||
-      (b.successful_attempts / b.total_attempts) - (a.successful_attempts / a.total_attempts) ||
-      a.target_priority - b.target_priority || a.fingerprint.localeCompare(b.fingerprint));
+    });
+    const proxyRequired = config.httpProxy && config.httpProxyMode === 'extra';
+    const proxyHealthy = node => node.proxy_status === 'healthy' && Number.isFinite(node.proxy_latency_ms);
+    const bySuccess = (a, b) => (b.successful_attempts / b.total_attempts) - (a.successful_attempts / a.total_attempts) ||
+      a.target_priority - b.target_priority || a.fingerprint.localeCompare(b.fingerprint);
+    const preferred = proxyRequired ? candidates.filter(proxyHealthy).sort((a, b) => a.proxy_latency_ms - b.proxy_latency_ms || bySuccess(a, b)) : candidates;
+    const fallback = proxyRequired ? candidates.filter(node => !proxyHealthy(node)).sort((a, b) => a.latency_ms - b.latency_ms || bySuccess(a, b)) : [];
+    const pool = proxyRequired ? [...preferred, ...fallback] : preferred.sort((a, b) => a.latency_ms - b.latency_ms || bySuccess(a, b));
     const selectedCount = { used: 0 };
-    for (const node of candidates) {
+    for (const node of pool) {
       const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, latency_ms: node.latency_ms, test_target_id: node.test_target_id,

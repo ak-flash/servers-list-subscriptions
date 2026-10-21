@@ -94,3 +94,34 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   db.run("UPDATE users SET is_active = 0 WHERE id = 'u'");
   for (const suffix of ['', '/json', '/qr', '/qr-img']) assert.equal((await request(`/join/u${suffix}`)).status, 404);
 });
+
+test('HTTP settings page: save proxy, check endpoint rejects when not configured', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  db.run("INSERT INTO users (id, username, password, must_change_password) VALUES ('admin-test', 'test-admin', ?, 0)", [hashPassword('test-password')]);
+  scheduler.checker.status = { available: true, version: subscriptionConfig.xrayVersion };
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  t.after(async () => { await scheduler.stop(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); db.closeDb(); });
+  const request = (url, options = {}) => fetch(base + url, { redirect: 'manual', ...options });
+  const post = (url, data, cookie) => request(url, { method: 'POST', headers: cookie ? { cookie } : {}, body: new URLSearchParams(data) });
+  const login = await post('/admin/login', { username: 'test-admin', password: 'test-password' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const settingsPage = await (await request('/admin/settings', { headers: { cookie } })).text();
+  assert.ok(settingsPage.includes('HTTP-прокси'));
+  const csrf = /name="_csrf" value="([a-f\d]+)"/.exec(settingsPage)[1];
+  const saved = await post('/admin/settings', { _csrf: csrf, proxyUrl: 'http://proxy.example.com:3128', proxyMode: 'extra' }, cookie);
+  assert.equal(saved.status, 302);
+  assert.equal(db.get("SELECT value FROM app_state WHERE key = 'probe_http_proxy'").value.includes('proxy.example.com'), true);
+  const configured = await (await request('/admin/settings', { headers: { cookie } })).text();
+  assert.ok(configured.includes('proxy.example.com'));
+  const check = await request('/api/settings/proxy/check', { method: 'POST', headers: { cookie, 'x-csrf-token': csrf } });
+  assert.equal(check.status, 200);
+  const body = await check.json();
+  assert.equal(body.status, 'proxy_error');
+  assert.ok(body.latencyMs === null || typeof body.latencyMs === 'number');
+  const cleared = await post('/admin/settings', { _csrf: csrf, proxyUrl: '', proxyMode: 'extra' }, cookie);
+  assert.equal(cleared.status, 302);
+  const notConfigured = await request('/api/settings/proxy/check', { method: 'POST', headers: { cookie, 'x-csrf-token': csrf } });
+  assert.equal(notConfigured.status, 400);
+});

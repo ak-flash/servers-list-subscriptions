@@ -9,7 +9,8 @@ const { SubscriptionError } = require('../utils/subscriptionErrors');
 const { csrfToken, requireCsrf } = require('../middleware/csrf');
 const view = require('../utils/subscriptionView');
 
-module.exports = function subscriptionSourceRoutes({ config, scheduler, requireAuth, appName }) {
+module.exports = function subscriptionSourceRoutes({ config, getConfig, scheduler, requireAuth, appName }) {
+  const currentConfig = () => getConfig ? getConfig() : config;
   const router = express.Router();
   const auth = [requireAuth, csrfToken, (_req, res, next) => {
     Object.assign(res.locals, { appName, ...view });
@@ -21,7 +22,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
     return db.all('SELECT * FROM subscription_sources ORDER BY name, id').map(source => {
       const nodes = health.getNodes(source.id);
       return { ...sources.publicSource(source), count: nodes.filter(node => node.is_present).length,
-        healthy: nodes.filter(node => health.eligibility(node, config) === 'healthy').length,
+        healthy: nodes.filter(node => health.eligibility(node, currentConfig()) === 'healthy').length,
         users: db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n };
     });
   }
@@ -35,7 +36,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
     res.status(error ? (error.status || 400) : 200).render('subscription-source-form', {
       source: source ? sources.publicSource(source) : null,
       values: { name: source?.name || '', url: source?.url || '', user_agent: headers['user-agent'] || '',
-        sync_interval_seconds: source?.sync_interval_seconds || config.syncIntervalMs / 1000,
+        sync_interval_seconds: source?.sync_interval_seconds || currentConfig().syncIntervalMs / 1000,
         is_active: source ? source.is_active : 1, ...values, ...(error ? { is_active: values.is_active || 0 } : {}) },
       linkedUsers: source ? db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n : 0,
       error: error instanceof SubscriptionError ? error.message : error ? 'Не удалось сохранить источник. Проверьте данные и повторите попытку.' : null
@@ -48,7 +49,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
   router.get('/admin/subscription-sources/new', ...auth, (req, res) => renderForm(req, res, null));
   router.post('/admin/subscription-sources', ...auth, requireCsrf, (req, res) => {
     let source;
-    try { source = sources.createSource(req.body, config); }
+    try { source = sources.createSource(req.body, currentConfig()); }
     catch (error) { return renderForm(req, res, null, error, req.body); }
     // Once saved, a full queue must not turn a successful create into a duplicate on form retry.
     let job;
@@ -64,7 +65,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
     const previous = sources.getSource(req.params.id);
     if (!previous) return res.status(404).send('Источник не найден');
     let source;
-    try { source = sources.updateSource(previous.id, req.body, config); }
+    try { source = sources.updateSource(previous.id, req.body, currentConfig()); }
     catch (error) { return renderForm(req, res, previous, error, req.body); }
     scheduler.invalidateSource(source.id);
     if (source.is_active) { try { scheduler.enqueueSync(source.id); } catch { /* Retried by the scheduler. */ } }
@@ -78,7 +79,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
   router.get('/admin/subscription-sources/:id/nodes', ...auth, (req, res) => {
     const source = sources.getSource(req.params.id);
     if (!source) return res.status(404).send('Источник не найден');
-    const all = health.getNodes(source.id).map(node => health.safeNode(node, config));
+    const all = health.getNodes(source.id).map(node => health.safeNode(node, currentConfig()));
     const filter = typeof req.query.status === 'string' ? req.query.status : '';
     const nodes = all.filter(node => (node.is_present || req.query.removed === '1') && (!filter || node.effective_status === filter))
       .sort((a, b) => {
@@ -93,7 +94,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
       healthy: all.filter(node => node.effective_status === 'healthy').length, page, pages, filter,
       showRemoved: req.query.removed === '1', job: currentJob(req), metrics: scheduler.metrics(),
       report: source.report_json ? JSON.parse(source.report_json) : null,
-      proxyConfigured: !!config.httpProxy
+      proxyConfigured: !!currentConfig().httpProxy
     });
   });
 
@@ -141,7 +142,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
       uuidMap: values?.uuids || Object.fromEntries(assigned.map(server => [server.server_id, server.uuid])),
       sources: sourceList(), bindings: db.all('SELECT * FROM user_subscription_sources WHERE user_id = ?', [user.id]),
       values, selectedSources: values ? selected(values.sources) : null,
-      preview: subscriptionPreview(resolveUserSubscription(user.id, Date.now(), config)),
+      preview: subscriptionPreview(resolveUserSubscription(user.id, Date.now(), currentConfig())),
       saved: req.query.saved === '1', error: error instanceof SubscriptionError ? error.message : error ? 'Не удалось сохранить назначения. Повторите попытку.' : null
     });
   }
@@ -152,7 +153,7 @@ module.exports = function subscriptionSourceRoutes({ config, scheduler, requireA
     res.redirect(`/admin/users/${encodeURIComponent(req.params.id)}/servers?saved=1`);
   });
   router.get('/api/users/:id/subscription-preview', ...auth, (req, res) => {
-    const result = resolveUserSubscription(req.params.id, Date.now(), config);
+    const result = resolveUserSubscription(req.params.id, Date.now(), currentConfig());
     if (!result.user) return res.status(404).json({ error: 'Пользователь не найден или отключён.' });
     res.json(subscriptionPreview(result));
   });

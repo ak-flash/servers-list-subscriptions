@@ -4,8 +4,9 @@ const { resolveUserSubscription } = require('../services/subscriptionResolver');
 const { buildFullSubscription, publicServer } = require('../utils/linkBuilder');
 const { getUserTraffic } = require('../db/database');
 
-module.exports = function subscriptionRoutes({ config, recordRequest }) {
+module.exports = function subscriptionRoutes({ config, getConfig, recordRequest }) {
   const router = express.Router();
+  const currentConfig = () => getConfig ? getConfig() : config;
   router.rateLimits = new Map();
   router.use('/join/:id', (req, res, next) => {
     const key = `join:${req.ip || req.socket.remoteAddress || 'unknown'}`;
@@ -15,7 +16,7 @@ module.exports = function subscriptionRoutes({ config, recordRequest }) {
     else if (entry.count >= 120) return res.status(429).send('Слишком много запросов. Повторите позже.');
     else entry.count++;
     res.set('Cache-Control', 'no-store');
-    const result = resolveUserSubscription(req.params.id, Date.now(), config);
+    const result = resolveUserSubscription(req.params.id, Date.now(), currentConfig());
     if (!result.user) return res.status(404).send('Пользователь не найден или отключён');
     if (!result.servers.length) return res.status(404).send('Нет доступных серверов для этого пользователя');
     res.locals.subscription = result;
@@ -26,12 +27,12 @@ module.exports = function subscriptionRoutes({ config, recordRequest }) {
     const traffic = getUserTraffic(result.user.id);
     // This service does not know a personal upstream quota or expiry for shared external credentials.
     const userinfo = `upload=${traffic.total_upload || 0}; download=${traffic.total_download || 0}; total=0; expire=0`;
-    return { userinfo, raw: buildFullSubscription(result.servers, result.user.id, result.user.username, { profileUpdateHours: config.profileUpdateHours, userinfo }) };
+    return { userinfo, raw: buildFullSubscription(result.servers, result.user.id, result.user.username, { profileUpdateHours: currentConfig().profileUpdateHours, userinfo }) };
   }
 
   function subscriptionUrl(req, user) {
-    const protocol = config.publicDomain ? 'https' : req.protocol;
-    const host = config.publicDomain || req.get('host');
+    const protocol = currentConfig().publicDomain ? 'https' : req.protocol;
+    const host = currentConfig().publicDomain || req.get('host');
     return `${protocol}://${host}/join/${encodeURIComponent(user.id)}#${encodeURIComponent(`Подписка_${user.username}`)}`;
   }
 
@@ -41,7 +42,7 @@ module.exports = function subscriptionRoutes({ config, recordRequest }) {
     recordRequest(result.user.id, req);
     res.type('text/plain');
     res.set('profile-title', `base64:${Buffer.from('Подписка ' + result.user.username).toString('base64')}`);
-    res.set('profile-update-interval', String(config.profileUpdateHours));
+    res.set('profile-update-interval', String(currentConfig().profileUpdateHours));
     res.set('subscription-userinfo', content.userinfo);
     res.send(content.raw);
   });
