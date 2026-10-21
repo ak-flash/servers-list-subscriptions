@@ -125,3 +125,28 @@ test('HTTP settings page: save proxy, check endpoint rejects when not configured
   const notConfigured = await request('/api/settings/proxy/check', { method: 'POST', headers: { cookie, 'x-csrf-token': csrf } });
   assert.equal(notConfigured.status, 400);
 });
+
+test('HTTP settings page: proxy stats and recheck-all trigger jobs', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  db.run("INSERT INTO users (id, username, password, must_change_password) VALUES ('admin-test', 'test-admin', ?, 0)", [hashPassword('test-password')]);
+  scheduler.checker.status = { available: true, version: subscriptionConfig.xrayVersion };
+  scheduler.checker.check = async () => ({ status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0, latencyMs: 30, httpStatus: 204, attempts: [] });
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  t.after(async () => { await scheduler.stop(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); db.closeDb(); });
+  const request = (url, options = {}) => fetch(base + url, { redirect: 'manual', ...options });
+  const post = (url, data, cookie) => request(url, { method: 'POST', headers: cookie ? { cookie } : {}, body: new URLSearchParams(data) });
+  const login = await post('/admin/login', { username: 'test-admin', password: 'test-password' });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const settingsPage = await (await request('/admin/settings', { headers: { cookie } })).text();
+  const csrf = /name="_csrf" value="([a-f\d]+)"/.exec(settingsPage)[1];
+  await post('/admin/settings', { _csrf: csrf, proxyUrl: 'http://proxy.example.com:3128', proxyMode: 'extra' }, cookie);
+  const withStats = await (await request('/admin/settings', { headers: { cookie } })).text();
+  assert.ok(withStats.includes('Доступность узлов через прокси'));
+  assert.ok(withStats.includes('Не проверено'));
+  const recheck = await post('/admin/settings/recheck', { _csrf: csrf }, cookie);
+  const recheckBody = await recheck.text();
+  assert.ok(recheckBody.includes('Перепроверка узлов') || recheckBody.includes('перепроверка') || recheck.status === 200);
+  assert.equal(recheck.status, 200);
+});

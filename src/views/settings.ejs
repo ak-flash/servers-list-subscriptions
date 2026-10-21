@@ -9,6 +9,7 @@
       <p class="mt-1 text-sm text-gray-600">Задаётся для проверки доступности узлов через прокси. Может переопределять переменную окружения PROBE_HTTP_PROXY.</p>
       <% if (error) { %><p class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"><%= error %></p><% } %>
       <% if (success) { %><p class="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">Настройки сохранены. Новые проверки будут использовать обновлённый прокси.</p><% } %>
+      <% if (recheckJobs !== null) { %><p class="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">Запущено перепроверка узлов: <%= recheckJobs %> задач(а).</p><% } %>
       <form method="post" action="/admin/settings" class="mt-5 space-y-4">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div>
@@ -28,6 +29,22 @@
           <button type="button" id="checkProxyBtn" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50">Проверить прокси</button>
         </div>
       </form>
+      <% if (proxyStats.configured) { %>
+        <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 class="text-sm font-semibold text-slate-700">Доступность узлов через прокси</h3>
+          <div class="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <div class="rounded-lg bg-green-100 px-3 py-2 text-green-800">Доступно: <strong><%= proxyStats.healthy %></strong></div>
+            <div class="rounded-lg bg-red-100 px-3 py-2 text-red-800">Недоступно: <strong><%= proxyStats.failed %></strong></div>
+            <div class="rounded-lg bg-amber-100 px-3 py-2 text-amber-800">Устарело: <strong><%= proxyStats.stale %></strong></div>
+            <div class="rounded-lg bg-gray-200 px-3 py-2 text-gray-700">Не проверено: <strong><%= proxyStats.unchecked %></strong></div>
+          </div>
+          <p class="mt-2 text-xs text-gray-500">Всего активных узлов: <%= proxyStats.total %></p>
+          <form method="post" action="/admin/settings/recheck" class="mt-3">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="rounded-lg border border-blue-300 bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Перепроверить все узлы</button>
+          </form>
+        </div>
+      <% } %>
       <div id="proxyResult" class="mt-4 hidden rounded-lg border p-3 text-sm"></div>
       <div class="mt-6 border-t pt-4">
         <h3 class="text-sm font-semibold text-gray-700">Статус Xray</h3>

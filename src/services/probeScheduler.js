@@ -88,6 +88,15 @@ class ProbeScheduler {
     return result;
   }
 
+  enqueueAllChecks({ reason = 'manual' } = {}) {
+    const sources = db.all('SELECT id FROM subscription_sources WHERE is_active = 1');
+    const jobs = [];
+    for (const source of sources) {
+      try { jobs.push(this.enqueueCheck({ sourceId: source.id, reason, dueOnly: false })); } catch { jobs.push(null); }
+    }
+    return jobs.filter(Boolean);
+  }
+
   enqueueCheck({ sourceId, nodeId, reason = 'manual', dueOnly = false } = {}) {
     let nodes = nodeId ? [health.getNode(nodeId)].filter(Boolean) : health.getNodes(sourceId);
     nodes = nodes.filter(node => node.source_active && node.is_enabled && node.is_present && node.capability_status === 'supported');

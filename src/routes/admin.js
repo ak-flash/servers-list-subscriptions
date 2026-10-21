@@ -3,7 +3,7 @@ const { requireCsrf } = require('../middleware/csrf');
 const proxySettings = require('../services/proxySettings');
 const { requestThroughHttpProxy } = require('../services/vpnChecker');
 
-module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, appName, scheduler, refreshProxyConfig }) {
+module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, appName, scheduler, refreshProxyConfig, csrfToken }) {
   const router = express.Router();
   router.post('/admin/stats/clear', requireAuth, requireCsrf, (_req, res) => {
     dbRun('DELETE FROM subscription_requests');
@@ -11,11 +11,29 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
     res.json({ success: true, message: 'Статистика успешно очищена' });
   });
 
+  function proxyStats(config, now = Date.now()) {
+    const nodes = dbAll(`SELECT h.proxy_status, h.proxy_latency_ms, h.proxy_checked_at, n.is_present, n.is_enabled
+      FROM subscription_nodes n JOIN subscription_node_health h ON h.node_id = n.id
+      WHERE n.is_present = 1 AND n.is_enabled = 1 AND n.capability_status = 'supported'`);
+    const configured = !!(config.httpProxy && config.httpProxyMode === 'extra');
+    if (!configured || !nodes.length) return { configured, total: nodes.length, healthy: 0, failed: 0, unchecked: 0, stale: 0 };
+    let healthy = 0, failed = 0, unchecked = 0, stale = 0;
+    for (const node of nodes) {
+      if (!node.proxy_checked_at) unchecked++;
+      else if (now - node.proxy_checked_at >= config.healthyTtlMs) stale++;
+      else if (node.proxy_status === 'healthy') healthy++;
+      else failed++;
+    }
+    return { configured, total: nodes.length, healthy, failed, unchecked, stale };
+  }
+
   router.get('/admin/settings', requireAuth, (req, res) => {
-    const { proxy, mode } = proxySettings.effectiveHttpProxy(scheduler.config.httpProxy, scheduler.config.httpProxyMode);
+    const config = scheduler.config;
+    const { proxy, mode } = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode);
     res.render('settings', {
       appName, proxy, proxyMode: mode, proxyUrl: proxySettings.proxyUrlForDisplay(proxy),
-      runner: scheduler.checker.status, error: null, success: req.query.saved === '1'
+      runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
+      error: null, success: req.query.saved === '1', recheckJobs: null
     });
   });
 
@@ -26,12 +44,25 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
       refreshProxyConfig();
       res.redirect('/admin/settings?saved=1');
     } catch (error) {
-      const { proxy, mode } = proxySettings.effectiveHttpProxy(scheduler.config.httpProxy, scheduler.config.httpProxyMode);
+      const config = scheduler.config;
+      const { proxy, mode } = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode);
       res.render('settings', {
         appName, proxy, proxyMode: mode, proxyUrl: req.body.proxyUrl || '',
-        runner: scheduler.checker.status, error: error.message, success: false
+        runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
+        error: error.message, success: false, recheckJobs: null
       });
     }
+  });
+
+  router.post('/admin/settings/recheck', requireAuth, requireCsrf, (req, res) => {
+    const jobs = scheduler.enqueueAllChecks({ reason: 'manual_recheck' });
+    const config = scheduler.config;
+    const { proxy, mode } = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode);
+    res.render('settings', {
+      appName, proxy, proxyMode: mode, proxyUrl: proxySettings.proxyUrlForDisplay(proxy),
+      runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
+      error: null, success: false, recheckJobs: jobs.length
+    });
   });
 
   router.post('/api/settings/proxy/check', requireAuth, requireCsrf, async (req, res) => {
