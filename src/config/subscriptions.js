@@ -74,8 +74,8 @@ function loadConfig(env = process.env) {
     historyDays: integer(env, 'PROBE_HISTORY_DAYS', 7, 1, 30),
     maxHistoryRows: integer(env, 'PROBE_HISTORY_MAX_ROWS', 50000, 100, 200000),
     profileUpdateHours: integer(env, 'PROFILE_UPDATE_INTERVAL_HOURS', 1, 1, 168),
-    attempts: 3,
-    minSuccess: 2
+    attempts: 2,
+    minSuccess: 1
   };
   const proxyMode = env.PROBE_HTTP_PROXY_MODE === undefined || env.PROBE_HTTP_PROXY_MODE === '' ? 'extra' : env.PROBE_HTTP_PROXY_MODE;
   if (!['extra', 'only'].includes(proxyMode)) throw new Error('PROBE_HTTP_PROXY_MODE: допустимо extra или only');
@@ -85,9 +85,6 @@ function loadConfig(env = process.env) {
   if (!/^\d+\.\d+\.\d+$/.test(config.xrayVersion)) throw new Error('XRAY_VERSION: ожидается версия вида 26.3.27');
   if (config.xraySha256 && !/^[a-f\d]{64}$/i.test(config.xraySha256)) throw new Error('XRAY_SHA256: ожидается SHA-256 бинарника');
   if (config.healthyTtlMs <= config.checkIntervalMs) throw new Error('PROBE_HEALTH_TTL_SECONDS должен быть больше PROBE_INTERVAL_SECONDS');
-  if (config.deadlineMs < config.readyTimeoutMs + config.attemptTimeoutMs * config.attempts * targets.length) {
-    throw new Error('PROBE_DEADLINE_SECONDS должен вмещать запуск ядра и попытки к обеим целям');
-  }
   config.profileVersion = crypto.createHash('sha256').update(JSON.stringify({
     adapter: 2, version: config.xrayVersion, targets, location: config.probeLocation,
     attempts: config.attempts, minSuccess: config.minSuccess, timeout: config.attemptTimeoutMs,

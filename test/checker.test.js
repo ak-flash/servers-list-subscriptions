@@ -12,11 +12,11 @@ test('cycle majority and median are calculated for one target, fallback measurem
     errorCode: 'unexpected_http_status'
   }));
   assert.equal(result.status, 'healthy');
-  assert.equal(result.latencyMs, 150);
+  assert.equal(result.latencyMs, 100);
   assert.equal(result.targetId, 'fallback');
-  assert.equal(result.attempts.length, 6);
+  assert.equal(result.attempts.length, 4);
   const degraded = await evaluateTargets(settings, async (_target, attempt) => ({
     outcome: attempt === 1 ? 'success' : 'failure', latencyMs: 10, httpStatus: attempt === 1 ? 204 : null, errorCode: 'probe_timeout'
   }));
-  assert.equal(degraded.status, 'degraded');
+  assert.equal(degraded.status, 'healthy');
 });

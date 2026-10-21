@@ -5,7 +5,7 @@ function link(host = 'vpn.example.com', extra = '', name = 'Тест') {
   return `vless://${UUID}@${host}:443?encryption=none&security=tls&type=tcp${extra}#${encodeURIComponent(name)}`;
 }
 function config(overrides = {}) {
-  return { ...loadConfig({}), ...overrides };
+  return { ...loadConfig({}), attempts: 3, minSuccess: 2, ...overrides };
 }
 
 module.exports = { UUID, link, config };

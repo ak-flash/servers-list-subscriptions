@@ -13,7 +13,7 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   scheduler.sync = (id, config, options) => sources.syncSource(id, config, { ...options,
     download: async () => ({ status: 200, body: [link('one.example.com'), link('two.example.com')].join('\n'), headers: { etag: 'one' } }) });
   scheduler.checker.status = { available: true, version: subscriptionConfig.xrayVersion };
-  scheduler.checker.check = async () => ({ status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0, latencyMs: 30, httpStatus: 204, attempts: [] });
+  scheduler.checker.check = async () => ({ status: 'healthy', successCount: 1, attemptCount: 2, targetId: 'primary', targetPriority: 0, latencyMs: 30, httpStatus: 204, attempts: [] });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -130,7 +130,7 @@ test('HTTP settings page: proxy stats and recheck-all trigger jobs', async t => 
   await db.initDb({ filePath: ':memory:' });
   db.run("INSERT INTO users (id, username, password, must_change_password) VALUES ('admin-test', 'test-admin', ?, 0)", [hashPassword('test-password')]);
   scheduler.checker.status = { available: true, version: subscriptionConfig.xrayVersion };
-  scheduler.checker.check = async () => ({ status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0, latencyMs: 30, httpStatus: 204, attempts: [] });
+  scheduler.checker.check = async () => ({ status: 'healthy', successCount: 1, attemptCount: 2, targetId: 'primary', targetPriority: 0, latencyMs: 30, httpStatus: 204, attempts: [] });
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;

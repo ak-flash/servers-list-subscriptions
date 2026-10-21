@@ -86,6 +86,7 @@ async function evaluateTargets(config, request, signal) {
       const result = await request(target, i);
       results.push(result);
       attempts.push({ ...result, targetId: target.id, attempt: i });
+      if (result.outcome === 'success') break;
     }
     const successes = results.filter(result => result.outcome === 'success');
     targets.push({ target, results, successes });
@@ -93,7 +94,7 @@ async function evaluateTargets(config, request, signal) {
   }
   const selected = [...targets].sort((a, b) => b.successes.length - a.successes.length || a.target.priority - b.target.priority)[0];
   const successCount = selected.successes.length;
-  const status = successCount >= config.minSuccess ? 'healthy' : successCount ? 'degraded' :
+  const status = successCount >= 1 ? 'healthy' :
     attempts.some(a => ['unexpected_http_status', 'unexpected_body'].includes(a.errorCode)) ? 'test_failed' : 'offline';
   const last = selected.successes.at(-1) || selected.results.at(-1);
   const failure = status === 'healthy' ? null : selected.results.find(result => result.outcome !== 'success');

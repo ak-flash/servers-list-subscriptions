@@ -38,7 +38,6 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
         sourceTimeoutSeconds: settings.sourceTimeoutSeconds ?? config.sourceTimeoutMs / 1000,
         readyTimeoutSeconds: settings.readyTimeoutSeconds ?? config.readyTimeoutMs / 1000,
         attemptTimeoutSeconds: settings.attemptTimeoutSeconds ?? config.attemptTimeoutMs / 1000,
-        deadlineSeconds: settings.deadlineSeconds ?? config.deadlineMs / 1000,
         probeConcurrency: settings.probeConcurrency ?? config.concurrency,
         syncConcurrency: settings.syncConcurrency ?? config.syncConcurrency,
         maxQueued: settings.maxQueued ?? config.maxQueued,
@@ -49,8 +48,8 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
 
   router.post('/admin/settings', requireAuth, requireCsrf, (req, res) => {
     try {
-      const { proxyUrl, proxyMode, checkIntervalSeconds, healthyTtlSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, deadlineSeconds, probeConcurrency, syncConcurrency, maxQueued } = req.body;
-      proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds, healthyTtlSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, deadlineSeconds, probeConcurrency, syncConcurrency, maxQueued }, scheduler.config);
+      const { proxyUrl, proxyMode, checkIntervalSeconds, healthyTtlSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued } = req.body;
+      proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds, healthyTtlSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued }, scheduler.config);
       refreshProxyConfig();
       res.redirect('/admin/settings?saved=1');
     } catch (error) {

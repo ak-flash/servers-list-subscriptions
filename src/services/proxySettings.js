@@ -10,7 +10,6 @@ const EDITABLE_SETTINGS = [
   ['sourceTimeoutSeconds', 'source_timeout_seconds', 1, 120, 'Таймаут загрузки источника'],
   ['readyTimeoutSeconds', 'probe_ready_timeout_seconds', 1, 30, 'Таймаут запуска Xray'],
   ['attemptTimeoutSeconds', 'probe_attempt_timeout_seconds', 1, 30, 'Таймаут попытки VPN-проверки'],
-  ['deadlineSeconds', 'probe_deadline_seconds', 5, 180, 'Общий таймаут VPN-проверки'],
   ['probeConcurrency', 'probe_concurrency', 1, 64, 'Параллельные VPN-проверки'],
   ['syncConcurrency', 'source_sync_concurrency', 1, 8, 'Параллельные загрузки источников'],
   ['maxQueued', 'probe_max_queued', 1, 20000, 'Максимум задач в очереди']
@@ -51,7 +50,6 @@ function loadSettings(config = {}) {
     sourceTimeoutSeconds: config.sourceTimeoutMs === undefined ? undefined : config.sourceTimeoutMs / 1000,
     readyTimeoutSeconds: config.readyTimeoutMs === undefined ? undefined : config.readyTimeoutMs / 1000,
     attemptTimeoutSeconds: config.attemptTimeoutMs === undefined ? undefined : config.attemptTimeoutMs / 1000,
-    deadlineSeconds: config.deadlineMs === undefined ? undefined : config.deadlineMs / 1000,
     probeConcurrency: config.concurrency,
     syncConcurrency: config.syncConcurrency,
     maxQueued: config.maxQueued
@@ -77,7 +75,6 @@ function saveSettings(values, config = {}) {
     sourceTimeoutSeconds: config.sourceTimeoutMs / 1000,
     readyTimeoutSeconds: config.readyTimeoutMs / 1000,
     attemptTimeoutSeconds: config.attemptTimeoutMs / 1000,
-    deadlineSeconds: config.deadlineMs / 1000,
     probeConcurrency: config.concurrency,
     syncConcurrency: config.syncConcurrency,
     maxQueued: config.maxQueued
@@ -114,17 +111,15 @@ function applySettingsToConfig(config) {
   next.sourceTimeoutSeconds ??= config.sourceTimeoutMs / 1000;
   next.readyTimeoutSeconds ??= config.readyTimeoutMs / 1000;
   next.attemptTimeoutSeconds ??= config.attemptTimeoutMs / 1000;
-  next.deadlineSeconds ??= config.deadlineMs / 1000;
   next.probeConcurrency ??= config.concurrency;
   next.syncConcurrency ??= config.syncConcurrency;
   next.maxQueued ??= config.maxQueued;
   next.sourceTimeoutMs = next.sourceTimeoutSeconds * 1000;
   next.readyTimeoutMs = next.readyTimeoutSeconds * 1000;
   next.attemptTimeoutMs = next.attemptTimeoutSeconds * 1000;
-  next.deadlineMs = next.deadlineSeconds * 1000;
+  next.deadlineMs = next.attemptTimeoutMs * next.attempts + next.readyTimeoutMs;
   next.concurrency = next.probeConcurrency;
   if (next.healthyTtlMs <= next.checkIntervalMs) throw new Error('Срок актуальности VPN-проверки должен быть больше интервала проверки');
-  if (next.deadlineMs < next.readyTimeoutMs + next.attemptTimeoutMs * next.attempts * next.targets.length) throw new Error('Общий таймаут VPN-проверки слишком мал для заданных таймаутов');
   return Object.freeze(next);
 }
 
