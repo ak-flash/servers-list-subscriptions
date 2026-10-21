@@ -42,6 +42,29 @@
   background: rgb(248 250 252);
 }
 
+.dark .stats-card {
+  border-color: rgb(51 65 85);
+  background: rgb(30 41 59);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+.dark .stats-card .bg-slate-50 {
+  background-color: rgb(15 23 42);
+}
+
+.dark .stats-table th {
+  border-bottom-color: rgb(51 65 85);
+  color: rgb(148 163 184);
+}
+
+.dark .stats-table td {
+  border-bottom-color: rgb(51 65 85);
+}
+
+.dark .stats-table tbody tr:hover {
+  background: rgb(51 65 85);
+}
+
 @media (max-width: 640px) {
   .stats-card {
     padding: 1rem;
@@ -199,6 +222,10 @@ html.dark body {
 
 .dark .text-blue-800 {
   color: rgb(147 197 253);
+}
+
+.dark .text-blue-900 {
+  color: rgb(191 219 254);
 }
 
 .dark .text-blue-950 {
