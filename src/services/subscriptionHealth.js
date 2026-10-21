@@ -17,6 +17,14 @@ function getNodes(sourceId) {
   return db.all(`${NODE_SELECT} WHERE n.source_id = ? ORDER BY n.name, n.id`, [sourceId]);
 }
 
+function proxyEligibility(node, config, now = Date.now()) {
+  if (!config.httpProxy || config.httpProxyMode !== 'extra') return 'not_required';
+  if (node.proxy_status !== 'healthy') return node.proxy_status || 'proxy_unknown';
+  if (!Number.isFinite(node.proxy_latency_ms) || node.proxy_latency_ms < 0) return 'proxy_unknown';
+  if (!node.proxy_checked_at || now < node.proxy_checked_at || now - node.proxy_checked_at >= config.healthyTtlMs) return 'proxy_stale';
+  return 'proxy_ok';
+}
+
 function eligibility(node, config, now = Date.now()) {
   if (!node.source_active) return 'source_disabled';
   if (!node.is_present) return 'removed';
@@ -26,6 +34,10 @@ function eligibility(node, config, now = Date.now()) {
   if (node.status !== 'healthy') return node.status || 'unknown';
   if (!Number.isFinite(node.latency_ms) || node.latency_ms < 0 || node.successful_attempts < config.minSuccess || node.total_attempts !== config.attempts) return 'unknown';
   if (!node.last_checked_at || now < node.last_checked_at || now - node.last_checked_at >= config.healthyTtlMs) return 'stale';
+  const proxy = proxyEligibility(node, config, now);
+  if (proxy === 'proxy_unknown') return 'unknown';
+  if (proxy === 'proxy_stale') return 'stale';
+  if (proxy !== 'proxy_ok' && proxy !== 'not_required') return proxy === 'proxy_error' ? 'proxy_error' : 'proxy_unavailable';
   return 'healthy';
 }
 

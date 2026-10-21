@@ -9,6 +9,33 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { buildFullSubscription, publicServer } = require('../src/utils/linkBuilder');
 const { link, config, UUID } = require('./fixtures');
 
+test('resolver: with an extra HTTP proxy only nodes healthy through both paths are served, best proxy latency first', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config({ httpProxy: { protocol: 'http', address: '127.0.0.1', port: 3128, user: '', pass: '' }, httpProxyMode: 'extra' });
+  const now = Date.now();
+  db.run("INSERT INTO users (id, username) VALUES ('u', 'User')");
+  const source = sources.createSource({ name: 'Proxied', url: 'https://proxy.example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription([link('a.example.com'), link('b.example.com'), link('c.example.com'), link('d.example.com')].join('\n')));
+  const proxy = {
+    'a.example.com': { status: 'healthy', latencyMs: 250, httpStatus: 204, attempts: [] },
+    'b.example.com': { status: 'healthy', latencyMs: 80, httpStatus: 204, attempts: [] },
+    'c.example.com': { status: 'offline', errorCode: 'probe_timeout', errorMessage: 'timeout', attempts: [] },
+    'd.example.com': { status: 'healthy', latencyMs: 120, httpStatus: 204, attempts: [] }
+  };
+  for (const node of health.getNodes(source.id)) {
+    health.markStarted(node, node.id, now - 200);
+    health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
+      latencyMs: 100, httpStatus: 204, attempts: [], proxy: proxy[node.host] }, settings, null, now - 100);
+  }
+  db.run("UPDATE subscription_node_health SET proxy_checked_at = ? WHERE node_id = (SELECT id FROM subscription_nodes WHERE host = 'd.example.com')", [now - settings.healthyTtlMs - 1]);
+  saveAssignments('u', { sources: [source.id] });
+  const result = resolveUserSubscription('u', now, settings);
+  assert.deepEqual(result.servers.map(server => server.host), ['b.example.com', 'a.example.com']);
+  assert.equal(result.sources[0].excluded.proxy_unavailable, 1);
+  assert.equal(result.sources[0].excluded.stale, 1);
+});
+
 test('resolver: original credentials, manual overrides, dedupe/refill, priority, freshness and user isolation', async t => {
   await db.initDb({ filePath: ':memory:' });
   t.after(db.closeDb);

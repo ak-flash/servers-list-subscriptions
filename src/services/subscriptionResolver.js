@@ -34,7 +34,7 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
       if (state !== 'healthy') { exclude(state); return false; }
       if (binding.max_latency_ms && node.latency_ms > binding.max_latency_ms) { exclude('latency'); return false; }
       return true;
-    }).sort((a, b) => a.latency_ms - b.latency_ms ||
+    }).sort((a, b) => (a.proxy_latency_ms ?? 0) - (b.proxy_latency_ms ?? 0) || a.latency_ms - b.latency_ms ||
       (b.successful_attempts / b.total_attempts) - (a.successful_attempts / a.total_attempts) ||
       a.target_priority - b.target_priority || a.fingerprint.localeCompare(b.fingerprint));
     const selectedCount = { used: 0 };
