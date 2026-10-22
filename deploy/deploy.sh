@@ -13,7 +13,7 @@ fi
 
 PROJECT_DIR="${PROJECT_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
-INSTALL_COMMAND="${INSTALL_COMMAND:-npm ci}"
+INSTALL_COMMAND="${INSTALL_COMMAND:-npm ci --no-audit --no-fund --loglevel=error}"
 BUILD_COMMAND="${BUILD_COMMAND:-npm run build:css}"
 RESTART_COMMAND="${RESTART_COMMAND:-}"
 
