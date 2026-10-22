@@ -38,7 +38,7 @@
       <div><label for="status-filter" class="block text-sm font-medium mb-2">Состояние</label>
         <select id="status-filter" name="status" class="border border-gray-300 rounded px-3 py-2 min-h-[44px]">
           <option value="">Все состояния</option>
-          <% ['healthy', 'unknown', 'stale', 'degraded', 'offline', 'test_failed', 'unsupported', 'invalid', 'disabled'].forEach(state => { %><option value="<%= state %>" <%= filter === state ? 'selected' : '' %>><%= statusLabel(state) %></option><% }); %>
+          <% ['healthy', 'unknown', 'degraded', 'offline', 'unsupported', 'invalid', 'disabled'].forEach(state => { %><option value="<%= state %>" <%= filter === state ? 'selected' : '' %>><%= statusLabel(state) %></option><% }); %>
         </select>
       </div>
       <label class="flex items-center gap-3 min-h-[44px]"><input type="checkbox" name="removed" value="1" <%= showRemoved ? 'checked' : '' %> class="w-5 h-5">Показать удалённые</label>

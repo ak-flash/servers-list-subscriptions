@@ -81,7 +81,8 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
     if (!source) return res.status(404).send('Источник не найден');
     const all = health.getNodes(source.id).map(node => health.safeNode(node, currentConfig()));
     const filter = typeof req.query.status === 'string' ? req.query.status : '';
-    const nodes = all.filter(node => (node.is_present || req.query.removed === '1') && (!filter || node.effective_status === filter))
+    const isCapabilityFilter = ['unsupported', 'invalid'].includes(filter);
+    const nodes = all.filter(node => (node.is_present || req.query.removed === '1' || isCapabilityFilter) && (!filter || node.effective_status === filter))
       .sort((a, b) => {
         const aLatency = Number.isFinite(a.latency_ms) && a.latency_ms >= 0 ? a.latency_ms : Number.POSITIVE_INFINITY;
         const bLatency = Number.isFinite(b.latency_ms) && b.latency_ms >= 0 ? b.latency_ms : Number.POSITIVE_INFINITY;

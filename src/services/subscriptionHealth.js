@@ -27,9 +27,9 @@ function proxyEligibility(node, config, now = Date.now()) {
 
 function eligibility(node, config, now = Date.now()) {
   if (!node.source_active) return 'source_disabled';
+  if (node.capability_status !== 'supported') return node.capability_status;
   if (!node.is_present) return 'removed';
   if (!node.is_enabled) return 'disabled';
-  if (node.capability_status !== 'supported') return node.capability_status;
   if (node.generation !== node.health_generation || node.fingerprint !== node.config_fingerprint || node.probe_profile_version !== config.profileVersion) return 'unknown';
   if (node.status !== 'healthy') return node.status || 'unknown';
   if (!Number.isFinite(node.latency_ms) || node.latency_ms < 0 || node.successful_attempts < config.minSuccess || node.total_attempts !== config.attempts) return 'unknown';
