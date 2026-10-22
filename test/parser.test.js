@@ -29,7 +29,7 @@ test('unsupported connection parameters are retained and never silently discarde
     }
   }
   assert.equal(parseVless(link().replace('security=tls', 'security=reality')).capability, 'invalid'); // pbk is required.
-  assert.equal(parseVless(link().replace('type=tcp', 'type=grpc')).capability, 'invalid');
+  assert.equal(parseVless(link().replace('type=tcp', 'type=grpc')).capability, 'supported');
   assert.equal(parseVless(link('example.com', '&allowInsecure=1')).capability, 'unsupported');
   for (const raw of [link().replace(UUID, 'bad'), link().replace(':443', ':70000'), link() + '%XX', link().replace('#', '&sni=a&sni=b#')]) {
     assert.throws(() => parseVless(raw), { code: 'invalid_link' });
@@ -105,7 +105,10 @@ test('VLESS gRPC with Reality preserves serviceName and multi mode', () => {
   const built = buildXrayConfig(parsed.config, '82.202.178.132', 12000, { user: 'test', password: 'test' });
   assert.deepEqual(built.outbounds[0].streamSettings.grpcSettings, { serviceName: 'google.storage.v2.Storage', multiMode: true });
   assert.equal(built.outbounds[0].streamSettings.realitySettings.password, parsed.config.reality.publicKey);
-  assert.equal(parseVless(raw.replace('serviceName=google.storage.v2.Storage', 'serviceName=')).capability, 'invalid');
+  assert.equal(parseVless(raw.replace('serviceName=google.storage.v2.Storage', 'serviceName=')).capability, 'supported');
+  const emptyServiceName = parseVless('vless://1bb2af63-4472-44ed-9c70-8f316258b68b@62.152.58.90:443?encryption=none&fp=random&mode=gun&pbk=JBKJlzuJH1YzDHAoz28wEKbzWTGpDpKjgtSq0oT0a0k&security=reality&sid=27e53bbcab7593d7&sni=360.yandex.ru&type=grpc#Poland');
+  assert.equal(emptyServiceName.capability, 'supported');
+  assert.deepEqual(emptyServiceName.config.grpc, { serviceName: '', mode: 'gun' });
 });
 
 test('VLESS gRPC Reality with TCP fragment FinalMask is preserved and accepted by Xray', () => {

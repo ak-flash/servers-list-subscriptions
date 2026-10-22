@@ -54,7 +54,7 @@ function vlessCapability(config) {
   }
   if (config.ws && (!config.ws.path.startsWith('/') || /[\r\n]/.test(config.ws.host))) return unsupported('Неподдерживаемые параметры WebSocket.');
   if (config.xhttp && (!config.xhttp.path.startsWith('/') || /[\r\n]/.test(config.xhttp.host) || !['auto', 'packet-up', 'stream-up', 'stream-one'].includes(config.xhttp.mode))) return invalid('Неподдерживаемые параметры XHTTP.');
-  if (config.grpc && (!config.grpc.serviceName || /[\r\n]/.test(config.grpc.serviceName) || !['gun', 'multi'].includes(config.grpc.mode))) return invalid('Для gRPC нужны serviceName и mode=gun или mode=multi.');
+  if (config.grpc && (/[\r\n]/.test(config.grpc.serviceName) || !['gun', 'multi'].includes(config.grpc.mode))) return invalid('Для gRPC нужен mode=gun или mode=multi.');
   if (config.finalmask) {
     if (!Array.isArray(config.finalmask.tcp)) return invalid('FinalMask tcp должен быть массивом.');
     for (const mask of config.finalmask.tcp) {
