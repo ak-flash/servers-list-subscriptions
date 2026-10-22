@@ -125,6 +125,20 @@ test('VLESS gRPC Reality with TCP fragment FinalMask is preserved and accepted b
   assert.equal(parseVless(raw.replace('packets%22%3A%22tlshello', 'packets%22%3A%22bad')).capability, 'unsupported');
 });
 
+test('VLESS HTTPUpgrade with TLS preserves host/path and builds Xray config', () => {
+  const raw = 'vless://6eca8bc3-c4e1-48d1-bf15-1eb016dd6272@178.176.128.128:443?encryption=none&fp=firefox&host=edge3.statiqedge.com&path=%2Fassets%2Fv1&security=tls&sni=edge3.statiqedge.com&type=httpupgrade#%F0%9F%87%B3%F0%9F%87%B1%20The%20Netherlands%20%E2%80%94%20%2394';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.equal(parsed.name, '🇳🇱 The Netherlands — #94');
+  assert.deepEqual(parsed.config.httpupgrade, { host: 'edge3.statiqedge.com', path: '/assets/v1' });
+  assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
+  const built = buildXrayConfig(parsed.config, '178.176.128.128', 12000, { user: 'test', password: 'test' });
+  assert.equal(built.outbounds[0].streamSettings.network, 'httpupgrade');
+  assert.deepEqual(built.outbounds[0].streamSettings.httpupgradeSettings, { host: 'edge3.statiqedge.com', path: '/assets/v1' });
+  assert.equal(built.outbounds[0].streamSettings.tlsSettings.serverName, 'edge3.statiqedge.com');
+  assert.equal(parseVless(raw.replace('path=%2Fassets%2Fv1', 'path=assets')).capability, 'unsupported');
+});
+
 test('VLESS security=none supports TCP/WS without adding TLS and rejects Vision without TLS/Reality', () => {
   for (const network of ['tcp', 'ws']) {
     const parsed = parseVless(link().replace('security=tls', 'security=none').replace('type=tcp', `type=${network}`));

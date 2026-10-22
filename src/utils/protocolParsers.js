@@ -42,7 +42,7 @@ function vlessCapability(config) {
   if (config.protocol !== 'vless' || !['tls', 'reality', 'none'].includes(config.security)) {
     return unsupported('Поддерживаются VLESS с security=tls, reality или none.');
   }
-  if (!['tcp', 'ws', 'xhttp', 'grpc'].includes(config.network)) return unsupported('Поддерживаются транспорты TCP/RAW, WebSocket, XHTTP и gRPC.');
+  if (!['tcp', 'ws', 'xhttp', 'grpc', 'httpupgrade'].includes(config.network)) return unsupported('Поддерживаются транспорты TCP/RAW, WebSocket, XHTTP, gRPC и HTTPUpgrade.');
   if (config.security === 'reality' && !['tcp', 'xhttp', 'grpc'].includes(config.network)) return unsupported('Reality поддерживается с транспортами TCP/RAW, XHTTP и gRPC.');
   if (config.encryption !== 'none' || config.headerType !== 'none' || Object.keys(config.extra || {}).length) {
     return unsupported('Ссылка содержит неподдерживаемые параметры подключения.');
@@ -53,6 +53,7 @@ function vlessCapability(config) {
     return unsupported('Flow xtls-rprx-vision поддерживается только с TCP/RAW и TLS или Reality.');
   }
   if (config.ws && (!config.ws.path.startsWith('/') || /[\r\n]/.test(config.ws.host))) return unsupported('Неподдерживаемые параметры WebSocket.');
+  if (config.httpupgrade && (!config.httpupgrade.path.startsWith('/') || /[\r\n]/.test(config.httpupgrade.host))) return unsupported('Неподдерживаемые параметры HTTPUpgrade.');
   if (config.xhttp && (!config.xhttp.path.startsWith('/') || /[\r\n]/.test(config.xhttp.host) || !['auto', 'packet-up', 'stream-up', 'stream-one'].includes(config.xhttp.mode))) return invalid('Неподдерживаемые параметры XHTTP.');
   if (config.grpc && (/[\r\n]/.test(config.grpc.serviceName) || !['gun', 'multi'].includes(config.grpc.mode))) return invalid('Для gRPC нужен mode=gun или mode=multi.');
   if (config.finalmask) {
@@ -116,11 +117,12 @@ function parseVless(raw) {
     allowInsecure: ['1', 'true'].includes(params.allowInsecure),
     headerType: params.headerType || 'none',
     ws: network === 'ws' ? { host: params.host || host, path: params.path || '/' } : null,
+    httpupgrade: network === 'httpupgrade' ? { host: params.host || host, path: params.path || '/' } : null,
     xhttp: network === 'xhttp' ? { host: params.host || host, path: params.path || '/', mode: params.mode || 'auto', extra: null } : null,
     grpc: network === 'grpc' ? { serviceName: params.serviceName || '', mode: params.mode || 'gun' } : null,
     extra: Object.fromEntries(Object.entries(params).filter(([key]) =>
       (!KNOWN_PARAMS.has(key) && !(security === 'reality' && REALITY_PARAMS.has(key))) ||
-      (network !== 'ws' && network !== 'xhttp' && ['host', 'path'].includes(key))))
+      (network !== 'ws' && network !== 'xhttp' && network !== 'httpupgrade' && ['host', 'path'].includes(key))))
   };
   if (network === 'grpc' && params.mode === 'multi') config.grpc.mode = 'multi';
   if (params.fm) {
@@ -160,6 +162,10 @@ function serializeVless(config, name = '') {
   if (config.ws) {
     params.set('host', config.ws.host);
     params.set('path', config.ws.path);
+  }
+  if (config.httpupgrade) {
+    params.set('host', config.httpupgrade.host);
+    params.set('path', config.httpupgrade.path);
   }
   if (config.xhttp) {
     params.set('host', config.xhttp.host);
