@@ -18,9 +18,12 @@ BUILD_COMMAND="${BUILD_COMMAND:-npm run build:css}"
 RESTART_COMMAND="${RESTART_COMMAND:-}"
 
 cd "$PROJECT_DIR"
+printf '==> git pull (%s)\n' "$DEPLOY_BRANCH"
 git pull --ff-only origin "$DEPLOY_BRANCH"
-bash -lc "$INSTALL_COMMAND"
-bash -lc "$BUILD_COMMAND"
+printf '==> install: %s\n' "$INSTALL_COMMAND"
+timeout 300 bash -lc "$INSTALL_COMMAND"
+printf '==> build: %s\n' "$BUILD_COMMAND"
+timeout 300 bash -lc "$BUILD_COMMAND"
 
 if [[ -n "$RESTART_COMMAND" ]]; then
   bash -lc "$RESTART_COMMAND"
