@@ -59,7 +59,7 @@
                     <div class="flex flex-wrap justify-end gap-2">
                       <button type="button" data-sync-panel="<%= panel.id %>" class="inline-flex min-h-[38px] items-center rounded-lg bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800">Синхронизировать</button>
                       <a href="/admin/threexui/<%= panel.id %>/edit" class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Редактировать</a>
-                      <form method="POST" action="/admin/threexui/<%= panel.id %>/delete" onsubmit="return confirm('Удалить панель и её статистику?')">
+                      <form method="POST" action="/admin/threexui/<%= panel.id %>/delete" data-confirm="Удалить панель «<%= panel.name %>» и всю её статистику?" data-confirm-ok="Удалить" data-confirm-danger="true">
                         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <button type="submit" class="inline-flex min-h-[38px] items-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">Удалить</button>
                       </form>
@@ -87,28 +87,26 @@
     }
 
     syncAll?.addEventListener('click', async () => {
-      syncAll.disabled = true;
-      syncAll.textContent = 'Синхронизация…';
+      uiSetBusy(syncAll, true, 'Синхронизация…');
       try {
         await sync('/api/threexui/sync');
-        window.location.reload();
+        uiToast('Синхронизация завершена', 'success');
+        setTimeout(() => window.location.reload(), 600);
       } catch (error) {
-        alert(error.message);
-        syncAll.disabled = false;
-        syncAll.textContent = 'Синхронизировать все';
+        uiToast(error.message, 'error');
+        uiSetBusy(syncAll, false);
       }
     });
 
     syncButtons.forEach(button => button.addEventListener('click', async () => {
-      button.disabled = true;
-      button.textContent = 'Синхронизация…';
+      uiSetBusy(button, true, 'Синхронизация…');
       try {
         await sync(`/api/threexui/${button.dataset.syncPanel}/sync`);
-        window.location.reload();
+        uiToast('Синхронизация завершена', 'success');
+        setTimeout(() => window.location.reload(), 600);
       } catch (error) {
-        alert(error.message);
-        button.disabled = false;
-        button.textContent = 'Синхронизировать';
+        uiToast(error.message, 'error');
+        uiSetBusy(button, false);
       }
     }));
   </script>

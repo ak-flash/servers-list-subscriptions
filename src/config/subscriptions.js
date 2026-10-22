@@ -61,7 +61,7 @@ function loadConfig(env = process.env) {
     targets,
     syncIntervalMs: integer(env, 'SOURCE_SYNC_INTERVAL_SECONDS', 1800, 60, 604800) * 1000,
     checkIntervalMs: integer(env, 'PROBE_INTERVAL_SECONDS', 300, 30, 86400) * 1000,
-    healthyTtlMs: integer(env, 'PROBE_HEALTH_TTL_SECONDS', 1200, 60, 604800) * 1000,
+    healthyTtlMs: 0,
     sourceTimeoutMs: integer(env, 'SOURCE_TIMEOUT_SECONDS', 15, 1, 120) * 1000,
     maxSourceBytes: integer(env, 'SOURCE_MAX_BYTES', 5 * 1024 * 1024, 1024, 20 * 1024 * 1024),
     maxNodes: integer(env, 'SOURCE_MAX_NODES', 1000, 1, 10000),
@@ -84,7 +84,7 @@ function loadConfig(env = process.env) {
   if (!path.isAbsolute(config.xrayPath)) throw new Error('XRAY_PATH должен быть абсолютным путём');
   if (!/^\d+\.\d+\.\d+$/.test(config.xrayVersion)) throw new Error('XRAY_VERSION: ожидается версия вида 26.3.27');
   if (config.xraySha256 && !/^[a-f\d]{64}$/i.test(config.xraySha256)) throw new Error('XRAY_SHA256: ожидается SHA-256 бинарника');
-  if (config.healthyTtlMs <= config.checkIntervalMs) throw new Error('PROBE_HEALTH_TTL_SECONDS должен быть больше PROBE_INTERVAL_SECONDS');
+  config.healthyTtlMs = config.checkIntervalMs + 900000;
   config.profileVersion = crypto.createHash('sha256').update(JSON.stringify({
     adapter: 2, version: config.xrayVersion, targets, location: config.probeLocation,
     attempts: config.attempts, minSuccess: config.minSuccess, timeout: config.attemptTimeoutMs,

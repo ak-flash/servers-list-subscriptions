@@ -34,7 +34,6 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
       res.render('settings', {
         ...settings, appName, proxy, proxyMode: mode, proxyUrl: proxySettings.proxyUrlForDisplay(proxy),
         checkIntervalSeconds: settings.checkIntervalSeconds ?? config.checkIntervalMs / 1000,
-        healthyTtlSeconds: settings.healthyTtlSeconds ?? config.healthyTtlMs / 1000,
         sourceTimeoutSeconds: settings.sourceTimeoutSeconds ?? config.sourceTimeoutMs / 1000,
         readyTimeoutSeconds: settings.readyTimeoutSeconds ?? config.readyTimeoutMs / 1000,
         attemptTimeoutSeconds: settings.attemptTimeoutSeconds ?? config.attemptTimeoutMs / 1000,
@@ -48,8 +47,8 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
 
   router.post('/admin/settings', requireAuth, requireCsrf, (req, res) => {
     try {
-      const { proxyUrl, proxyMode, checkIntervalSeconds, healthyTtlSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued } = req.body;
-      proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds, healthyTtlSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued }, scheduler.config);
+      const { proxyUrl, proxyMode, checkIntervalSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued } = req.body;
+      proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued }, scheduler.config);
       refreshProxyConfig();
       res.redirect('/admin/settings?saved=1');
     } catch (error) {
@@ -59,7 +58,6 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
       res.render('settings', {
         ...settings, appName, proxy, proxyMode: mode, proxyUrl: req.body.proxyUrl || '',
         checkIntervalSeconds: req.body.checkIntervalSeconds || config.checkIntervalMs / 1000,
-        healthyTtlSeconds: req.body.healthyTtlSeconds || config.healthyTtlMs / 1000,
         sourceTimeoutSeconds: req.body.sourceTimeoutSeconds || config.sourceTimeoutMs / 1000,
         readyTimeoutSeconds: req.body.readyTimeoutSeconds || config.readyTimeoutMs / 1000,
         attemptTimeoutSeconds: req.body.attemptTimeoutSeconds || config.attemptTimeoutMs / 1000,
@@ -81,7 +79,6 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
     res.render('settings', {
       ...settings, appName, proxy, proxyMode: mode, proxyUrl: proxySettings.proxyUrlForDisplay(proxy),
       checkIntervalSeconds: settings.checkIntervalSeconds ?? config.checkIntervalMs / 1000,
-      healthyTtlSeconds: settings.healthyTtlSeconds ?? config.healthyTtlMs / 1000,
       sourceTimeoutSeconds: settings.sourceTimeoutSeconds ?? config.sourceTimeoutMs / 1000,
       readyTimeoutSeconds: settings.readyTimeoutSeconds ?? config.readyTimeoutMs / 1000,
       attemptTimeoutSeconds: settings.attemptTimeoutSeconds ?? config.attemptTimeoutMs / 1000,

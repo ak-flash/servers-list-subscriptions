@@ -17,11 +17,7 @@
           <input id="checkIntervalSeconds" name="checkIntervalSeconds" type="number" min="30" max="86400" step="1" value="<%= checkIntervalSeconds %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
           <p class="mt-1 text-xs text-gray-500">Например, 3600 — проверка не чаще одного раза в час.</p>
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1" for="healthyTtlSeconds">Срок актуальности результата, секунд</label>
-          <input id="healthyTtlSeconds" name="healthyTtlSeconds" type="number" min="60" max="604800" step="1" value="<%= healthyTtlSeconds %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
-          <p class="mt-1 text-xs text-gray-500">Должен быть больше интервала VPN-проверок.</p>
-        </div>
+
         <details class="rounded-lg border border-slate-200 p-3">
           <summary class="cursor-pointer font-medium">Дополнительные настройки проверки</summary>
           <div class="mt-4 grid gap-4 sm:grid-cols-2">

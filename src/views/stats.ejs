@@ -213,28 +213,31 @@
 
     <script>
         const csrfToken = '<%= csrfToken %>';
-        function clearStatistics() {
-            if (confirm('Вы уверены, что хотите очистить всю статистику? Это действие нельзя отменить.')) {
-                fetch('/admin/stats/clear', {
+        async function clearStatistics() {
+            const ok = await uiConfirm({
+                title: 'Очистить статистику',
+                message: 'Все данные о запросах будут удалены. Действие нельзя отменить.',
+                confirmText: 'Очистить',
+                danger: true,
+            });
+            if (!ok) return;
+            try {
+                const response = await fetch('/admin/stats/clear', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'x-csrf-token': csrfToken,
                     }
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert(data.message);
-                            // Reload the page to show updated statistics
-                            window.location.reload();
-                        } else {
-                            alert('Ошибка: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        alert('Ошибка при очистке статистики: ' + error.message);
-                    });
+                });
+                const data = await response.json();
+                if (data.success) {
+                    uiToast(data.message || 'Статистика очищена', 'success');
+                    setTimeout(() => window.location.reload(), 700);
+                } else {
+                    uiToast('Ошибка: ' + (data.message || ''), 'error');
+                }
+            } catch (error) {
+                uiToast('Ошибка при очистке статистики', 'error');
             }
         }
     </script>
