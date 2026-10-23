@@ -12,21 +12,21 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'This installer is for Windows. On Linux use scripts/install-xray.sh.'
 }
 
-$version = '26.3.27'
+$version = '26.10.21'
 $architecture = $env:PROCESSOR_ARCHITEW6432
 if (-not $architecture) { $architecture = $env:PROCESSOR_ARCHITECTURE }
 switch ($architecture.ToUpperInvariant()) {
     'AMD64' {
         $asset = 'Xray-windows-64.zip'
-        $checksum = 'd004c39288ce9ada487c6f398c7c545f7d749e44bdfdd59dbc9f865afba4e1ad'
+        $checksum = 'fc58c39ee2f2717b4c54d28d374362389e5319b20ae44aea76ea45a5243ec827'
     }
     'ARM64' {
         $asset = 'Xray-windows-arm64-v8a.zip'
-        $checksum = '35d4ed6ec21224fb22b07c2c3f672e2350cd536f2c74d309150175a76365ea88'
+        $checksum = 'bb44af3380c9975f951ce7645c04d56ab600040e68f23974a2806e08e0a3f872'
     }
     'X86' {
         $asset = 'Xray-windows-32.zip'
-        $checksum = '956a5ec00bce747c7936dc4ff7ac570df1c8030b0a4a8640f843488365084db3'
+        $checksum = '83f81c0ae86bb515c04f52e79383f4bb59c62797f17e26cb1fdccd742450c235'
     }
     default { throw "Unsupported Windows architecture: $architecture" }
 }
@@ -93,7 +93,6 @@ try {
     'Add these settings to .env:'
     'XRAY_PATH=' + $binary.Replace('\', '/')
     "XRAY_VERSION=$version"
-    "XRAY_SHA256=$binaryHash"
     'Run the local VPN tests: npm run test:vpn'
 } finally {
     $ProgressPreference = $previousProgress

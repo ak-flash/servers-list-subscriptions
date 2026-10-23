@@ -54,7 +54,7 @@ function loadConfig(env = process.env) {
     publicDomain,
     httpProxy: parseHttpProxy(env.PROBE_HTTP_PROXY),
     xrayPath: env.XRAY_PATH || (process.platform === 'win32' ? path.join(__dirname, '../../tools/xray/xray.exe') : '/usr/local/bin/xray'),
-    xrayVersion: env.XRAY_VERSION || '26.3.27',
+    xrayVersion: env.XRAY_VERSION || '26.10.21',
     xraySha256: env.XRAY_SHA256 || '',
     tempDir: path.resolve(env.PROBE_TEMP_DIR || path.join(__dirname, '../../data/probes')),
     probeLocation: env.PROBE_LOCATION || 'subscription-host',

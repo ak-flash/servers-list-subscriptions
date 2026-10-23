@@ -70,7 +70,7 @@ npm ci --omit=dev
 sudo bash scripts/install-xray.sh
 ```
 
-Установщик закреплён на **Xray 26.3.27**, проверяет SHA-256 официального архива для x86_64 или arm64 и устанавливает `/usr/local/bin/xray`. GeoIP/GeoSite, публичные inbounds и отдельный systemd-сервис Xray не создаются. Выведенный хеш **бинарника**, а не архива, запишите в `XRAY_SHA256`.
+Установщик закреплён на **Xray 26.10.21**, проверяет SHA-256 официального архива для x86_64 или arm64 и устанавливает `/usr/local/bin/xray`. GeoIP/GeoSite, публичные inbounds и отдельный systemd-сервис Xray не создаются.
 
 Создайте отдельного системного пользователя для всего приложения и дочерних проверок:
 
@@ -78,7 +78,7 @@ sudo bash scripts/install-xray.sh
 sudo useradd --system --home-dir /opt/vpn-subscriptions --shell /usr/sbin/nologin vpn-subscriptions
 sudo install -d -o vpn-subscriptions -g vpn-subscriptions -m 0700 /opt/vpn-subscriptions/data
 cp .env.example .env
-# Отредактируйте .env: SESSION_SECRET, ADMIN_PASSWORD, PUBLIC_DOMAIN, XRAY_SHA256
+# Отредактируйте .env: SESSION_SECRET, ADMIN_PASSWORD, PUBLIC_DOMAIN
 sudo chown root:vpn-subscriptions .env
 sudo chmod 0640 .env
 sudo cp deploy/vpn-subscriptions.service /etc/systemd/system/vpn-subscriptions.service
@@ -93,7 +93,7 @@ sudo systemctl status vpn-subscriptions
 
 За HTTPS reverse proxy задайте `HOST=127.0.0.1`, `TRUST_PROXY=1`, `SESSION_COOKIE_SECURE=1`. Публичный адрес QR берётся из `PUBLIC_DOMAIN`. Временные конфиги и БД содержат credentials: каталог данных и его резервные копии доступны только служебному пользователю.
 
-Для обновления ядра сначала проверьте адаптер и интеграционные тесты на новой версии. Затем обновите закреплённый установщик/хеши и `XRAY_VERSION`/`XRAY_SHA256`, перезапустите сервис. Версия ядра и профиль тестирования входят в ключ health: результаты старого профиля не используются для выдачи.
+Для обновления ядра сначала проверьте адаптер и интеграционные тесты на новой версии. Затем обновите закреплённый установщик/хеши и `XRAY_VERSION`, перезапустите сервис. Версия ядра и профиль тестирования входят в ключ health: результаты старого профиля не используются для выдачи.
 
 ## Windows и PowerShell
 
@@ -105,14 +105,13 @@ if (-not (Test-Path -LiteralPath ".env")) { Copy-Item ".env.example" ".env" }
 .\scripts\install-xray.ps1
 ```
 
-Установщик выбирает официальный архив **26.3.27** для Windows x64, arm64 или x86, проверяет закреплённый SHA-256 и извлекает `xray.exe` в `tools/xray`. Каталог исключён из Git. Повторная установка с тем же бинарником сохраняет существующий файл. Права администратора для установки в проект не требуются.
+Установщик выбирает официальный архив **26.10.21** для Windows x64, arm64 или x86, проверяет закреплённый SHA-256 и извлекает `xray.exe` в `tools/xray`. Каталог исключён из Git. Повторная установка с тем же бинарником сохраняет существующий файл. Права администратора для установки в проект не требуются.
 
-Перенесите три выведенных значения в `.env`. Например, для текущего каталога проекта:
+Перенесите выведенные значения в `.env`. Например, для текущего каталога проекта:
 
 ```dotenv
 XRAY_PATH=E:/laragon/www/subscriptions/tools/xray/xray.exe
-XRAY_VERSION=26.3.27
-XRAY_SHA256=<SHA-256 бинарника из вывода установщика>
+XRAY_VERSION=26.10.21
 PROBE_LOCATION=windows-local
 PUBLIC_DOMAIN=
 ```
@@ -142,8 +141,7 @@ npm run test:vpn
 | Переменная | Значение по умолчанию | Назначение |
 | --- | --- | --- |
 | `XRAY_PATH` | Linux: `/usr/local/bin/xray`; Windows: `tools/xray/xray.exe` в проекте | Абсолютный путь к ядру; пустое значение выбирает путь для текущей ОС |
-| `XRAY_VERSION` | `26.3.27` | Ожидаемая версия; проверяется при запуске |
-| `XRAY_SHA256` | Пусто | Если задан, проверяется SHA-256 бинарника |
+| `XRAY_VERSION` | `26.10.21` | Ожидаемая версия; проверяется при запуске |
 | `PROBE_LOCATION` | `subscription-host` | Метка региона/хоста измерений |
 | `PROBE_HTTP_PROXY` | Пусто | HTTP(S)-прокси `http://user:pass@host:port` для дополнительной проверки: Xray дозванивается до узла через прокси, отдельно сохраняется статус и задержка (бейдж «Прокси») |
 | `PROBE_HTTP_PROXY_MODE` | `extra` | `extra` — обычная проверка + дополнительная через прокси (затраты на проверку примерно удваиваются); `only` — все проверки выполняются только через прокси |
