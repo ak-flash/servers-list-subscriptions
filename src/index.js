@@ -468,9 +468,8 @@ async function startServer() {
     refreshProxyConfig();
 
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin';
     const defaultAdmin = dbGet('SELECT * FROM users WHERE username = ?', [adminUsername]);
-    if (!defaultAdmin && !adminPassword) throw new Error('ADMIN_PASSWORD не задан для создания администратора');
     if (!defaultAdmin) {
         dbRun('INSERT INTO users (id, username, password, is_active, must_change_password, created_at) VALUES (?, ?, ?, ?, ?, datetime(\'now\'))',
             [generateShortId(12), adminUsername, hashPassword(adminPassword), 1, 1]);

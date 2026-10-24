@@ -70,13 +70,26 @@ test('3x-ui panels persist safely and store client/inbound traffic from API resp
   assert.equal(connections[0].tag, 'in-443-tcp');
 
   const monthly = db.getThreeXuiInboundMonthlyTraffic('2026-01');
-  assert.equal(monthly[0].total_bytes, 0);
+  assert.equal(monthly[0].total_bytes, 500);
   db.upsertThreeXuiInboundMonthlyTraffic(panel.id, 7, '2026-01', 150, 450, 999999);
-  assert.equal(db.getThreeXuiInboundMonthlyTraffic('2026-01')[0].total_bytes, 100);
+  assert.equal(db.getThreeXuiInboundMonthlyTraffic('2026-01')[0].total_bytes, 600);
   assert.deepEqual(db.getThreeXuiInboundTrafficTotals('2026-01'), {
-    total_upload: 50,
-    total_download: 50,
-    total_traffic: 100
+    total_upload: 150,
+    total_download: 450,
+    total_traffic: 600
+  });
+
+  db.upsertThreeXuiInboundMonthlyTraffic(panel.id, 7, '2026-02', 250, 650, 999999);
+  assert.deepEqual(db.getThreeXuiInboundTrafficTotals('2026-02'), {
+    total_upload: 100,
+    total_download: 200,
+    total_traffic: 300
+  });
+  db.upsertThreeXuiInboundMonthlyTraffic(panel.id, 7, '2026-02', 10, 20, 999999);
+  assert.deepEqual(db.getThreeXuiInboundTrafficTotals('2026-02'), {
+    total_upload: 110,
+    total_download: 220,
+    total_traffic: 330
   });
 
   assert.throws(() => threeXui.createPanel({ name: 'x', base_url: 'ftp://panel.example.com', token: 'token' }), /HTTP или HTTPS/);

@@ -1,4 +1,4 @@
-const migrations = [require('./001-base'), require('./002-subscriptions'), require('./003-unlimited-source-nodes'), require('./004-app-state'), require('./005-password-change'), require('./006-proxy-probe'), require('./007-threexui'), require('./008-threexui-monthly'), require('./009-threexui-monthly-deltas')];
+const migrations = [require('./001-base'), require('./002-subscriptions'), require('./003-unlimited-source-nodes'), require('./004-app-state'), require('./005-password-change'), require('./006-proxy-probe'), require('./007-threexui'), require('./008-threexui-monthly'), require('./009-threexui-monthly-deltas'), require('./010-threexui-monthly-baseline')];
 
 module.exports = function migrate(db) {
   db.run('PRAGMA foreign_keys = OFF');

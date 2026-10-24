@@ -451,45 +451,43 @@ function getThreeXuiInboundTraffic() {
     ORDER BY i.total_bytes DESC, i.remark, i.id`);
 }
 
-function upsertThreeXuiClientMonthlyTraffic(panelId, email, month, upBytes, downBytes, totalBytes) {
-  if (!email || !/^\d{4}-\d{2}$/.test(month)) return;
+function applyMonthlyTrafficDelta(table, keySql, keyParams, month, upBytes, downBytes, totalBytes) {
   const up = normalizeTrafficValue(upBytes);
   const down = normalizeTrafficValue(downBytes);
   const total = normalizeTrafficValue(totalBytes);
-  const stmt = db.prepare(`INSERT INTO threexui_client_monthly_traffic (panel_id, email, month, up_bytes, down_bytes, total_bytes, last_up_bytes, last_down_bytes, last_total_bytes, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    ON CONFLICT(panel_id, email, month) DO UPDATE SET
-      up_bytes = up_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END,
-      down_bytes = down_bytes + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
-      total_bytes = total_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END
-        + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
-      last_up_bytes = excluded.last_up_bytes,
-      last_down_bytes = excluded.last_down_bytes,
-      last_total_bytes = excluded.last_total_bytes,
-      updated_at = excluded.updated_at`);
-  stmt.run([panelId, email, month, 0, 0, 0, up, down, total]);
-  stmt.free();
+  const previous = connection.get(`SELECT last_up_bytes, last_down_bytes, last_total_bytes
+    FROM ${table} WHERE ${keySql} AND month < ? ORDER BY month DESC LIMIT 1`, [...keyParams, month]);
+  const existing = connection.get(`SELECT up_bytes, down_bytes, last_up_bytes, last_down_bytes
+    FROM ${table} WHERE ${keySql} AND month = ?`, [...keyParams, month]);
+  if (!existing) {
+    const baseline = previous
+      ? { up: previous.last_up_bytes, down: previous.last_down_bytes }
+      : { up: 0, down: 0 };
+    const monthUp = up >= baseline.up ? up - baseline.up : up;
+    const monthDown = down >= baseline.down ? down - baseline.down : down;
+    connection.run(`INSERT INTO ${table} (${keySql.replace(/ = \?/g, '').replace(/ AND /g, ', ')}, month, up_bytes, down_bytes, total_bytes, last_up_bytes, last_down_bytes, last_total_bytes, updated_at)
+      VALUES (${keyParams.map(() => '?').join(', ')}, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+    [...keyParams, month, monthUp, monthDown, monthUp + monthDown, up, down, total]);
+    return;
+  }
+  const deltaUp = up >= existing.last_up_bytes ? up - existing.last_up_bytes : up;
+  const deltaDown = down >= existing.last_down_bytes ? down - existing.last_down_bytes : down;
+  connection.run(`UPDATE ${table} SET
+    up_bytes = up_bytes + ?, down_bytes = down_bytes + ?, total_bytes = total_bytes + ?,
+    last_up_bytes = ?, last_down_bytes = ?, last_total_bytes = ?, updated_at = datetime('now')
+    WHERE ${keySql} AND month = ?`,
+  [deltaUp, deltaDown, deltaUp + deltaDown, up, down, total, ...keyParams, month]);
+}
+
+function upsertThreeXuiClientMonthlyTraffic(panelId, email, month, upBytes, downBytes, totalBytes) {
+  if (!email || !/^\d{4}-\d{2}$/.test(month)) return;
+  applyMonthlyTrafficDelta('threexui_client_monthly_traffic', 'panel_id = ? AND email = ?', [panelId, email], month, upBytes, downBytes, totalBytes);
 }
 
 function upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upBytes, downBytes, totalBytes) {
   const id = Number.parseInt(inboundId, 10);
   if (!Number.isInteger(id) || id < 0 || !/^\d{4}-\d{2}$/.test(month)) return;
-  const up = normalizeTrafficValue(upBytes);
-  const down = normalizeTrafficValue(downBytes);
-  const total = normalizeTrafficValue(totalBytes);
-  const stmt = db.prepare(`INSERT INTO threexui_inbound_monthly_traffic (panel_id, inbound_id, month, up_bytes, down_bytes, total_bytes, last_up_bytes, last_down_bytes, last_total_bytes, updated_at)
-    VALUES (?, ?, ?, 0, 0, 0, ?, ?, ?, datetime('now'))
-    ON CONFLICT(panel_id, inbound_id, month) DO UPDATE SET
-      up_bytes = up_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END,
-      down_bytes = down_bytes + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
-      total_bytes = total_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END
-        + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
-      last_up_bytes = excluded.last_up_bytes,
-      last_down_bytes = excluded.last_down_bytes,
-      last_total_bytes = excluded.last_total_bytes,
-      updated_at = excluded.updated_at`);
-  stmt.run([panelId, id, month, up, down, total]);
-  stmt.free();
+  applyMonthlyTrafficDelta('threexui_inbound_monthly_traffic', 'panel_id = ? AND inbound_id = ?', [panelId, id], month, upBytes, downBytes, totalBytes);
 }
 
 function getThreeXuiClientMonthlyTraffic(month = null) {
