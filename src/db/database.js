@@ -453,28 +453,40 @@ function getThreeXuiInboundTraffic() {
 
 function upsertThreeXuiClientMonthlyTraffic(panelId, email, month, upBytes, downBytes, totalBytes) {
   if (!email || !/^\d{4}-\d{2}$/.test(month)) return;
-  const stmt = db.prepare(`INSERT INTO threexui_client_monthly_traffic (panel_id, email, month, up_bytes, down_bytes, total_bytes, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+  const up = normalizeTrafficValue(upBytes);
+  const down = normalizeTrafficValue(downBytes);
+  const total = normalizeTrafficValue(totalBytes);
+  const stmt = db.prepare(`INSERT INTO threexui_client_monthly_traffic (panel_id, email, month, up_bytes, down_bytes, total_bytes, last_up_bytes, last_down_bytes, last_total_bytes, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     ON CONFLICT(panel_id, email, month) DO UPDATE SET
-      up_bytes = excluded.up_bytes,
-      down_bytes = excluded.down_bytes,
-      total_bytes = excluded.total_bytes,
+      up_bytes = up_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END,
+      down_bytes = down_bytes + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
+      total_bytes = total_bytes + CASE WHEN excluded.last_total_bytes >= last_total_bytes THEN excluded.last_total_bytes - last_total_bytes ELSE excluded.last_total_bytes END,
+      last_up_bytes = excluded.last_up_bytes,
+      last_down_bytes = excluded.last_down_bytes,
+      last_total_bytes = excluded.last_total_bytes,
       updated_at = excluded.updated_at`);
-  stmt.run([panelId, email, month, normalizeTrafficValue(upBytes), normalizeTrafficValue(downBytes), normalizeTrafficValue(totalBytes)]);
+  stmt.run([panelId, email, month, 0, 0, 0, up, down, total]);
   stmt.free();
 }
 
 function upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upBytes, downBytes, totalBytes) {
   const id = Number.parseInt(inboundId, 10);
   if (!Number.isInteger(id) || id < 0 || !/^\d{4}-\d{2}$/.test(month)) return;
-  const stmt = db.prepare(`INSERT INTO threexui_inbound_monthly_traffic (panel_id, inbound_id, month, up_bytes, down_bytes, total_bytes, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+  const up = normalizeTrafficValue(upBytes);
+  const down = normalizeTrafficValue(downBytes);
+  const total = normalizeTrafficValue(totalBytes);
+  const stmt = db.prepare(`INSERT INTO threexui_inbound_monthly_traffic (panel_id, inbound_id, month, up_bytes, down_bytes, total_bytes, last_up_bytes, last_down_bytes, last_total_bytes, updated_at)
+    VALUES (?, ?, ?, 0, 0, 0, ?, ?, ?, datetime('now'))
     ON CONFLICT(panel_id, inbound_id, month) DO UPDATE SET
-      up_bytes = excluded.up_bytes,
-      down_bytes = excluded.down_bytes,
-      total_bytes = excluded.total_bytes,
+      up_bytes = up_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END,
+      down_bytes = down_bytes + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
+      total_bytes = total_bytes + CASE WHEN excluded.last_total_bytes >= last_total_bytes THEN excluded.last_total_bytes - last_total_bytes ELSE excluded.last_total_bytes END,
+      last_up_bytes = excluded.last_up_bytes,
+      last_down_bytes = excluded.last_down_bytes,
+      last_total_bytes = excluded.last_total_bytes,
       updated_at = excluded.updated_at`);
-  stmt.run([panelId, id, month, normalizeTrafficValue(upBytes), normalizeTrafficValue(downBytes), normalizeTrafficValue(totalBytes)]);
+  stmt.run([panelId, id, up, down, total]);
   stmt.free();
 }
 

@@ -560,38 +560,19 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     const weekRequests = selectedMonth ? 0 : dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-7 days')`)?.count || 0;
     const monthRequests = selectedMonth ? 0 : dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-30 days')`)?.count || 0;
 
-    const dateFilter = selectedMonth ? `AND strftime('%Y-%m', st.recorded_at) = ?` : '';
-    const trafficParams = selectedMonth ? [selectedMonth] : [];
-
-    const allServersTraffic = dbAll(`
-        SELECT
-            s.id,
-            s.name,
-            s.tag,
-            COALESCE(SUM(st.upload_bytes), 0) as total_upload,
-            COALESCE(SUM(st.download_bytes), 0) as total_download,
-            COALESCE(SUM(st.total_bytes), 0) as total_traffic
-        FROM servers s
-        LEFT JOIN server_traffic st ON s.id = st.server_id ${dateFilter}
-        WHERE s.is_active = 1
-        GROUP BY s.id, s.name, s.tag
-        ORDER BY total_traffic DESC
-    `, trafficParams);
-
-    const totalTraffic = allServersTraffic.reduce((sum, server) => sum + (server.total_traffic || 0), 0);
-    const activeTrafficUsers = allServersTraffic.filter(server => server.total_traffic > 0).length;
-    const formattedTotalTraffic = formatBytes(totalTraffic);
-    const totalDownload = allServersTraffic.reduce((sum, server) => sum + (server.total_download || 0), 0);
-    const totalUpload = allServersTraffic.reduce((sum, server) => sum + (server.total_upload || 0), 0);
-    const formattedTotalDownload = formatBytes(totalDownload);
-    const formattedTotalUpload = formatBytes(totalUpload);
-
     const threeXuiInbounds = selectedMonth ? getThreeXuiInboundMonthlyTraffic(selectedMonth) : getThreeXuiInboundTraffic();
     const threeXuiTotals = selectedMonth ? getThreeXuiInboundTrafficTotals(selectedMonth) : threeXuiInbounds.reduce((totals, inbound) => ({
         total_upload: totals.total_upload + (inbound.up_bytes || 0),
         total_download: totals.total_download + (inbound.down_bytes || 0),
         total_traffic: totals.total_traffic + (inbound.total_bytes || 0)
     }), { total_upload: 0, total_download: 0, total_traffic: 0 });
+    const totalTraffic = threeXuiTotals.total_traffic || 0;
+    const totalDownload = threeXuiTotals.total_download || 0;
+    const totalUpload = threeXuiTotals.total_upload || 0;
+    const activeTrafficUsers = 0;
+    const formattedTotalTraffic = formatBytes(totalTraffic);
+    const formattedTotalDownload = formatBytes(totalDownload);
+    const formattedTotalUpload = formatBytes(totalUpload);
     const threeXuiTotalsView = {
         up: threeXuiTotals.total_upload || 0,
         down: threeXuiTotals.total_download || 0,
