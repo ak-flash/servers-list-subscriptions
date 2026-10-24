@@ -13,6 +13,11 @@ test('Hysteria2 subscription links are parsed', () => {
   assert.equal(parsed.nodes[0].config.password, '46785352-db89-4839-8079-d4c69ad87996');
   assert.equal(parsed.nodes[0].config.sni, 'rugiig.cryposikel.ru');
   assert.equal(parsed.nodes[0].name, '🇩🇪 Germany [*CIDR]');
+  const built = buildXrayConfig(parsed.nodes[0].config, '80.90.189.93', 12000, { user: 'test', password: 'test' });
+  assert.equal(built.outbounds[0].protocol, 'hysteria');
+  assert.equal(built.outbounds[0].streamSettings.network, 'hysteria');
+  assert.deepEqual(built.outbounds[0].settings, { version: 2, address: '80.90.189.93', port: 443 });
+  assert.deepEqual(built.outbounds[0].streamSettings.hysteriaSettings, { auth: parsed.nodes[0].config.password });
 });
 
 test('VLESS canonical identity, original UUID, IPv6, Unicode name and WS round-trip', () => {
@@ -40,7 +45,7 @@ test('unsupported connection parameters are retained and never silently discarde
   }
   assert.equal(parseVless(link().replace('security=tls', 'security=reality')).capability, 'invalid'); // pbk is required.
   assert.equal(parseVless(link().replace('type=tcp', 'type=grpc')).capability, 'supported');
-  assert.equal(parseVless(link('example.com', '&allowInsecure=1')).capability, 'unsupported');
+  assert.equal(parseVless(link('example.com', '&allowInsecure=1')).capability, 'supported');
   for (const raw of [link().replace(UUID, 'bad'), link().replace(':443', ':70000'), link() + '%XX', link().replace('#', '&sni=a&sni=b#')]) {
     assert.throws(() => parseVless(raw), { code: 'invalid_link' });
   }

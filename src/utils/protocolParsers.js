@@ -47,7 +47,6 @@ function vlessCapability(config) {
   if (config.encryption !== 'none' || config.headerType !== 'none' || Object.keys(config.extra || {}).length) {
     return unsupported('Ссылка содержит неподдерживаемые параметры подключения.');
   }
-  if (config.allowInsecure) return unsupported('Закреплённая версия Xray не поддерживает allowInsecure. Требуется проверяемый TLS-сертификат.');
   if (!FINGERPRINTS.has(config.fingerprint)) return unsupported('Неизвестный TLS fingerprint.');
   if (config.flow && (config.flow !== 'xtls-rprx-vision' || config.network !== 'tcp' || config.security === 'none')) {
     return unsupported('Flow xtls-rprx-vision поддерживается только с TCP/RAW и TLS или Reality.');

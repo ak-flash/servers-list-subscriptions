@@ -71,8 +71,8 @@ function buildHttpProxyOutbound(proxy) {
 function buildXrayConfig(node, address, port, credentials, certificateAuthority, httpProxy = null) {
   if (node.protocol === 'hysteria2') {
     if (node.insecure || node.obfs || node.obfsPassword) throw new SubscriptionError('unsupported');
-    const streamSettings = { network: 'udp', security: 'tls', tlsSettings: { serverName: node.sni } };
-    const outbounds = [{ tag: 'probe-vpn', protocol: 'hysteria2', settings: { servers: [{ address, port: node.port, password: node.password }] }, streamSettings }];
+    const streamSettings = { network: 'hysteria', security: 'tls', tlsSettings: { serverName: node.sni }, hysteriaSettings: { auth: node.password } };
+    const outbounds = [{ tag: 'probe-vpn', protocol: 'hysteria', settings: { version: 2, address, port: node.port }, streamSettings }];
     if (httpProxy) {
       const proxyOutbound = buildHttpProxyOutbound(httpProxy);
       streamSettings.sockopt = { dialerProxy: proxyOutbound.tag };

@@ -366,6 +366,7 @@ class VpnChecker {
       else if (safe.code === 'unsupported' || safe.code === 'blocked_address') status = 'unsupported';
       else if (safe.code === 'invalid_link') status = 'invalid';
       else if (safe.code === 'dns_error' || (safe.code === 'probe_timeout' && networkStarted)) status = 'offline';
+      else if (safe.code === 'probe_timeout') safe.code = 'xray_start';
       return { status, errorCode: safe.code, errorMessage: safe.message, attempts: [], durationMs: performance.now() - started };
     } finally {
       clearTimeout(timer);

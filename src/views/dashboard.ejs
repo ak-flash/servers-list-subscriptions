@@ -93,6 +93,7 @@
                                     <td class="py-3">
                                         <span id="status-<%= server.id %>"
 class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" data-latency="">Не проверен</span>
+                                        <div id="check-error-<%= server.id %>" class="mt-1 hidden max-w-xs break-words text-xs text-red-700"></div>
                                     </td>
                                     <td class="py-3 text-right">
                                         <div class="flex gap-2 items-center justify-end">
@@ -141,8 +142,9 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
 class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" data-latency="">Не проверен</span>
                                 </div>
 <div class="mb-3 text-xs text-gray-400">
-                                     <%= server.protocol ? server.protocol.toUpperCase() : '' %> · проверка через Xray
-                                 </div>
+                                      <%= server.protocol ? server.protocol.toUpperCase() : '' %> · проверка через Xray
+                                  </div>
+                                  <div id="check-error-mobile-<%= server.id %>" class="mb-3 hidden break-words text-xs text-red-700"></div>
                                 <div class="flex gap-2">
 <button type="button" onclick="checkServer('<%= server.id %>')"
                                          class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Проверить VPN: <%= server.name %>" title="Проверить VPN">
@@ -408,6 +410,9 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
         async function checkServer(serverId) {
             const statusEl = document.getElementById('status-' + serverId);
             const statusMobileEl = document.getElementById('status-mobile-' + serverId);
+            const errorEl = document.getElementById('check-error-' + serverId);
+            const errorMobileEl = document.getElementById('check-error-mobile-' + serverId);
+            const clearError = (el) => { if (el) { el.textContent = ''; el.classList.add('hidden'); } };
             const updateStatus = (el) => {
                 if (!el) return;
                 el.textContent = 'Проверка...';
@@ -415,6 +420,8 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
             };
             updateStatus(statusEl);
             updateStatus(statusMobileEl);
+            clearError(errorEl);
+            clearError(errorMobileEl);
 
             try {
                 const response = await fetch('/api/servers/' + serverId + '/check', { method: 'POST', headers: { 'x-csrf-token': csrfToken } });
@@ -438,6 +445,13 @@ if (data.status === 'healthy') {
                 };
                 applyResult(statusEl);
                 applyResult(statusMobileEl);
+                if (data.status !== 'healthy' && data.errorMessage) {
+                    [errorEl, errorMobileEl].forEach((el) => {
+                        if (!el) return;
+                        el.textContent = data.errorCode ? `${data.errorMessage} (${data.errorCode})` : data.errorMessage;
+                        el.classList.remove('hidden');
+                    });
+                }
             } catch (err) {
                 const applyError = (el) => {
                     if (!el) return;
@@ -446,6 +460,11 @@ if (data.status === 'healthy') {
                 };
                 applyError(statusEl);
                 applyError(statusMobileEl);
+                [errorEl, errorMobileEl].forEach((el) => {
+                    if (!el) return;
+                    el.textContent = 'Не удалось выполнить запрос проверки.';
+                    el.classList.remove('hidden');
+                });
             }
         }
 
@@ -462,6 +481,9 @@ if (data.status === 'healthy') {
                 data.results.forEach(result => {
                     const statusEl = document.getElementById('status-' + result.id);
                     const statusMobileEl = document.getElementById('status-mobile-' + result.id);
+                    const errorEl = document.getElementById('check-error-' + result.id);
+                    const errorMobileEl = document.getElementById('check-error-mobile-' + result.id);
+                    [errorEl, errorMobileEl].forEach((el) => { if (el) { el.textContent = ''; el.classList.add('hidden'); } });
                     const applyResult = (el) => {
                         if (!el) return;
 if (result.status === 'healthy') {
@@ -480,6 +502,13 @@ if (result.status === 'healthy') {
                     };
                     applyResult(statusEl);
                     applyResult(statusMobileEl);
+                    if (result.status !== 'healthy' && result.errorMessage) {
+                        [errorEl, errorMobileEl].forEach((el) => {
+                            if (!el) return;
+                            el.textContent = result.errorCode ? `${result.errorMessage} (${result.errorCode})` : result.errorMessage;
+                            el.classList.remove('hidden');
+                        });
+                    }
                 });
 
                 uiProgress.done();
