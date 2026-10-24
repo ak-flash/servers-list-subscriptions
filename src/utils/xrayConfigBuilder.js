@@ -29,10 +29,21 @@ function buildFinalmask(node) {
 
 function buildXhttpSettings(node) {
   const settings = { host: node.xhttp.host, path: node.xhttp.path, mode: node.xhttp.mode };
-  if (node.xhttp.extra?.host) settings.host = node.xhttp.extra.host;
-  if (node.xhttp.extra?.path) settings.path = node.xhttp.extra.path;
-  if (node.xhttp.extra?.mode) settings.mode = node.xhttp.extra.mode;
-  const extra = node.xhttp.extra || {};
+  let extra = node.xhttp.extra || {};
+  if (typeof extra === 'string') {
+    try {
+      extra = JSON.parse(extra) || {};
+    } catch {
+      extra = {};
+    }
+  }
+  if (typeof extra !== 'object' || Array.isArray(extra)) extra = {};
+  const raw = { ...extra };
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === undefined || value === '' || value === null || value === false) delete raw[key];
+  }
+  for (const key of ['host', 'path', 'mode']) delete raw[key];
+  if (Object.keys(raw).length) settings.extra = JSON.stringify(raw);
   const fields = [
     'xPaddingBytes', 'xPaddingObfsMode', 'xPaddingKey', 'xPaddingHeader', 'xPaddingPlacement', 'xPaddingMethod',
     'uplinkHTTPMethod', 'sessionPlacement', 'sessionKey', 'seqPlacement', 'seqKey', 'uplinkDataPlacement',
