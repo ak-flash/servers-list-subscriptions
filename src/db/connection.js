@@ -15,9 +15,9 @@ const registeredFunctions = [];
 function acquireLock() {
   const lockPath = `${dbPath}.lock`;
   const token = crypto.randomUUID();
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, token }), { flag: 'wx', mode: 0o600 });
+      fs.writeFileSync(lockPath, JSON.stringify({ pid: process.pid, token, dbPath }), { flag: 'wx', mode: 0o600 });
       lock = { path: lockPath, token };
       return;
     } catch (error) {
@@ -29,10 +29,19 @@ function acquireLock() {
         fs.unlinkSync(lockPath);
         continue;
       }
+      if (owner?.pid === process.pid && owner?.dbPath === dbPath) {
+        lock = { path: lockPath, token: owner.token };
+        return;
+      }
       try {
         process.kill(owner.pid, 0);
+        const command = process.platform === 'linux' ? fs.readFileSync(`/proc/${owner.pid}/cmdline`, 'utf8').replace(/\0/g, ' ') : null;
+        if (command !== null && !/\bnode(?:\.exe)?\b.*\b(?:src[\\/]index\.js|scripts[\\/]start\.js)\b/.test(command)) {
+          fs.unlinkSync(lockPath);
+          continue;
+        }
       } catch (err) {
-        if (err.code === 'ESRCH') {
+        if (err.code === 'ESRCH' || err.code === 'ENOENT') {
           fs.unlinkSync(lockPath);
           continue;
         }

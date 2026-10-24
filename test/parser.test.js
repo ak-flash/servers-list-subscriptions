@@ -102,6 +102,7 @@ test('VLESS XHTTP with Reality preserves transport settings and builds Xray conf
   assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
   const built = buildXrayConfig(parsed.config, '84.201.180.13', 12000, { user: 'test', password: 'test' });
   assert.deepEqual(built.outbounds[0].streamSettings.xhttpSettings, { host: 'api-maps.yandex.ru', path: '/', mode: 'auto' });
+  assert.equal(built.outbounds[0].streamSettings.network, 'xhttp');
   assert.equal(built.outbounds[0].streamSettings.realitySettings.password, parsed.config.reality.publicKey);
   assert.equal(parseVless(raw.replace('type=xhttp', 'type=grpc')).capability, 'unsupported');
   const richExtra = { xPaddingBytes: '100-1000', xPaddingObfsMode: false, xPaddingKey: '', xPaddingHeader: '', xPaddingPlacement: '', xPaddingMethod: '', uplinkHTTPMethod: '', sessionIDPlacement: '', sessionIDKey: '', sessionIDTable: '', sessionIDLength: '0', seqPlacement: '', seqKey: '', uplinkDataPlacement: '', uplinkDataKey: '', uplinkChunkSize: '0', noGRPCHeader: false, noSSEHeader: false, scMaxEachPostBytes: '0', scMinPostsIntervalMs: '0', scMaxBufferedPosts: 0, scStreamUpServerSecs: '0', serverMaxHeaderBytes: 0, xmux: { maxConcurrency: '16-32', maxConnections: '0', cMaxReuseTimes: '64-128', hMaxRequestTimes: '0', hMaxReusableSecs: '0', hKeepAlivePeriod: 0 }, downloadSettings: null, extra: null };
@@ -109,6 +110,7 @@ test('VLESS XHTTP with Reality preserves transport settings and builds Xray conf
   assert.equal(rich.capability, 'supported');
   assert.deepEqual(rich.config.xhttp.extra.xmux, richExtra.xmux);
   const richConfig = buildXrayConfig(rich.config, '84.201.180.13', 12000, { user: 'test', password: 'test' });
+  assert.equal(typeof richConfig.outbounds[0].streamSettings.xhttpSettings.extra, 'object');
   assert.equal(richConfig.outbounds[0].streamSettings.xhttpSettings.xPaddingBytes, '100-1000');
   assert.equal(richConfig.outbounds[0].streamSettings.xhttpSettings.xmux.maxConcurrency, richExtra.xmux.maxConcurrency);
   assert.equal(richConfig.outbounds[0].streamSettings.xhttpSettings.xmux.cMaxReuseTimes, richExtra.xmux.cMaxReuseTimes);

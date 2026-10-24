@@ -448,7 +448,7 @@ if (data.status === 'healthy') {
                 if (data.status !== 'healthy' && data.errorMessage) {
                     [errorEl, errorMobileEl].forEach((el) => {
                         if (!el) return;
-                        el.textContent = data.errorCode ? `${data.errorMessage} (${data.errorCode})` : data.errorMessage;
+                        el.textContent = [data.errorMessage, data.errorCode && `(${data.errorCode})`, data.errorDetail && `— ${data.errorDetail}`].filter(Boolean).join(' ');
                         el.classList.remove('hidden');
                     });
                 }
@@ -505,7 +505,7 @@ if (result.status === 'healthy') {
                     if (result.status !== 'healthy' && result.errorMessage) {
                         [errorEl, errorMobileEl].forEach((el) => {
                             if (!el) return;
-                            el.textContent = result.errorCode ? `${result.errorMessage} (${result.errorCode})` : result.errorMessage;
+                            el.textContent = [result.errorMessage, result.errorCode && `(${result.errorCode})`, result.errorDetail && `— ${result.errorDetail}`].filter(Boolean).join(' ');
                             el.classList.remove('hidden');
                         });
                     }

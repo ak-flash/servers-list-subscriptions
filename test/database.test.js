@@ -169,3 +169,14 @@ test('legacy host-based schema migrates without losing IDs, disabled state or as
   await db.initDb({ filePath });
   assert.equal(db.get('SELECT uuid FROM user_servers').uuid, uuid);
 });
+
+test('database lock left by the same process is recovered', async t => {
+  const parent = path.join(os.tmpdir(), 'opencode');
+  fs.mkdirSync(parent, { recursive: true });
+  const directory = fs.mkdtempSync(path.join(parent, 'subscriptions-lock-'));
+  const filePath = path.join(directory, 'test.db');
+  t.after(() => { db.closeDb(); fs.rmSync(directory, { recursive: true, force: true }); });
+  fs.writeFileSync(`${filePath}.lock`, JSON.stringify({ pid: process.pid, token: 'stale', dbPath: filePath }));
+  await db.initDb({ filePath });
+  assert.ok(db.get('PRAGMA quick_check'));
+});

@@ -444,9 +444,9 @@ async function checkManualServer(server) {
         }
         const result = await manualVpnChecker.check({ normalized_config_json: JSON.stringify(parsed.config) });
         return { id: server.id, name: server.name, status: result.status, latency_ms: result.latencyMs ?? null, target_id: result.targetId ?? null,
-            errorCode: result.errorCode ?? null, errorMessage: result.errorMessage ?? null };
+            errorCode: result.errorCode ?? null, errorMessage: result.errorMessage ?? null, errorDetail: result.errorDetail ?? null };
     } catch (error) {
-        return { id: server.id, name: server.name, status: 'runner_error', latency_ms: null, errorCode: 'runner_error', errorMessage: 'Не удалось выполнить VPN-проверку.' };
+        return { id: server.id, name: server.name, status: 'runner_error', latency_ms: null, errorCode: 'runner_error', errorMessage: error.message || 'Не удалось выполнить VPN-проверку.' };
     }
 }
 

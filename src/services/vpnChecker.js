@@ -76,6 +76,11 @@ function median(values) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+function startupDetail(output) {
+  const detail = String(output || '').replace(/vless:\/\/\S+/gi, 'vless://[redacted]').replace(/\s+/g, ' ').trim();
+  return detail ? detail.slice(-240) : null;
+}
+
 async function evaluateTargets(config, request, signal) {
   const attempts = [];
   const targets = [];
@@ -230,10 +235,12 @@ class VpnChecker {
           cwd: directory, shell: false, windowsHide: true, detached: process.platform === 'linux',
           env: cleanEnvironment(directory), stdio: ['ignore', 'pipe', 'pipe']
         });
-        child.on('error', () => { child.spawnError = true; });
+        child.on('error', error => { child.spawnError = true; child.spawnErrorDetail = error.code || error.message; });
         const inspect = data => {
-          if (/address already in use|Only one usage of each socket/i.test(data.toString())) child.portConflict = true;
-          if (this.diagnostic) this.diagnostic(data.toString());
+          const text = data.toString();
+          if (/address already in use|Only one usage of each socket/i.test(text)) child.portConflict = true;
+          child.startupOutput = `${child.startupOutput || ''}${text}`.slice(-2048);
+          if (this.diagnostic) this.diagnostic(text);
         };
         child.stdout.on('data', inspect);
         child.stderr.on('data', inspect);
@@ -327,10 +334,12 @@ class VpnChecker {
           env: cleanEnvironment(directory), stdio: ['ignore', 'pipe', 'pipe']
         });
         this.active.get(token).children.push(child);
-        child.on('error', () => { child.spawnError = true; });
+        child.on('error', error => { child.spawnError = true; child.spawnErrorDetail = error.code || error.message; });
         const inspect = data => {
-          if (/address already in use|Only one usage of each socket/i.test(data.toString())) child.portConflict = true;
-          if (this.diagnostic) this.diagnostic(data.toString());
+          const text = data.toString();
+          if (/address already in use|Only one usage of each socket/i.test(text)) child.portConflict = true;
+          child.startupOutput = `${child.startupOutput || ''}${text}`.slice(-2048);
+          if (this.diagnostic) this.diagnostic(text);
         };
         child.stdout.on('data', inspect);
         child.stderr.on('data', inspect);
@@ -367,7 +376,10 @@ class VpnChecker {
       else if (safe.code === 'invalid_link') status = 'invalid';
       else if (safe.code === 'dns_error' || (safe.code === 'probe_timeout' && networkStarted)) status = 'offline';
       else if (safe.code === 'probe_timeout') safe.code = 'xray_start';
-      return { status, errorCode: safe.code, errorMessage: safe.message, attempts: [], durationMs: performance.now() - started };
+      const errorDetail = ['xray_start', 'xray_exit'].includes(safe.code)
+        ? startupDetail(child?.startupOutput) || child?.spawnErrorDetail || null
+        : null;
+      return { status, errorCode: safe.code, errorMessage: safe.message, errorDetail, attempts: [], durationMs: performance.now() - started };
     } finally {
       clearTimeout(timer);
       controller.abort(new SubscriptionError('cancelled'));

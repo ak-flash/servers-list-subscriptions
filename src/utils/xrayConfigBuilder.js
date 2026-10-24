@@ -43,7 +43,7 @@ function buildXhttpSettings(node) {
     if (value === undefined || value === '' || value === null || value === false) delete raw[key];
   }
   for (const key of ['host', 'path', 'mode']) delete raw[key];
-  if (Object.keys(raw).length) settings.extra = JSON.stringify(raw);
+  if (Object.keys(raw).length) settings.extra = raw;
   const fields = [
     'xPaddingBytes', 'xPaddingObfsMode', 'xPaddingKey', 'xPaddingHeader', 'xPaddingPlacement', 'xPaddingMethod',
     'uplinkHTTPMethod', 'sessionPlacement', 'sessionKey', 'seqPlacement', 'seqKey', 'uplinkDataPlacement',
