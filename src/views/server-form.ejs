@@ -3,7 +3,7 @@
 <head><%- include('partials/subscription-head', { title: `${server ? 'Редактирование' : 'Добавление'} сервера — ${appName}` }) %></head>
 <body class="bg-slate-100 text-slate-900">
     <%- include('partials/subscription-header', { heading: server ? 'Редактирование сервера' : 'Добавление сервера' }) %>
-    <main id="main" class="mx-auto max-w-3xl px-4 py-6 md:py-8">
+    <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
         <section class="mb-6 rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Ручной каталог</p>
             <h2 class="mt-2 text-2xl font-semibold"><%= server ? 'Обновите параметры сервера' : 'Добавьте сервер вручную' %></h2>
