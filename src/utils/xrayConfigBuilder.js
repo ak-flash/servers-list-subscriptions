@@ -57,6 +57,17 @@ function buildXhttpSettings(node) {
   for (const [from, to] of Object.entries(aliases)) {
     if (extra[from] !== undefined && extra[from] !== '') settings[to] = extra[from];
   }
+  if (extra.downloadSettings && typeof extra.downloadSettings === 'object' && !Array.isArray(extra.downloadSettings)) {
+    const download = extra.downloadSettings;
+    settings.downloadSettings = {
+      address: download.address,
+      port: Number(download.port) || 0,
+      network: download.network || 'xhttp',
+      security: download.security || 'none',
+      xhttpSettings: download.xhttpSettings || undefined,
+      realitySettings: download.realitySettings || undefined
+    };
+  }
   if (extra.xmux && typeof extra.xmux === 'object') {
     settings.xmux = {};
     for (const field of ['maxConcurrency', 'maxConnections', 'cMaxReuseTimes', 'hMaxRequestTimes', 'hMaxReusableSecs', 'hKeepAlivePeriod']) {
@@ -118,7 +129,7 @@ function buildXrayConfig(node, address, port, credentials, certificateAuthority,
   if (node.finalmask) streamSettings.finalmask = buildFinalmask(node);
   const outbounds = [{
     tag: 'probe-vpn', protocol: 'vless',
-    settings: { vnext: [{ address, port: node.port, users: [{ id: node.uuid, encryption: node.encryption, flow: node.flow }] }] },
+     settings: { vnext: [{ address, port: node.port, users: [{ id: node.uuid, encryption: node.encryption, flow: node.flow, packetEncoding: node.packetEncoding }] }] },
     streamSettings, mux: { enabled: false }
   }];
   if (httpProxy) {

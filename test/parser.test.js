@@ -20,6 +20,23 @@ test('Hysteria2 subscription links are parsed', () => {
   assert.deepEqual(built.outbounds[0].streamSettings.hysteriaSettings, { auth: parsed.nodes[0].config.password });
 });
 
+test('VLESS XHTTP accepts downloadSettings', () => {
+  const raw = 'Vless://9c5ad05d-d807-0031-bf48-cfad48af6dec@135.106.142.209:443?type=xhttp&headerType=none&security=reality&encryption=none&sni=alfastat.ru&pbk=fz_xpZfQks3oa9c_d1OSokmTgmJuGbvFMkyK0Qt8w3I&sid=0066a7326f06d426&path=%2Fassets&mode=packet-up&extra=%7B%22xmux%22%3A+%7B%22cMaxReuseTimes%22%3A+0%2C+%22maxConnections%22%3A+%221-2%22%2C+%22hKeepAlivePeriod%22%3A+0%2C+%22hMaxRequestTimes%22%3A+%22900-1400%22%2C+%22hMaxReusableSecs%22%3A+%223600-5400%22%7D%2C+%22downloadSettings%22%3A+%7B%22port%22%3A+443%2C+%22address%22%3A+%22135.106.142.209%22%2C+%22network%22%3A+%22xhttp%22%2C+%22security%22%3A+%22reality%22%2C+%22xhttpSettings%22%3A+%7B%22path%22%3A+%22%2Fassets%22%7D%2C+%22realitySettings%22%3A+%7B%22shortId%22%3A+%2275a0c0e236b0a436%22%2C%22publicKey%22%3A+%22fz_xpZfQks3oa9c_d1OSokmTgmJuGbvFMkyK0Qt8w3I%22%2C%22serverName%22%3A+%22seo.alfastat.ru%22%2C%22fingerprint%22%3A+%22firefox%22%7D%7D%7D&fp=ios#Sweden';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  const settings = buildXrayConfig(parsed.nodes[0].config, '135.106.142.209', 12000, { user: 'test', password: 'test' }).outbounds[0].streamSettings.xhttpSettings;
+  assert.equal(settings.downloadSettings.address, '135.106.142.209');
+  assert.equal(settings.downloadSettings.xhttpSettings.path, '/assets');
+});
+
+test('VLESS Reality TCP accepts packetEncoding=xudp', () => {
+  const raw = 'Vless://9a0e84f8-4b58-477f-99da-5fac5a2e58e8@3f8efdt.fi1.h1clayd.click:443?security=reality&type=tcp&packetEncoding=xudp&sni=3f8efdt.fi1.h1clayd.click&sid=023a1e6ffc32be10&pbk=1D_o1pqfVoReg9zLPKNy1wCL7aGWytbmbYPbbJGaozY&fp=firefox#%F0%9F%87%AB%F0%9F%87%AE%20Finland%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].capability, 'supported');
+  assert.equal(parsed.nodes[0].config.extra.packetEncoding, undefined);
+});
+
 test('VLESS canonical identity, original UUID, IPv6, Unicode name and WS round-trip', () => {
   const a = parseVless(link('EXAMPLE.com', '&sni=example.com', 'Первый'));
   const b = parseVless(`vless://${UUID}@example.com:443?type=raw&security=tls#%D0%94%D1%80%D1%83%D0%B3%D0%BE%D0%B9`);
@@ -116,8 +133,8 @@ test('VLESS XHTTP with Reality preserves transport settings and builds Xray conf
   assert.equal(richConfig.outbounds[0].streamSettings.xhttpSettings.xmux.cMaxReuseTimes, richExtra.xmux.cMaxReuseTimes);
   assert.deepEqual(rich.config.alpn, []);
   assert.throws(() => parseVless(raw.replace('extra=null', 'extra=%7Bbad%7D')), { code: 'invalid_link' });
-  const unsupportedExtra = parseVless(raw.replace('extra=null', 'extra=%7B%22downloadSettings%22%3A%7B%7D%7D'));
-  assert.equal(unsupportedExtra.capability, 'unsupported');
+  const invalidExtra = parseVless(raw.replace('extra=null', 'extra=%7B%22downloadSettings%22%3A%7B%7D%7D'));
+  assert.equal(invalidExtra.capability, 'invalid');
 });
 
 test('VLESS gRPC with Reality preserves serviceName and multi mode', () => {

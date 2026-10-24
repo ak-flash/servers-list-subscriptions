@@ -4,9 +4,10 @@ const { domainToASCII } = require('url');
 const { SubscriptionError } = require('./subscriptionErrors');
 
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
-const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'extra', 'mode', 'serviceName', 'fm', 'x_padding_bytes']);
+const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'extra', 'mode', 'serviceName', 'fm', 'x_padding_bytes', 'packetEncoding']);
 const REALITY_PARAMS = new Set(['pbk', 'sid', 'spx', 'pqv']);
 const FINGERPRINTS = new Set(['', 'chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'random', 'randomized']);
+const PACKET_ENCODINGS = new Set(['', 'xudp']);
 
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
@@ -44,6 +45,7 @@ function vlessCapability(config) {
   }
   if (!['tcp', 'ws', 'xhttp', 'grpc', 'httpupgrade'].includes(config.network)) return unsupported('Поддерживаются транспорты TCP/RAW, WebSocket, XHTTP, gRPC и HTTPUpgrade.');
   if (config.security === 'reality' && !['tcp', 'xhttp', 'grpc'].includes(config.network)) return unsupported('Reality поддерживается с транспортами TCP/RAW, XHTTP и gRPC.');
+  if (!PACKET_ENCODINGS.has(config.packetEncoding || '')) return unsupported('Неизвестный packetEncoding.');
   if (config.encryption !== 'none' || config.headerType !== 'none' || Object.keys(config.extra || {}).length) {
     return unsupported('Ссылка содержит неподдерживаемые параметры подключения.');
   }
@@ -64,7 +66,12 @@ function vlessCapability(config) {
     }
   }
   if (config.xhttp?.extra && typeof config.xhttp.extra !== 'object') return invalid('Параметр XHTTP extra должен быть JSON-объектом.');
-  if (config.xhttp?.extra?.downloadSettings) return unsupported('XHTTP downloadSettings пока не поддерживается в проверяющем профиле.');
+  if (config.xhttp?.extra?.downloadSettings) {
+    const download = config.xhttp.extra.downloadSettings;
+    if (!download || typeof download !== 'object' || Array.isArray(download) || typeof download.address !== 'string' || !Number.isInteger(Number(download.port)) || Number(download.port) < 1 || Number(download.port) > 65535 || !['xhttp', 'splithttp'].includes(download.network)) {
+      return invalid('Некорректные XHTTP downloadSettings.');
+    }
+  }
   if (config.security === 'reality') {
     if (!config.reality || !isBase64UrlKey(config.reality.publicKey, 32)) return invalid('Для Reality требуется корректный публичный ключ pbk: 32 байта в Base64URL без padding.');
     if (!/^(?:[a-f\d]{2}){0,8}$/.test(config.reality.shortId)) return invalid('Reality sid должен содержать от 0 до 16 шестнадцатеричных символов, с чётной длиной.');
@@ -141,8 +148,8 @@ function parseVless(raw) {
     schema_version: 1, protocol: 'vless', host, port, uuid,
     encryption: params.encryption || 'none', network, security,
     sni: params.sni ? normalizeHost(params.sni) : host,
-    alpn, fingerprint: params.fp || (security === 'reality' ? 'chrome' : ''), flow: params.flow || '',
-    allowInsecure: ['1', 'true'].includes(params.allowInsecure),
+     alpn, fingerprint: params.fp || (security === 'reality' ? 'chrome' : ''), flow: params.flow || '', packetEncoding: params.packetEncoding || '',
+     allowInsecure: ['1', 'true'].includes(params.allowInsecure),
     headerType: params.headerType || 'none',
     ws: network === 'ws' ? { host: params.host || host, path: params.path || '/' } : null,
     httpupgrade: network === 'httpupgrade' ? { host: params.host || host, path: params.path || '/' } : null,
