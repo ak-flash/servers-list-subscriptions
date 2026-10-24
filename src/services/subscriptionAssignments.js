@@ -69,6 +69,21 @@ function saveAssignments(userId, input) {
   });
 }
 
+function assignSourceToAllUsers(sourceId, nodeLimit) {
+  if (!db.get('SELECT id FROM subscription_sources WHERE id = ?', [sourceId])) throw new SubscriptionError('not_found', 'Источник не найден.', 404);
+  const limit = fieldNumber(nodeLimit, null, 1, 10000, 'Количество узлов');
+  if (limit === null) throw new SubscriptionError('validation', 'Укажите количество узлов.');
+  const now = Date.now();
+  db.transaction(() => {
+    for (const user of db.all('SELECT id FROM users')) {
+      db.run(`INSERT INTO user_subscription_sources (user_id, source_id, node_limit, max_latency_ms, priority, created_at, updated_at)
+        VALUES (?, ?, ?, NULL, 0, ?, ?) ON CONFLICT(user_id, source_id) DO UPDATE SET node_limit = excluded.node_limit,
+        is_active = 1, updated_at = excluded.updated_at`, [user.id, sourceId, limit, now, now]);
+    }
+  });
+  return db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [sourceId]).n;
+}
+
 function deleteUser(userId) {
   db.transaction(() => {
     db.run('DELETE FROM user_servers WHERE user_id = ?', [userId]);
@@ -89,4 +104,4 @@ function deleteServer(serverId) {
   });
 }
 
-module.exports = { saveAssignments, deleteUser, deleteServer };
+module.exports = { saveAssignments, assignSourceToAllUsers, deleteUser, deleteServer };

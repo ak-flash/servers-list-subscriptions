@@ -11,6 +11,7 @@
     </section>
     <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
       <% if (error) { %><p id="form-error" role="alert" tabindex="-1" class="bg-red-50 text-red-800 rounded p-4 mb-6"><%= error %></p><% } %>
+      <% if (saved) { %><p role="status" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">Источник привязан ко всем пользователям.</p><% } %>
       <form method="post" action="<%= source ? `/admin/subscription-sources/${source.id}` : '/admin/subscription-sources' %>" class="space-y-6" <%- error ? 'aria-describedby="form-error"' : '' %>>
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div>
@@ -39,11 +40,25 @@
             <% if (source?.has_authorization) { %><label class="flex items-center gap-3 min-h-[44px]"><input type="checkbox" name="clear_authorization" value="1" class="w-5 h-5">Удалить сохранённый Authorization</label><% } %>
           </div>
         </details>
+        <% if (source) { %>
+          <section class="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <h3 class="font-semibold text-slate-800">Привязать ко всем пользователям</h3>
+            <p class="mt-2 text-sm text-slate-600">Источник будет добавлен всем пользователям с указанным количеством узлов. Существующие настройки задержки и приоритета сохранятся.</p>
+            <div class="mt-4 flex flex-wrap items-end gap-3">
+              <div>
+                <label for="all-users-node-limit" class="mb-2 block text-sm font-semibold text-slate-700">Количество узлов</label>
+                <input id="all-users-node-limit" name="node_limit" form="assign-all-form" type="number" min="1" max="10000" step="1" value="3" required class="w-40 rounded-lg border border-slate-300 px-3 py-2">
+              </div>
+              <button type="submit" form="assign-all-form" class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">Привязать ко всем</button>
+            </div>
+          </section>
+        <% } %>
         <div class="flex flex-wrap gap-3">
           <button type="submit" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800">Сохранить источник</button>
           <a href="/admin/subscription-sources" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">Отмена</a>
         </div>
       </form>
+      <% if (source) { %><form id="assign-all-form" method="post" action="/admin/subscription-sources/<%= source.id %>/assign-all"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form><% } %>
     </section>
     <% if (source) { %>
       <details class="mt-6 rounded-2xl border border-red-200 bg-white p-5 shadow-sm md:p-7">

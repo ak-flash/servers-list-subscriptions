@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db/database');
 const sources = require('../services/subscriptionSources');
 const health = require('../services/subscriptionHealth');
-const { saveAssignments } = require('../services/subscriptionAssignments');
+const { saveAssignments, assignSourceToAllUsers } = require('../services/subscriptionAssignments');
 const { resolveUserSubscription, subscriptionPreview } = require('../services/subscriptionResolver');
 const { extractHostPortFromLink } = require('../utils/linkBuilder');
 const { SubscriptionError } = require('../utils/subscriptionErrors');
@@ -39,6 +39,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
         sync_interval_seconds: source?.sync_interval_seconds || currentConfig().syncIntervalMs / 1000,
         is_active: source ? source.is_active : 1, ...values, ...(error ? { is_active: values.is_active || 0 } : {}) },
       linkedUsers: source ? db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n : 0,
+      saved: req.query.saved === '1',
       error: error instanceof SubscriptionError ? error.message : error ? 'Не удалось сохранить источник. Проверьте данные и повторите попытку.' : null
     });
   }
@@ -70,6 +71,16 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
     scheduler.invalidateSource(source.id);
     if (source.is_active) { try { scheduler.enqueueSync(source.id); } catch { /* Retried by the scheduler. */ } }
     res.redirect(`/admin/subscription-sources/${source.id}/nodes`);
+  });
+  router.post('/admin/subscription-sources/:id/assign-all', ...auth, requireCsrf, (req, res) => {
+    const source = sources.getSource(req.params.id);
+    if (!source) return res.status(404).send('Источник не найден');
+    try {
+      assignSourceToAllUsers(source.id, req.body.node_limit);
+      res.redirect(`/admin/subscription-sources/${source.id}/edit?saved=1`);
+    } catch (error) {
+      renderForm(req, res, source, error, req.body);
+    }
   });
   router.post('/admin/subscription-sources/:id/delete', ...auth, requireCsrf, (req, res) => {
     scheduler.invalidateSource(req.params.id);
