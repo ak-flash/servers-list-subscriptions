@@ -16,8 +16,13 @@ DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 INSTALL_COMMAND="${INSTALL_COMMAND:-npm ci --no-audit --no-fund --loglevel=error}"
 BUILD_COMMAND="${BUILD_COMMAND:-npm run build:css}"
 RESTART_COMMAND="${RESTART_COMMAND:-}"
+GENERATED_FILES="${GENERATED_FILES:-public/app.css}"
 
 cd "$PROJECT_DIR"
+if [[ -n "$(git status --porcelain --untracked-files=no -- $GENERATED_FILES)" ]]; then
+  printf '==> discard generated local files: %s\n' "$GENERATED_FILES"
+  git restore --worktree -- $GENERATED_FILES
+fi
 printf '==> git pull (%s)\n' "$DEPLOY_BRANCH"
 git pull --ff-only origin "$DEPLOY_BRANCH"
 printf '==> install: %s\n' "$INSTALL_COMMAND"
