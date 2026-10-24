@@ -1,5 +1,6 @@
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { closeDb } = require('../src/db/database');
 
 const root = path.resolve(__dirname, '..');
 const entry = path.join(root, 'src', 'index.js');
@@ -7,8 +8,13 @@ const watch = process.argv.slice(2).some(arg => arg === 'watch' || arg === '--wa
 
 if (!watch) {
     const { startServer } = require(entry);
+    const shutdown = () => {
+        try { closeDb(); } catch {}
+    };
+    process.once('exit', shutdown);
     startServer().catch(error => {
         console.error('Не удалось запустить сервис:', error.message);
+        shutdown();
         process.exitCode = 1;
     });
 } else {

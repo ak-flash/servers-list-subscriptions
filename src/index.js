@@ -749,6 +749,7 @@ app.get('/admin/stats', requireAuth, (req, res) => {
 if (require.main === module) {
     startServer().catch(error => {
         logger.error('server_start_failed', { error: error.message });
+        try { closeDb(); } catch {}
         process.exitCode = 1;
     });
 }
