@@ -49,12 +49,12 @@
                 <label for="all-users-node-limit" class="mb-2 block text-sm font-semibold text-slate-700">Количество узлов</label>
                 <input id="all-users-node-limit" name="node_limit" form="assign-all-form" type="number" min="1" max="10000" step="1" value="3" required class="w-40 rounded-lg border border-slate-300 px-3 py-2">
               </div>
-              <button type="submit" form="assign-all-form" class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">Привязать ко всем</button>
+              <button type="submit" form="assign-all-form" data-icon="link" class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">Привязать ко всем</button>
             </div>
           </section>
         <% } %>
         <div class="flex flex-wrap gap-3">
-          <button type="submit" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800">Сохранить источник</button>
+          <button type="submit" data-icon="save" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800">Сохранить источник</button>
           <a href="/admin/subscription-sources" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">Отмена</a>
         </div>
       </form>
@@ -66,7 +66,7 @@
         <p class="mt-3 mb-4">Будут удалены каталог узлов, история проверок и привязки пользователей: <%= linkedUsers %>.</p>
         <form method="post" action="/admin/subscription-sources/<%= source.id %>/delete">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <button type="submit" class="min-h-[44px] rounded-lg bg-red-700 px-4 py-3 font-semibold text-white hover:bg-red-800">Удалить источник</button>
+          <button type="submit" data-icon="trash" class="min-h-[44px] rounded-lg bg-red-700 px-4 py-3 font-semibold text-white hover:bg-red-800">Удалить источник</button>
         </form>
       </details>
     <% } %>

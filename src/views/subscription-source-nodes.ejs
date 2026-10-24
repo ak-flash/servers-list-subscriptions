@@ -71,12 +71,12 @@
             <div class="flex flex-wrap items-center gap-2 shrink-0">
               <% if (node.raw_link) { %>
                 <span class="relative inline-flex">
-                  <button type="button" class="border border-gray-300 hover:bg-gray-100 rounded px-3 py-2 min-h-[40px] text-sm" data-copy-connection="<%= encodeURIComponent(node.raw_link) %>">Копировать</button>
+                  <button type="button" class="border border-gray-300 hover:bg-gray-100 rounded px-3 py-2 min-h-[40px] text-sm" data-copy-connection="<%= encodeURIComponent(node.raw_link) %>" data-icon="copy">Копировать</button>
                   <span class="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-xs text-white shadow-lg" data-copy-status aria-live="polite"></span>
                 </span>
               <% } %>
               <% if (node.is_present && node.is_enabled && node.capability_status === 'supported' && source.is_active) { %>
-                <form method="post" action="/api/subscription-nodes/<%= node.id %>/check" data-background-action data-node-check><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="relative bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[40px] min-w-[86px] text-sm" aria-label="Проверить VPN: <%= node.name %>"><span data-check-label>Проверить</span><span data-check-spinner class="pointer-events-none absolute inset-0 hidden items-center justify-center" aria-hidden="true"><span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span></span></button></form>
+                <form method="post" action="/api/subscription-nodes/<%= node.id %>/check" data-background-action data-node-check><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" data-icon="check" class="relative bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[40px] min-w-[86px] text-sm" aria-label="Проверить VPN: <%= node.name %>"><span data-check-label>Проверить</span><span data-check-spinner class="pointer-events-none absolute inset-0 hidden items-center justify-center" aria-hidden="true"><span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span></span></button></form>
               <% } %>
               <form method="post" action="/api/subscription-nodes/<%= node.id %>/settings" data-node-setting>
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="is_enabled" value="<%= node.is_enabled ? '0' : '1' %>">

@@ -461,7 +461,8 @@ function upsertThreeXuiClientMonthlyTraffic(panelId, email, month, upBytes, down
     ON CONFLICT(panel_id, email, month) DO UPDATE SET
       up_bytes = up_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END,
       down_bytes = down_bytes + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
-      total_bytes = total_bytes + CASE WHEN excluded.last_total_bytes >= last_total_bytes THEN excluded.last_total_bytes - last_total_bytes ELSE excluded.last_total_bytes END,
+      total_bytes = total_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END
+        + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
       last_up_bytes = excluded.last_up_bytes,
       last_down_bytes = excluded.last_down_bytes,
       last_total_bytes = excluded.last_total_bytes,
@@ -481,7 +482,8 @@ function upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upBytes,
     ON CONFLICT(panel_id, inbound_id, month) DO UPDATE SET
       up_bytes = up_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END,
       down_bytes = down_bytes + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
-      total_bytes = total_bytes + CASE WHEN excluded.last_total_bytes >= last_total_bytes THEN excluded.last_total_bytes - last_total_bytes ELSE excluded.last_total_bytes END,
+      total_bytes = total_bytes + CASE WHEN excluded.last_up_bytes >= last_up_bytes THEN excluded.last_up_bytes - last_up_bytes ELSE excluded.last_up_bytes END
+        + CASE WHEN excluded.last_down_bytes >= last_down_bytes THEN excluded.last_down_bytes - last_down_bytes ELSE excluded.last_down_bytes END,
       last_up_bytes = excluded.last_up_bytes,
       last_down_bytes = excluded.last_down_bytes,
       last_total_bytes = excluded.last_total_bytes,
@@ -517,10 +519,10 @@ function getThreeXuiInboundMonthlyTraffic(month = null) {
 
 function getThreeXuiInboundTrafficTotals(month = null) {
   if (month) return connection.get(`SELECT COALESCE(SUM(up_bytes), 0) as total_upload, COALESCE(SUM(down_bytes), 0) as total_download,
-    COALESCE(SUM(total_bytes), 0) as total_traffic FROM threexui_inbound_monthly_traffic m
+    COALESCE(SUM(up_bytes + down_bytes), 0) as total_traffic FROM threexui_inbound_monthly_traffic m
     JOIN threexui_panels p ON p.id = m.panel_id WHERE p.is_active = 1 AND m.month = ?`, [month]);
   return connection.get(`SELECT COALESCE(SUM(up_bytes), 0) as total_upload, COALESCE(SUM(down_bytes), 0) as total_download,
-    COALESCE(SUM(total_bytes), 0) as total_traffic
+    COALESCE(SUM(up_bytes + down_bytes), 0) as total_traffic
     FROM threexui_inbounds i JOIN threexui_panels p ON p.id = i.panel_id WHERE p.is_active = 1`);
 }
 

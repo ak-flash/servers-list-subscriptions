@@ -69,6 +69,16 @@ test('3x-ui panels persist safely and store client/inbound traffic from API resp
   assert.equal(connections[0].remark, 'VLESS-443');
   assert.equal(connections[0].tag, 'in-443-tcp');
 
+  const monthly = db.getThreeXuiInboundMonthlyTraffic('2026-01');
+  assert.equal(monthly[0].total_bytes, 0);
+  db.upsertThreeXuiInboundMonthlyTraffic(panel.id, 7, '2026-01', 150, 450, 999999);
+  assert.equal(db.getThreeXuiInboundMonthlyTraffic('2026-01')[0].total_bytes, 100);
+  assert.deepEqual(db.getThreeXuiInboundTrafficTotals('2026-01'), {
+    total_upload: 50,
+    total_download: 50,
+    total_traffic: 100
+  });
+
   assert.throws(() => threeXui.createPanel({ name: 'x', base_url: 'ftp://panel.example.com', token: 'token' }), /HTTP или HTTPS/);
   assert.throws(() => threeXui.createPanel({ name: 'x', base_url: 'https://panel.example.com', token: '' }), /API token/);
 });

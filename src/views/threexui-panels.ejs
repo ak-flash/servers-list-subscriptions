@@ -13,7 +13,7 @@
           <p class="mt-2 max-w-xl text-sm leading-5 text-slate-300">Добавьте API-токены панелей 3x-ui, чтобы регулярно получать трафик пользователей и общий трафик inbound-подключений.</p>
         </div>
         <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
-          <button type="button" id="syncAll" class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800">Синхронизировать все</button>
+          <button type="button" id="syncAll" data-icon="refresh" class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800">Синхронизировать все</button>
           <a href="/admin/threexui/new" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Добавить панель</a>
         </div>
       </div>
@@ -57,7 +57,7 @@
                   <td class="py-4 pr-4 align-top"><%= panel.lastSyncAt ? time(panel.lastSyncAt) : 'Никогда' %></td>
                   <td class="py-4 align-top">
                     <div class="flex flex-wrap justify-end gap-2">
-                      <button type="button" data-sync-panel="<%= panel.id %>" class="inline-flex min-h-[38px] items-center rounded-lg bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800">Синхронизировать</button>
+                      <button type="button" data-sync-panel="<%= panel.id %>" data-icon="refresh" class="inline-flex min-h-[38px] items-center rounded-lg bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800">Синхронизировать</button>
                       <a href="/admin/threexui/<%= panel.id %>/edit" class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Редактировать</a>
                       <form method="POST" action="/admin/threexui/<%= panel.id %>/delete" data-confirm="Удалить панель «<%= panel.name %>» и всю её статистику?" data-confirm-ok="Удалить" data-confirm-danger="true">
                         <input type="hidden" name="_csrf" value="<%= csrfToken %>">

@@ -498,6 +498,24 @@ button[aria-busy="true"] {
 #ui-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9997; pointer-events: none; }
 #ui-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, rgb(59 130 246), rgb(16 185 129)); transition: width 0.25s ease; }
 
+.ui-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.ui-icon-button > svg {
+  width: 1.05em;
+  height: 1.05em;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* Active nav link */
 .nav-link[data-active="true"] { color: #fff; background: rgb(255 255 255 / 0.1); }
 @media (min-width: 768px) {
