@@ -5,6 +5,16 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { buildXrayConfig } = require('../src/utils/xrayConfigBuilder');
 const { UUID, link } = require('./fixtures');
 
+test('Hysteria2 subscription links are parsed', () => {
+  const raw = 'hysteria2://46785352-db89-4839-8079-d4c69ad87996@80.90.189.93:443?sni=rugiig.cryposikel.ru#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].protocol, 'hysteria2');
+  assert.equal(parsed.nodes[0].config.password, '46785352-db89-4839-8079-d4c69ad87996');
+  assert.equal(parsed.nodes[0].config.sni, 'rugiig.cryposikel.ru');
+  assert.equal(parsed.nodes[0].name, '🇩🇪 Germany [*CIDR]');
+});
+
 test('VLESS canonical identity, original UUID, IPv6, Unicode name and WS round-trip', () => {
   const a = parseVless(link('EXAMPLE.com', '&sni=example.com', 'Первый'));
   const b = parseVless(`vless://${UUID}@example.com:443?type=raw&security=tls#%D0%94%D1%80%D1%83%D0%B3%D0%BE%D0%B9`);
@@ -67,6 +77,14 @@ test('Reality parameters are validated, included in identity and mapped to the p
   assert.equal(postQuantum.capability, 'supported');
   assert.equal(buildXrayConfig(postQuantum.config, '8.8.8.8', 12000, { user: 'test', password: 'test' }).outbounds[0].streamSettings.realitySettings.mldsa65Verify, pqv);
   assert.equal(parseVless(uri.replace('type=raw', 'type=ws')).capability, 'unsupported');
+});
+
+test('VLESS subscription nodes accept Reality TCP links with host parameter', () => {
+  const raw = 'vless://36fb6650-8a50-42b5-9f66-06538806f32c@de15.h1cloud.net:25362?type=tcp&security=reality&pbk=hFee7zTreqlv_wccK_8zxN5v23hj9u-DshByvGf-KAA&sid=23732d14a527990d&sni=www.chip.de&host=www.chip.de&fp=firefox#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].name, '🇩🇪 Germany [*CIDR]');
+  assert.equal(parsed.nodes[0].config.extra.host, undefined);
 });
 
 test('VLESS XHTTP with Reality preserves transport settings and builds Xray config', () => {

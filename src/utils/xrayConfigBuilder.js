@@ -69,6 +69,17 @@ function buildHttpProxyOutbound(proxy) {
 }
 
 function buildXrayConfig(node, address, port, credentials, certificateAuthority, httpProxy = null) {
+  if (node.protocol === 'hysteria2') {
+    if (node.insecure || node.obfs || node.obfsPassword) throw new SubscriptionError('unsupported');
+    const streamSettings = { network: 'raw', security: 'tls', tlsSettings: { serverName: node.sni } };
+    const outbounds = [{ tag: 'probe-vpn', protocol: 'hysteria2', settings: { servers: [{ address, port: node.port, password: node.password }] }, streamSettings, mux: { enabled: false } }];
+    if (httpProxy) {
+      const proxyOutbound = buildHttpProxyOutbound(httpProxy);
+      streamSettings.sockopt = { dialerProxy: proxyOutbound.tag };
+      outbounds.push(proxyOutbound);
+    }
+    return { log: { loglevel: 'none' }, inbounds: [{ tag: 'probe-in', listen: '127.0.0.1', port, protocol: 'socks', settings: { auth: 'password', accounts: [{ user: credentials.user, pass: credentials.password }], udp: false } }], outbounds, routing: { rules: [{ type: 'field', inboundTag: ['probe-in'], outboundTag: 'probe-vpn' }] } };
+  }
   const support = vlessCapability(node);
   if (support.capability !== 'supported') throw new SubscriptionError(support.capability === 'invalid' ? 'invalid_link' : 'unsupported');
   const streamSettings = { network: node.network, security: node.security };

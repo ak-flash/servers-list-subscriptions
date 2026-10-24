@@ -1,5 +1,5 @@
 const { TextDecoder } = require('util');
-const { parseVless, fingerprint } = require('./protocolParsers');
+const { parseVless, parseHysteria2, fingerprint } = require('./protocolParsers');
 const { SubscriptionError, safeError } = require('./subscriptionErrors');
 
 function decodeBase64Strict(text) {
@@ -17,15 +17,17 @@ function decodeBase64Strict(text) {
 
 function parseSubscriptionNode(rawLink) {
   try {
-    if (!rawLink.startsWith('vless://')) throw new SubscriptionError('unsupported');
-    const parsed = parseVless(rawLink);
-    return { ...parsed, rawLink, protocol: 'vless', host: parsed.config.host, port: parsed.config.port };
+    const isVless = /^vless:\/\//i.test(rawLink);
+    const isHysteria2 = /^hysteria2:\/\//i.test(rawLink);
+    if (!isVless && !isHysteria2) throw new SubscriptionError('unsupported');
+    const parsed = isVless ? parseVless(rawLink) : parseHysteria2(rawLink);
+    return { ...parsed, rawLink, protocol: parsed.config.protocol, host: parsed.config.host, port: parsed.config.port };
   } catch (error) {
     const unsupported = error.code === 'unsupported';
     return {
       rawLink: rawLink.slice(0, 16384), config: null, fingerprint: fingerprint({ raw: rawLink }),
       name: unsupported ? 'Неподдерживаемая ссылка' : 'Некорректная ссылка',
-      protocol: unsupported ? 'other' : 'vless', host: null, port: null,
+      protocol: unsupported ? 'other' : (/^hysteria2:\/\//i.test(rawLink) ? 'hysteria2' : 'vless'), host: null, port: null,
       capability: unsupported ? 'unsupported' : 'invalid', error: safeError(error, 'invalid_link').message
     };
   }
@@ -52,15 +54,15 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   if (lines.length > maxNodes) throw new SubscriptionError('too_many_nodes');
   const nodes = new Map();
   const report = { format, total: lines.length, duplicates: 0, supported: 0, unsupported: 0, invalid: 0 };
-  let parsedVless = 0;
+  let parsedNodes = 0;
   for (const rawLink of lines) {
     const node = parseSubscriptionNode(rawLink);
-    if (node.config) parsedVless++;
+    if (node.config) parsedNodes++;
     report[node.capability === 'supported' ? 'supported' : node.capability]++;
     if (nodes.has(node.fingerprint)) report.duplicates++;
     else nodes.set(node.fingerprint, node);
   }
-  if (!parsedVless) throw new SubscriptionError('unsupported_format');
+  if (!parsedNodes) throw new SubscriptionError('unsupported_format');
   // Structurally parsed but unsupported VLESS remains part of a complete snapshot.
   // Unparseable lines could hide an existing node, so a partial snapshot must not remove anything.
   const complete = !report.invalid && ![...nodes.values()].some(node => !node.config);

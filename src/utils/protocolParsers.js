@@ -76,6 +76,35 @@ function vlessCapability(config) {
   return { capability: 'supported', error: null };
 }
 
+function parseHysteria2(raw) {
+  if (typeof raw !== 'string' || raw.length > 16384 || /[\s\u0000-\u001f\u007f]/u.test(raw)) throw new SubscriptionError('invalid_link');
+  let url;
+  let name;
+  try {
+    if (/%(?![a-f\d]{2})/i.test(raw)) throw new Error();
+    url = new URL(raw);
+    name = decodeURIComponent(url.hash.slice(1));
+    decodeURIComponent(url.username);
+    decodeURIComponent(url.search.replace(/\+/g, ' '));
+  } catch {
+    throw new SubscriptionError('invalid_link');
+  }
+  if (url.protocol !== 'hysteria2:' || !url.username || url.password || !url.port || !['', '/'].includes(url.pathname)) {
+    throw new SubscriptionError('invalid_link');
+  }
+  const host = normalizeHost(url.hostname);
+  const port = Number(url.port);
+  const sni = url.searchParams.get('sni') || host;
+  if (!Number.isInteger(port) || port < 1 || port > 65535 || name.length > 256 || /[\u0000-\u001f\u007f]/u.test(name)) {
+    throw new SubscriptionError('invalid_link');
+  }
+  if (!sni || /[\r\n]/.test(sni)) throw new SubscriptionError('invalid_link');
+  const config = { schema_version: 1, protocol: 'hysteria2', host, port, password: decodeURIComponent(url.username), sni,
+    insecure: ['1', 'true'].includes(url.searchParams.get('insecure') || ''), obfs: url.searchParams.get('obfs') || '', obfsPassword: url.searchParams.get('obfs-password') || '' };
+  const supported = !config.obfs && !config.insecure && ![...url.searchParams.keys()].some(key => !['sni', 'insecure', 'obfs', 'obfs-password'].includes(key));
+  return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : 'Ссылка содержит неподдерживаемые параметры Hysteria2.' };
+}
+
 function parseVless(raw) {
   if (typeof raw !== 'string' || raw.length > 16384 || /[\s\u0000-\u001f\u007f]/u.test(raw)) throw new SubscriptionError('invalid_link');
   let url;
@@ -120,9 +149,9 @@ function parseVless(raw) {
     httpupgrade: network === 'httpupgrade' ? { host: params.host || host, path: params.path || '/' } : null,
     xhttp: network === 'xhttp' ? { host: params.host || host, path: params.path || '/', mode: params.mode || 'auto', extra: null } : null,
     grpc: network === 'grpc' ? { serviceName: params.serviceName || '', mode: params.mode || 'gun' } : null,
-    extra: Object.fromEntries(Object.entries(params).filter(([key]) =>
-      (!KNOWN_PARAMS.has(key) && !(security === 'reality' && REALITY_PARAMS.has(key))) ||
-      (network !== 'ws' && network !== 'xhttp' && network !== 'httpupgrade' && ['host', 'path'].includes(key))))
+     extra: Object.fromEntries(Object.entries(params).filter(([key]) =>
+       (!KNOWN_PARAMS.has(key) && !(security === 'reality' && REALITY_PARAMS.has(key))) ||
+       (network !== 'ws' && network !== 'xhttp' && network !== 'httpupgrade' && network !== 'tcp' && ['host', 'path'].includes(key))))
   };
   if (network === 'grpc' && params.mode === 'multi') config.grpc.mode = 'multi';
   if (params.fm) {
@@ -201,4 +230,4 @@ function effectiveFingerprint(link) {
   return fingerprint({ raw: link.split('#')[0] });
 }
 
-module.exports = { parseVless, serializeVless, fingerprint, effectiveFingerprint, normalizeHost, canonicalJson, vlessCapability, UUID };
+module.exports = { parseVless, parseHysteria2, serializeVless, fingerprint, effectiveFingerprint, normalizeHost, canonicalJson, vlessCapability, UUID };
