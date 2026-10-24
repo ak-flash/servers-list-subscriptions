@@ -6,16 +6,22 @@
 <body class="bg-slate-100 text-slate-900">
     <%- include('partials/subscription-header', { heading: 'Админ-панель' }) %>
     <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
-        <section class="relative mb-4 overflow-hidden rounded-2xl bg-slate-900 p-4 text-white shadow-xl md:p-6">
+        <section class="relative mb-4 overflow-hidden rounded-2xl bg-slate-900 p-4 text-white shadow-xl md:p-5">
             <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
-            <div class="relative flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div class="relative flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
                 <div class="min-w-0 max-w-xl">
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Центр управления</p>
                     <h2 class="mt-1 text-xl font-semibold tracking-tight md:text-2xl">Серверы и пользователи</h2>
-                    <p class="mt-2 text-sm leading-5 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p>
+                    <p class="mt-1 text-sm leading-5 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p>
                     <p class="mt-1 text-xs text-slate-400">Время отображается по часовому поясу <%= timezone %>.</p>
                 </div>
-                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end md:hidden">
+                <div class="hidden shrink-0 items-center gap-2 lg:flex">
+                    <a href="/admin/servers/new" class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-400">Добавить сервер</a>
+                    <a href="/admin/subscription-sources" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Источники подписок</a>
+                    <a href="/admin/threexui" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">3x-ui панели</a>
+                    <a href="/admin/settings" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Настройки</a>
+                </div>
+                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end lg:hidden">
                     <a href="/admin/servers/new" class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-400">Добавить сервер</a>
                     <a href="/admin/subscription-sources" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Источники подписок</a>
                     <a href="/admin/threexui" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">3x-ui панели</a>
