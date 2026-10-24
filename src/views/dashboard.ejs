@@ -6,26 +6,17 @@
 <body class="bg-slate-100 text-slate-900">
     <%- include('partials/subscription-header', { heading: 'Админ-панель' }) %>
     <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
-        <section class="relative mb-4 overflow-hidden rounded-2xl bg-slate-900 p-4 text-white shadow-xl md:p-5">
+        <section class="relative mb-4 overflow-hidden rounded-2xl bg-slate-900 p-5 text-white shadow-xl md:p-6">
             <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
-            <div class="relative flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div class="min-w-0 max-w-xl">
+            <div class="relative grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
+                <div class="min-w-0">
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Центр управления</p>
-                    <h2 class="mt-1 text-xl font-semibold tracking-tight md:text-2xl">Серверы и пользователи</h2>
-                    <p class="mt-1 text-sm leading-5 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p>
-                    <p class="mt-1 text-xs text-slate-400">Время отображается по часовому поясу <%= timezone %>.</p>
+                    <h2 class="mt-2 text-xl font-semibold tracking-tight md:text-2xl">Серверы и пользователи</h2>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p>
                 </div>
-                <div class="hidden shrink-0 items-center gap-2 lg:flex">
-                    <a href="/admin/servers/new" class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-400">Добавить сервер</a>
-                    <a href="/admin/subscription-sources" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Источники подписок</a>
-                    <a href="/admin/threexui" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">3x-ui панели</a>
-                    <a href="/admin/settings" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Настройки</a>
-                </div>
-                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end lg:hidden">
-                    <a href="/admin/servers/new" class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-400">Добавить сервер</a>
-                    <a href="/admin/subscription-sources" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Источники подписок</a>
-                    <a href="/admin/threexui" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">3x-ui панели</a>
-                    <a href="/admin/settings" class="inline-flex min-h-[38px] items-center justify-center rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10">Настройки</a>
+                <div class="flex items-center gap-2 text-xs text-slate-400 md:pt-1">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <span>Часовой пояс: <strong class="font-medium text-slate-200"><%= timezone %></strong></span>
                 </div>
             </div>
         </section>
@@ -175,10 +166,12 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
             <% if (collections.servers.total > 0) { %><nav class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Пагинация серверов" data-pagination="servers">
                 <p class="text-sm text-slate-500" data-pagination-info="servers" aria-live="polite">Показаны <%= collections.servers.total ? (collections.servers.page - 1) * collections.servers.perPage + 1 : 0 %>–<%= Math.min(collections.servers.page * collections.servers.perPage, collections.servers.total) %> из <%= collections.servers.total %> серверов</p>
                 <div class="flex flex-wrap items-center gap-2">
-                    <% if (collections.servers.page > 1) { %>
-                        <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page - 1 }) %>">Назад</a>
-                    <% } else { %>
-                        <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                    <% if (collections.servers.totalPages > 1) { %>
+                        <% if (collections.servers.page > 1) { %>
+                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page - 1 }) %>">Назад</a>
+                        <% } else { %>
+                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                        <% } %>
                     <% } %>
                     <div class="flex flex-wrap gap-1" data-page-numbers="servers">
                         <% paginationPages(collections.servers.page, collections.servers.totalPages).forEach(page => { %>
@@ -187,10 +180,12 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                             <% } else { %><span class="inline-flex min-h-[38px] items-center px-1 text-sm text-slate-400" aria-hidden="true">…</span><% } %>
                         <% }); %>
                     </div>
-                    <% if (collections.servers.page < collections.servers.totalPages) { %>
-                        <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page + 1 }) %>">Вперёд</a>
-                    <% } else { %>
-                        <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                    <% if (collections.servers.totalPages > 1) { %>
+                        <% if (collections.servers.page < collections.servers.totalPages) { %>
+                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page + 1 }) %>">Вперёд</a>
+                        <% } else { %>
+                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                        <% } %>
                     <% } %>
                 </div>
             </nav><% } %>
@@ -345,10 +340,12 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
             <% if (collections.users.total > 0) { %><nav class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Пагинация пользователей" data-pagination="users">
                 <p class="text-sm text-slate-500" data-pagination-info="users" aria-live="polite">Показаны <%= collections.users.total ? (collections.users.page - 1) * collections.users.perPage + 1 : 0 %>–<%= Math.min(collections.users.page * collections.users.perPage, collections.users.total) %> из <%= collections.users.total %> пользователей</p>
                 <div class="flex flex-wrap items-center gap-2">
-                    <% if (collections.users.page > 1) { %>
-                        <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page - 1 }) %>">Назад</a>
-                    <% } else { %>
-                        <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                    <% if (collections.users.totalPages > 1) { %>
+                        <% if (collections.users.page > 1) { %>
+                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page - 1 }) %>">Назад</a>
+                        <% } else { %>
+                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                        <% } %>
                     <% } %>
                     <div class="flex flex-wrap gap-1" data-page-numbers="users">
                         <% paginationPages(collections.users.page, collections.users.totalPages).forEach(page => { %>
@@ -357,10 +354,12 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                             <% } else { %><span class="inline-flex min-h-[38px] items-center px-1 text-sm text-slate-400" aria-hidden="true">…</span><% } %>
                         <% }); %>
                     </div>
-                    <% if (collections.users.page < collections.users.totalPages) { %>
-                        <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page + 1 }) %>">Вперёд</a>
-                    <% } else { %>
-                        <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                    <% if (collections.users.totalPages > 1) { %>
+                        <% if (collections.users.page < collections.users.totalPages) { %>
+                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page + 1 }) %>">Вперёд</a>
+                        <% } else { %>
+                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                        <% } %>
                     <% } %>
                 </div>
             </nav><% } %>
