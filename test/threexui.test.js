@@ -48,7 +48,8 @@ test('3x-ui panels persist safely and store client/inbound traffic from API resp
       total: 1000
     });
     db.upsertThreeXuiClientTraffic(panel.id, 'alice', 100, 400, 1000, '2026-01-01T00:00:00.000Z');
-    db.upsertThreeXuiInboundClientTraffic(panel.id, 7, 'alice', 100, 400, 1000, '2026-01-01T00:00:00.000Z');
+     db.upsertThreeXuiInboundClientTraffic(panel.id, 7, 'alice', 100, 400, 1000, '2026-01-01T00:00:00.000Z');
+     db.upsertThreeXuiInboundMonthlyTraffic(panel.id, 7, '2026-01', 100, 400, 1000);
   });
 
   assert.deepEqual(db.getThreeXuiClientTraffic('alice'), {

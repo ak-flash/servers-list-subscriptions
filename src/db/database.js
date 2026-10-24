@@ -486,7 +486,7 @@ function upsertThreeXuiInboundMonthlyTraffic(panelId, inboundId, month, upBytes,
       last_down_bytes = excluded.last_down_bytes,
       last_total_bytes = excluded.last_total_bytes,
       updated_at = excluded.updated_at`);
-  stmt.run([panelId, id, up, down, total]);
+  stmt.run([panelId, id, month, up, down, total]);
   stmt.free();
 }
 

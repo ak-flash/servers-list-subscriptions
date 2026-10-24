@@ -208,7 +208,7 @@ handle @sub {
 
 ### Вариант 2: Supervisor 3.1
 
-Supervisor запускает приложение от пользователя `ubuntu` и автоматически перезапускает его после сбоя. Конфигурация должна использовать команду `npm start`, чтобы запускался production-процесс приложения.
+Supervisor запускает приложение от пользователя `ubuntu` и автоматически перезапускает его после сбоя. Используйте абсолютный путь к Node.js и запускайте `src/index.js` напрямую: у Supervisor часто отличается `PATH`, поэтому `command=npm start` может завершаться с `spawn error`. Путь Node.js узнайте командой `command -v node`.
 
 Если Supervisor установлен как плагин aaPanel, системный `supervisorctl` может быть недоступен. В этом случае используйте путь из окружения aaPanel:
 
@@ -259,7 +259,7 @@ RESTART_COMMAND="docker compose up -d --build"
 
 ```ini
 [program:subcsriptions]
-command=npm start
+command=/usr/bin/node /home/ubuntu/servers-list-subscriptions/src/index.js
 directory=/home/ubuntu/servers-list-subscriptions/
 autorestart=true
 startsecs=3
@@ -272,11 +272,13 @@ user=ubuntu
 priority=999
 numprocs=1
 stopsignal=SIGTERM
-stopwaitsecs=5
+stopasgroup=true
+killasgroup=true
+stopwaitsecs=10
 process_name=%(program_name)s_%(process_num)02d
 ```
 
-Перед запуском убедитесь, что каталог проекта принадлежит `ubuntu`, `.env` заполнен, зависимости установлены, а CSS собран:
+Перед запуском убедитесь, что каталог проекта принадлежит `ubuntu`, `.env` заполнен, зависимости установлены, а CSS собран. Если используется aaPanel Node.js, замените `/usr/bin/node` в `command` на результат `command -v node` от пользователя, под которым работает Supervisor:
 
 ```bash
 cd /home/ubuntu/servers-list-subscriptions
@@ -294,6 +296,17 @@ sudo /www/server/panel/pyenv/bin/supervisorctl start subcsriptions:subcsriptions
 sudo /www/server/panel/pyenv/bin/supervisorctl stop subcsriptions:subcsriptions_00
 sudo /www/server/panel/pyenv/bin/supervisorctl restart subcsriptions:subcsriptions_00
 ```
+
+Если `status` показывает `ERROR (spawn error)`, выполните на сервере:
+
+```bash
+command -v node
+ls -ld /home/ubuntu/servers-list-subscriptions
+sudo -u ubuntu /usr/bin/node --version
+sudo -u ubuntu /usr/bin/node /home/ubuntu/servers-list-subscriptions/src/index.js
+```
+
+Последняя команда должна либо запустить приложение, либо вывести точную ошибку Node. Для aaPanel используйте фактический путь Node.js вместо `/usr/bin/node`.
 
 После изменения `.env`, кода или шаблонов пересоберите CSS при необходимости и выполните:
 
