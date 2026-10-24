@@ -102,6 +102,27 @@ function buildXrayConfig(node, address, port, credentials, certificateAuthority,
     }
     return { log: { loglevel: 'none' }, inbounds: [{ tag: 'probe-in', listen: '127.0.0.1', port, protocol: 'socks', settings: { auth: 'password', accounts: [{ user: credentials.user, pass: credentials.password }], udp: false } }], outbounds, routing: { rules: [{ type: 'field', inboundTag: ['probe-in'], outboundTag: 'probe-vpn' }] } };
   }
+  if (node.protocol === 'vmess') {
+    const streamSettings = { network: node.network, security: node.security };
+    if (node.security === 'tls') {
+      const tlsSettings = { serverName: node.sni };
+      if (certificateAuthority) {
+        tlsSettings.disableSystemRoot = true;
+        tlsSettings.certificates = [{ usage: 'verify', certificate: certificateAuthority.toString().trim().split(/\r?\n/) }];
+      }
+      if (node.alpn?.length) tlsSettings.alpn = node.alpn;
+      if (node.fingerprint) tlsSettings.fingerprint = node.fingerprint;
+      streamSettings.tlsSettings = tlsSettings;
+    }
+    if (node.network === 'ws') streamSettings.wsSettings = { path: node.path, headers: { Host: node.hostHeader || node.host } };
+    const outbounds = [{ tag: 'probe-vpn', protocol: 'vmess', settings: { vnext: [{ address, port: node.port, users: [{ id: node.uuid, alterId: node.alterId, security: node.scy }] }] }, streamSettings }];
+    if (httpProxy) {
+      const proxyOutbound = buildHttpProxyOutbound(httpProxy);
+      streamSettings.sockopt = { dialerProxy: proxyOutbound.tag };
+      outbounds.push(proxyOutbound);
+    }
+    return { log: { loglevel: 'none' }, inbounds: [{ tag: 'probe-in', listen: '127.0.0.1', port, protocol: 'socks', settings: { auth: 'password', accounts: [{ user: credentials.user, pass: credentials.password }], udp: false } }], outbounds, routing: { rules: [{ type: 'field', inboundTag: ['probe-in'], outboundTag: 'probe-vpn' }] } };
+  }
   const support = vlessCapability(node);
   if (support.capability !== 'supported') throw new SubscriptionError(support.capability === 'invalid' ? 'invalid_link' : 'unsupported');
   const streamSettings = { network: node.network, security: node.security };

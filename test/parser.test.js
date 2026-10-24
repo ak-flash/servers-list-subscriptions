@@ -5,6 +5,17 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { buildXrayConfig } = require('../src/utils/xrayConfigBuilder');
 const { UUID, link } = require('./fixtures');
 
+test('VMess TCP TLS subscription links are parsed', () => {
+  const raw = 'vmess://eyJ2IjoiMiIsInBzIjoi8J+Ht/Cfh7ogUnVzc2lhIHwgWypDSURSXSBZQSIsImFkZCI6IjE1OC4xNjAuMTgwLjE2NSIsInBvcnQiOiIyNDIxMiIsImlkIjoiYzU4YzEyMDUtYjMwOC00MTZmLTg1MDMtYzA0NTU3YWJmOTNkIiwiYWlkIjoiMCIsInNjeSI6ImF1dG8iLCJuZXQiOiJ0Y3AiLCJ0eXBlIjoibm9uZSIsInRscyI6InRscyIsImFscG4iOiJoMixodHRwLzEuMSIsImhvc3QiOiIiLCJwYXRoIjoiIiwic25pIjoiIiwiZnAiOiIifQ==';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].protocol, 'vmess');
+  assert.equal(parsed.nodes[0].name, '🇷🇺 Russia | [*CIDR] YA');
+  const built = buildXrayConfig(parsed.nodes[0].config, '158.160.180.165', 12000, { user: 'test', password: 'test' });
+  assert.equal(built.outbounds[0].protocol, 'vmess');
+  assert.equal(built.outbounds[0].streamSettings.tlsSettings.serverName, '158.160.180.165');
+});
+
 test('Hysteria2 subscription links are parsed', () => {
   const raw = 'hysteria2://46785352-db89-4839-8079-d4c69ad87996@80.90.189.93:443?sni=rugiig.cryposikel.ru#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%5B%2ACIDR%5D';
   const parsed = parseSubscription(raw);
@@ -18,6 +29,13 @@ test('Hysteria2 subscription links are parsed', () => {
   assert.equal(built.outbounds[0].streamSettings.network, 'hysteria');
   assert.deepEqual(built.outbounds[0].settings, { version: 2, address: '80.90.189.93', port: 443 });
   assert.deepEqual(built.outbounds[0].streamSettings.hysteriaSettings, { auth: parsed.nodes[0].config.password });
+});
+
+test('VLESS WebSocket normalizes a path without a leading slash', () => {
+  const raw = 'Vless://34851fc1-c4bb-4b17-a815-bc17c09e11a0@82.202.157.123:5002?type=ws&security=tls&sni=br1.centermass.net&path=media.playback.v1.SessionGateway&alpn=http%2F1.1&fp=chrome#%F0%9F%87%AC%F0%9F%87%A7%20United%20Kingdom%20%7C%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].config.ws.path, '/media.playback.v1.SessionGateway');
 });
 
 test('VLESS XHTTP accepts downloadSettings', () => {
@@ -35,6 +53,13 @@ test('VLESS Reality TCP accepts packetEncoding=xudp', () => {
   assert.equal(parsed.report.supported, 1);
   assert.equal(parsed.nodes[0].capability, 'supported');
   assert.equal(parsed.nodes[0].config.extra.packetEncoding, undefined);
+});
+
+test('VLESS accepts non-UUID user identifiers', () => {
+  const raw = 'Vless://Fluffy_VPN-zKZUa4Ie@147.45.108.45:443?security=reality&type=tcp&sni=absolute-disaster.org&flow=xtls-rprx-vision&pbk=IuzAWh6UM62Txrnh_No9y5n6wmZecyR1ki8z5xor-0g&allowInsecure=1&fp=ios#%F0%9F%87%B3%F0%9F%87%B1%20The%20Netherlands%20%7C%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].config.uuid, 'fluffy_vpn-zkzua4ie');
 });
 
 test('VLESS canonical identity, original UUID, IPv6, Unicode name and WS round-trip', () => {
@@ -63,7 +88,7 @@ test('unsupported connection parameters are retained and never silently discarde
   assert.equal(parseVless(link().replace('security=tls', 'security=reality')).capability, 'invalid'); // pbk is required.
   assert.equal(parseVless(link().replace('type=tcp', 'type=grpc')).capability, 'supported');
   assert.equal(parseVless(link('example.com', '&allowInsecure=1')).capability, 'supported');
-  for (const raw of [link().replace(UUID, 'bad'), link().replace(':443', ':70000'), link() + '%XX', link().replace('#', '&sni=a&sni=b#')]) {
+  for (const raw of [link().replace(UUID, ''), link().replace(':443', ':70000'), link() + '%XX', link().replace('#', '&sni=a&sni=b#')]) {
     assert.throws(() => parseVless(raw), { code: 'invalid_link' });
   }
 });

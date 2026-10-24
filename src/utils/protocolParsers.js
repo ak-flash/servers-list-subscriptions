@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const net = require('net');
+const { TextDecoder } = require('util');
 const { domainToASCII } = require('url');
 const { SubscriptionError } = require('./subscriptionErrors');
 
@@ -111,6 +112,38 @@ function parseHysteria2(raw) {
   return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : 'Ссылка содержит неподдерживаемые параметры Hysteria2.' };
 }
 
+function parseVmess(raw) {
+  if (typeof raw !== 'string' || raw.length > 16384 || /[\s\u0000-\u001f\u007f]/u.test(raw)) throw new SubscriptionError('invalid_link');
+  let data;
+  try {
+    const match = /^vmess:\/\/(.+)$/i.exec(raw);
+    if (!match) throw new Error();
+    data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.from(match[1].split('#')[0], 'base64')));
+  } catch {
+    throw new SubscriptionError('invalid_link');
+  }
+  const host = normalizeHost(String(data.add || ''));
+  const port = Number(data.port);
+  const uuid = String(data.id || '').toLowerCase();
+  const name = typeof data.ps === 'string' ? data.ps : '';
+  if (!Number.isInteger(port) || port < 1 || port > 65535 || !UUID.test(uuid) || name.length > 256 || /[\u0000-\u001f\u007f]/u.test(name)) {
+    throw new SubscriptionError('invalid_link');
+  }
+  const network = String(data.net || 'tcp');
+  const security = String(data.tls || 'none');
+  const type = String(data.type || 'none');
+  const alpn = String(data.alpn || '').split(',').filter(Boolean);
+  const path = String(data.path || '');
+  if (!['tcp', 'ws'].includes(network) || !['tls', 'none', ''].includes(security) || type !== 'none' || alpn.length && security === 'none') {
+    return { config: null, name: name || `${host}:${port}`, fingerprint: fingerprint(data), capability: 'unsupported', error: 'Поддерживаются VMess TCP/WebSocket с TLS или без TLS.' };
+  }
+  if (network === 'ws' && (!path.startsWith('/') || /[\r\n]/.test(String(data.host || '')))) {
+    return { config: null, name: name || `${host}:${port}`, fingerprint: fingerprint(data), capability: 'unsupported', error: 'Неподдерживаемые параметры WebSocket.' };
+  }
+  const config = { schema_version: 1, protocol: 'vmess', host, port, uuid, security: security || 'none', network, sni: String(data.sni || host), alpn, fingerprint: String(data.fp || ''), hostHeader: String(data.host || ''), path: path || '/', alterId: Number.parseInt(data.aid, 10) || 0, scy: String(data.scy || 'auto') };
+  return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: 'supported', error: null };
+}
+
 function parseVless(raw) {
   if (typeof raw !== 'string' || raw.length > 16384 || /[\s\u0000-\u001f\u007f]/u.test(raw)) throw new SubscriptionError('invalid_link');
   let url;
@@ -126,7 +159,7 @@ function parseVless(raw) {
   } catch {
     throw new SubscriptionError('invalid_link');
   }
-  if (url.protocol !== 'vless:' || url.password || !UUID.test(uuid) || !url.port || !['', '/'].includes(url.pathname)) {
+  if (url.protocol !== 'vless:' || url.password || !uuid || uuid.length > 256 || /[\u0000-\u001f\u007f]/u.test(uuid) || !url.port || !['', '/'].includes(url.pathname)) {
     throw new SubscriptionError('invalid_link');
   }
   const host = normalizeHost(url.hostname);
@@ -151,9 +184,9 @@ function parseVless(raw) {
      alpn, fingerprint: params.fp || (security === 'reality' ? 'chrome' : ''), flow: params.flow || '', packetEncoding: params.packetEncoding || '',
      allowInsecure: ['1', 'true'].includes(params.allowInsecure),
     headerType: params.headerType || 'none',
-    ws: network === 'ws' ? { host: params.host || host, path: params.path || '/' } : null,
-    httpupgrade: network === 'httpupgrade' ? { host: params.host || host, path: params.path || '/' } : null,
-    xhttp: network === 'xhttp' ? { host: params.host || host, path: params.path || '/', mode: params.mode || 'auto', extra: null } : null,
+     ws: network === 'ws' ? { host: params.host || host, path: params.path ? (params.path.startsWith('/') ? params.path : `/${params.path}`) : '/' } : null,
+     httpupgrade: network === 'httpupgrade' ? { host: params.host || host, path: params.path || '/' } : null,
+     xhttp: network === 'xhttp' ? { host: params.host || host, path: params.path || '/', mode: params.mode || 'auto', extra: null } : null,
     grpc: network === 'grpc' ? { serviceName: params.serviceName || '', mode: params.mode || 'gun' } : null,
      extra: Object.fromEntries(Object.entries(params).filter(([key]) =>
        (!KNOWN_PARAMS.has(key) && !(security === 'reality' && REALITY_PARAMS.has(key))) ||
@@ -236,4 +269,4 @@ function effectiveFingerprint(link) {
   return fingerprint({ raw: link.split('#')[0] });
 }
 
-module.exports = { parseVless, parseHysteria2, serializeVless, fingerprint, effectiveFingerprint, normalizeHost, canonicalJson, vlessCapability, UUID };
+module.exports = { parseVless, parseHysteria2, parseVmess, serializeVless, fingerprint, effectiveFingerprint, normalizeHost, canonicalJson, vlessCapability, UUID };

@@ -1,5 +1,5 @@
 const { TextDecoder } = require('util');
-const { parseVless, parseHysteria2, fingerprint } = require('./protocolParsers');
+const { parseVless, parseHysteria2, parseVmess, fingerprint } = require('./protocolParsers');
 const { SubscriptionError, safeError } = require('./subscriptionErrors');
 
 function decodeBase64Strict(text) {
@@ -19,15 +19,17 @@ function parseSubscriptionNode(rawLink) {
   try {
     const isVless = /^vless:\/\//i.test(rawLink);
     const isHysteria2 = /^hysteria2:\/\//i.test(rawLink);
-    if (!isVless && !isHysteria2) throw new SubscriptionError('unsupported');
-    const parsed = isVless ? parseVless(rawLink) : parseHysteria2(rawLink);
+    const isVmess = /^vmess:\/\//i.test(rawLink);
+    if (!isVless && !isHysteria2 && !isVmess) throw new SubscriptionError('unsupported');
+    const parsed = isVless ? parseVless(rawLink) : isHysteria2 ? parseHysteria2(rawLink) : parseVmess(rawLink);
+    if (!parsed.config) return { ...parsed, rawLink, protocol: isVmess ? 'vmess' : parsed.protocol, host: null, port: null };
     return { ...parsed, rawLink, protocol: parsed.config.protocol, host: parsed.config.host, port: parsed.config.port };
   } catch (error) {
     const unsupported = error.code === 'unsupported';
     return {
       rawLink: rawLink.slice(0, 16384), config: null, fingerprint: fingerprint({ raw: rawLink }),
       name: unsupported ? 'Неподдерживаемая ссылка' : 'Некорректная ссылка',
-      protocol: unsupported ? 'other' : (/^hysteria2:\/\//i.test(rawLink) ? 'hysteria2' : 'vless'), host: null, port: null,
+      protocol: unsupported ? 'other' : (/^hysteria2:\/\//i.test(rawLink) ? 'hysteria2' : /^vmess:\/\//i.test(rawLink) ? 'vmess' : 'vless'), host: null, port: null,
       capability: unsupported ? 'unsupported' : 'invalid', error: safeError(error, 'invalid_link').message
     };
   }
