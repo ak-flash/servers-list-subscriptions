@@ -10,6 +10,7 @@ let dbPath;
 let lock;
 let persisted;
 let transactionDepth = 0;
+const registeredFunctions = [];
 
 function acquireLock() {
   const lockPath = `${dbPath}.lock`;
@@ -70,6 +71,7 @@ function backup() {
 
 async function initDb(options = {}) {
   if (db) throw new Error('Database is already initialized');
+  if (options.functions) registerFunctions(options.functions);
   SQL = SQL || await initSqlJs();
   dbPath = options.filePath || process.env.DB_PATH || path.join(__dirname, '../../data/subscription.db');
   if (dbPath !== ':memory:') {
@@ -82,7 +84,7 @@ async function initDb(options = {}) {
     persisted = existing ? fs.readFileSync(dbPath) : null;
     // Never silently replace a damaged database with an empty catalog.
     if (existing && !persisted.length) throw new Error('Файл БД пуст. Восстановите резервную копию из data/backups.');
-    db = new SQL.Database(persisted || undefined);
+    db = createDatabase(persisted || undefined);
     const integrity = db.exec('PRAGMA quick_check');
     if (integrity[0]?.values[0]?.[0] !== 'ok') throw new Error('Ошибка проверки целостности БД');
     backup();
@@ -102,9 +104,20 @@ function getDb() {
   return db;
 }
 
+function createDatabase(data) {
+  const database = new SQL.Database(data);
+  for (const { name, fn } of registeredFunctions) database.create_function(name, fn);
+  return database;
+}
+
+function applyRegisteredFunctions() {
+  if (!db) return;
+  for (const { name, fn } of registeredFunctions) db.create_function(name, fn);
+}
+
 function restorePersisted() {
   db.close();
-  db = new SQL.Database(persisted || undefined);
+  db = createDatabase(persisted || undefined);
   db.run('PRAGMA foreign_keys = ON');
 }
 
@@ -115,6 +128,7 @@ function saveDb() {
     const data = Buffer.from(db.export());
     // sql.js export reopens the connection and resets connection-local pragmas.
     db.run('PRAGMA foreign_keys = ON');
+    applyRegisteredFunctions();
     if (dbPath !== ':memory:') {
       backup();
       temporary = `${dbPath}.${crypto.randomUUID()}.tmp`;
@@ -156,6 +170,14 @@ function run(sql, params = []) {
   saveDb();
 }
 
+function registerFunctions(functions = {}) {
+  for (const [name, fn] of Object.entries(functions)) {
+    const existing = registeredFunctions.find(entry => entry.name === name);
+    if (existing) existing.fn = fn;
+    else registeredFunctions.push({ name, fn });
+  }
+}
+
 function transaction(callback) {
   if (callback.constructor.name === 'AsyncFunction') throw new Error('Database transactions must be synchronous');
   const level = transactionDepth++;
@@ -184,4 +206,4 @@ function closeDb() {
   releaseLock();
 }
 
-module.exports = { initDb, getDb, saveDb, closeDb, all, get, run, transaction };
+module.exports = { initDb, getDb, saveDb, closeDb, all, get, run, transaction, registerFunctions };

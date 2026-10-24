@@ -104,6 +104,46 @@ test('backup retention removes backups older than the configured count', async t
   assert.deepEqual(backups, ['subscription_2020-01-03.db', `subscription_${new Date().toISOString().slice(0, 10)}.db`].sort());
 });
 
+test('dashboard pagination filters servers and users on the server side', async t => {
+  const parent = path.join(os.tmpdir(), 'opencode');
+  fs.mkdirSync(parent, { recursive: true });
+  const directory = fs.mkdtempSync(path.join(parent, 'subscriptions-pagination-'));
+  const filePath = path.join(directory, 'test.db');
+  t.after(() => { db.closeDb(); fs.rmSync(directory, { recursive: true, force: true }); });
+  await db.initDb({ filePath });
+  for (let index = 0; index < 25; index++) {
+    db.run('INSERT INTO servers (id, name, link, is_active, created_at) VALUES (?, ?, ?, ?, ?)', [
+      `srv-${index}`, `Server ${index}`, `vless://00000000-0000-4000-8000-000000000001@node-${index}.example.com:443#server-${index}`,
+      index % 5 === 0 ? 0 : 1, `2026-01-${String(index + 1).padStart(2, '0')} 00:00:00`
+    ]);
+    db.run('INSERT INTO users (id, username, is_active, created_at) VALUES (?, ?, ?, ?)',
+      [`user-${index}`, `client-${index}`, index % 4 === 0 ? 0 : 1, `2026-02-${String(index + 1).padStart(2, '0')} 00:00:00`]);
+  }
+  db.run('INSERT INTO servers (id, name, link, is_active, created_at) VALUES (?, ?, ?, 1, ?)',
+    ['srv-cyrillic', 'Московский сервер', 'vless://00000000-0000-4000-8000-000000000001@moscow.example.com:443#moscow', '2026-03-01 00:00:00']);
+
+  const firstPage = db.getPaginatedServers({ page: 1, perPage: 10 });
+  const thirdPage = db.getPaginatedServers({ page: 3, perPage: 10 });
+  assert.equal(firstPage.total, 26);
+  assert.equal(firstPage.rows.length, 10);
+  assert.equal(thirdPage.rows.length, 6);
+  assert.equal(firstPage.rows[0].id, 'srv-cyrillic');
+  const cyrillicSearch = db.getPaginatedServers({ search: 'МОСКОВСКИЙ', perPage: 10 });
+  assert.deepEqual(cyrillicSearch.rows.map(server => server.id), ['srv-cyrillic']);
+  const activeOnly = db.getPaginatedServers({ status: 'active', perPage: 10 });
+  assert.equal(activeOnly.total, 21);
+  const searchedUsers = db.getPaginatedUsers({ search: 'CLIENT-1', perPage: 10 });
+  assert.equal(searchedUsers.total, 11);
+  assert.deepEqual(searchedUsers.rows.map(user => user.username), ['client-19', 'client-18', 'client-17', 'client-16', 'client-15', 'client-14', 'client-13', 'client-12', 'client-11', 'client-10']);
+  assert.equal(db.getPaginatedUsers({ search: 'CLIENT-1', page: 2, perPage: 10 }).rows[0].username, 'client-1');
+  const inactiveUsers = db.getPaginatedUsers({ status: 'inactive', perPage: 10 });
+  assert.equal(inactiveUsers.total, 7);
+  assert.ok(inactiveUsers.rows.every(user => user.is_active === 0));
+  const injectionPayload = "' OR 1=1 --";
+  assert.equal(db.getPaginatedUsers({ search: injectionPayload }).total, 0);
+  assert.equal(db.getPaginatedServers({ search: injectionPayload }).total, 0);
+});
+
 test('legacy host-based schema migrates without losing IDs, disabled state or assignments', async t => {
   const parent = path.join(os.tmpdir(), 'opencode');
   fs.mkdirSync(parent, { recursive: true });

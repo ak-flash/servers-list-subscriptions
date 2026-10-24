@@ -71,14 +71,20 @@ function saveAssignments(userId, input) {
 
 function deleteUser(userId) {
   db.transaction(() => {
-    for (const table of ['user_servers', 'subscription_requests', 'user_traffic', 'traffic_snapshots']) db.run(`DELETE FROM ${table} WHERE user_id = ?`, [userId]);
+    db.run('DELETE FROM user_servers WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM subscription_requests WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM user_traffic WHERE user_id = ?', [userId]);
+    db.run('DELETE FROM traffic_snapshots WHERE user_id = ?', [userId]);
     db.run('DELETE FROM users WHERE id = ?', [userId]);
   });
 }
 
 function deleteServer(serverId) {
   db.transaction(() => {
-    for (const table of ['user_servers', 'user_traffic', 'traffic_snapshots', 'server_traffic']) db.run(`DELETE FROM ${table} WHERE server_id = ?`, [serverId]);
+    db.run('DELETE FROM user_servers WHERE server_id = ?', [serverId]);
+    db.run('DELETE FROM user_traffic WHERE server_id = ?', [serverId]);
+    db.run('DELETE FROM traffic_snapshots WHERE server_id = ?', [serverId]);
+    db.run('DELETE FROM server_traffic WHERE server_id = ?', [serverId]);
     db.run('DELETE FROM servers WHERE id = ?', [serverId]);
   });
 }

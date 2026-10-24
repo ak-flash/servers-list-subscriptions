@@ -24,12 +24,25 @@
             </div>
         </section>
         <section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="Сводка">
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Серверы</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= servers.filter(server => server.is_active).length %></p><p class="mt-1 text-xs text-slate-500"><%= servers.length %> всего</p></div>
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Пользователи</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= users.filter(user => user.is_active).length %></p><p class="mt-1 text-xs text-slate-500"><%= users.length %> всего</p></div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Серверы</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= totals.servers.active || 0 %></p><p class="mt-1 text-xs text-slate-500"><%= totals.servers.total %> всего</p></div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Пользователи</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= totals.users.active || 0 %></p><p class="mt-1 text-xs text-slate-500"><%= totals.users.total %> всего</p></div>
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Источники подписок</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= stats.totalSources %></p><a href="/admin/subscription-sources" class="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline">Открыть каталог</a></div>
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Рабочие узлы</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= stats.healthyNodes %></p><p class="mt-1 text-xs text-slate-500">работают через VPN</p></div>
         </section>
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6 w-full">
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6 w-full" data-dashboard-collections>
+            <div class="border-b border-slate-200" role="tablist" aria-label="Список управления">
+                <div class="flex flex-wrap gap-2">
+                    <a id="servers-tab" href="<%= collectionUrl('servers', { tab: 'servers' }) %>" class="tab-button <%= activeTab === 'servers' ? 'inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 border-blue-700 px-3 py-2 text-sm font-semibold text-blue-700' : 'inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 border-transparent px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700' %>" role="tab" aria-selected="<%= activeTab === 'servers' ? 'true' : 'false' %>" aria-controls="servers-panel" data-tab-button="servers">
+                        Ручные серверы
+                        <span class="<%= activeTab === 'servers' ? 'ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700' : 'ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600' %>"><%= totals.servers.total %></span>
+                    </a>
+                    <a id="users-tab" href="<%= collectionUrl('users', { tab: 'users' }) %>" class="tab-button <%= activeTab === 'users' ? 'inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 border-blue-700 px-3 py-2 text-sm font-semibold text-blue-700' : 'inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 border-transparent px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700' %>" role="tab" aria-selected="<%= activeTab === 'users' ? 'true' : 'false' %>" aria-controls="users-panel" data-tab-button="users">
+                        Пользователи
+                        <span class="<%= activeTab === 'users' ? 'ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700' : 'ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600' %>"><%= totals.users.total %></span>
+                    </a>
+                </div>
+            </div>
+            <div id="servers-panel" role="tabpanel" aria-labelledby="servers-tab" data-tab-panel="servers" class="pt-4" <%= activeTab === 'servers' ? '' : 'hidden' %>>
             <div class="flex flex-col gap-4 mb-4 pb-4 border-b sm:flex-row sm:items-center sm:justify-between">
                 <div><h2 class="text-lg font-semibold text-gray-800">Ручные серверы</h2><p class="mt-1 text-sm text-slate-500">Проверьте доступность и управляйте подключениями.</p></div>
                 <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
@@ -37,12 +50,22 @@
                     <a href="/admin/servers/new" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50">Добавить</a>
                 </div>
             </div>
-            <div class="mb-4 flex flex-col gap-3 sm:flex-row">
-                <label class="relative flex-1"><span class="sr-only">Поиск серверов</span><input id="serverSearch" type="search" placeholder="Поиск по названию, хосту или протоколу" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
-                <select id="serverFilter" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><option value="all">Все серверы</option><option value="active">Только активные</option><option value="inactive">Только отключённые</option></select>
-            </div>
+            <form method="GET" action="/admin" class="mb-4 flex flex-col gap-3 sm:flex-row">
+                <input type="hidden" name="tab" value="servers">
+                <% if (collections.users.search) { %><input type="hidden" name="userSearch" value="<%= collections.users.search %>"><% } %>
+                <% if (collections.users.status !== 'all') { %><input type="hidden" name="userStatus" value="<%= collections.users.status %>"><% } %>
+                <% if (collections.users.page > 1) { %><input type="hidden" name="userPage" value="<%= collections.users.page %>"><% } %>
+                <label class="relative flex-1"><span class="sr-only">Поиск серверов</span><input id="serverSearch" name="serverSearch" type="search" value="<%= collections.servers.search %>" placeholder="Поиск по названию, хосту или протоколу" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
+                <select id="serverStatus" name="serverStatus" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" onchange="this.form.requestSubmit()">
+                    <option value="all" <%= collections.servers.status === 'all' ? 'selected' : '' %>>Все серверы</option>
+                    <option value="active" <%= collections.servers.status === 'active' ? 'selected' : '' %>>Только активные</option>
+                    <option value="inactive" <%= collections.servers.status === 'inactive' ? 'selected' : '' %>>Только отключённые</option>
+                </select>
+                <button type="submit" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">Найти</button>
+                <% if (collections.servers.search || collections.servers.status !== 'all') { %><a href="<%= collectionUrl('servers', { serverSearch: '', serverStatus: 'all', serverPage: 1 }) %>" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50">Сбросить</a><% } %>
+            </form>
             <% if (servers.length===0) { %>
-                <p class="text-gray-500 text-center py-8">Нет серверов. Добавьте первый сервер.</p>
+                <p class="text-gray-500 text-center py-8"><%= totals.servers.total ? 'Серверы по заданным условиям не найдены.' : 'Нет серверов. Добавьте первый сервер.' %></p>
                 <% } else { %>
                     <table class="w-full hidden md:table">
                         <thead>
@@ -57,7 +80,7 @@
                         </thead>
                         <tbody>
                             <% servers.forEach(function(server) { %>
-                                <tr class="border-b last:border-0 w-full" data-server-item data-server-search="<%= `${server.name} ${server.host} ${server.protocol || ''}`.toLowerCase() %>" data-server-active="<%= server.is_active ? 'true' : 'false' %>">
+                                <tr class="border-b last:border-0 w-full" data-server-item data-server-item-id="<%= server.id %>" data-server-active="<%= server.is_active ? 'true' : 'false' %>">
                                     <td class="py-3 px-2 font-semibold">
                                         <span
                                             class="inline-block w-2 h-2 rounded-full mr-2 <%= server.is_active ? 'bg-green-500' : 'bg-red-500' %>"></span>
@@ -105,7 +128,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                     </table>
                     <div class="md:hidden space-y-3">
                         <% servers.forEach(function(server) { %>
-                            <div class="border border-gray-200 rounded-lg p-4" data-server-item data-server-search="<%= `${server.name} ${server.host} ${server.protocol || ''}`.toLowerCase() %>" data-server-active="<%= server.is_active ? 'true' : 'false' %>">
+                            <div class="border border-gray-200 rounded-lg p-4" data-server-item data-server-item-id="<%= server.id %>" data-server-active="<%= server.is_active ? 'true' : 'false' %>">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="flex items-center gap-2">
                                         <span
@@ -143,9 +166,31 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                             <% }); %>
                     </div>
                     <% } %>
-        </div>
+            <% if (collections.servers.total > 0) { %><nav class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Пагинация серверов" data-pagination="servers">
+                <p class="text-sm text-slate-500" data-pagination-info="servers" aria-live="polite">Показаны <%= collections.servers.total ? (collections.servers.page - 1) * collections.servers.perPage + 1 : 0 %>–<%= Math.min(collections.servers.page * collections.servers.perPage, collections.servers.total) %> из <%= collections.servers.total %> серверов</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <% if (collections.servers.page > 1) { %>
+                        <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page - 1 }) %>">Назад</a>
+                    <% } else { %>
+                        <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                    <% } %>
+                    <div class="flex flex-wrap gap-1" data-page-numbers="servers">
+                        <% paginationPages(collections.servers.page, collections.servers.totalPages).forEach(page => { %>
+                            <% if (typeof page === 'number') { %>
+                                <a class="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-lg px-3 py-2 text-sm font-medium <%= page === collections.servers.page ? 'bg-blue-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50' %>" href="<%= collectionUrl('servers', { serverPage: page }) %>" aria-label="<%= page === collections.servers.page ? `Текущая страница ${page}` : `Перейти на страницу ${page}` %>" <%= page === collections.servers.page ? 'aria-current="page"' : '' %>><%= page %></a>
+                            <% } else { %><span class="inline-flex min-h-[38px] items-center px-1 text-sm text-slate-400" aria-hidden="true">…</span><% } %>
+                        <% }); %>
+                    </div>
+                    <% if (collections.servers.page < collections.servers.totalPages) { %>
+                        <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page + 1 }) %>">Вперёд</a>
+                    <% } else { %>
+                        <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                    <% } %>
+                </div>
+            </nav><% } %>
+            </div>
 
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 w-full mb-6">
+            <div id="users-panel" role="tabpanel" aria-labelledby="users-tab" data-tab-panel="users" class="pt-4" <%= activeTab === 'users' ? '' : 'hidden' %>>
             <div class="flex flex-col gap-4 mb-4 pb-4 border-b sm:flex-row sm:items-center sm:justify-between">
                 <div><h2 class="text-lg font-semibold text-gray-800">Пользователи</h2><p class="mt-1 text-sm text-slate-500">Управляйте доступом и ссылками на подписки.</p></div>
                 <div class="flex flex-wrap gap-2">
@@ -153,12 +198,22 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                     <a href="/admin/users/new" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800">Добавить</a>
                 </div>
             </div>
-            <div class="mb-4 flex flex-col gap-3 sm:flex-row">
-                <label class="relative flex-1"><span class="sr-only">Поиск пользователей</span><input id="userSearch" type="search" placeholder="Поиск по имени пользователя или ID" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
-                <select id="userFilter" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><option value="all">Все пользователи</option><option value="active">Только активные</option><option value="inactive">Только отключённые</option></select>
-            </div>
+            <form method="GET" action="/admin" class="mb-4 flex flex-col gap-3 sm:flex-row">
+                <input type="hidden" name="tab" value="users">
+                <% if (collections.servers.search) { %><input type="hidden" name="serverSearch" value="<%= collections.servers.search %>"><% } %>
+                <% if (collections.servers.status !== 'all') { %><input type="hidden" name="serverStatus" value="<%= collections.servers.status %>"><% } %>
+                <% if (collections.servers.page > 1) { %><input type="hidden" name="serverPage" value="<%= collections.servers.page %>"><% } %>
+                <label class="relative flex-1"><span class="sr-only">Поиск пользователей</span><input id="userSearch" name="userSearch" type="search" value="<%= collections.users.search %>" placeholder="Поиск по имени пользователя или ID" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
+                <select id="userStatus" name="userStatus" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" onchange="this.form.requestSubmit()">
+                    <option value="all" <%= collections.users.status === 'all' ? 'selected' : '' %>>Все пользователи</option>
+                    <option value="active" <%= collections.users.status === 'active' ? 'selected' : '' %>>Только активные</option>
+                    <option value="inactive" <%= collections.users.status === 'inactive' ? 'selected' : '' %>>Только отключённые</option>
+                </select>
+                <button type="submit" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">Найти</button>
+                <% if (collections.users.search || collections.users.status !== 'all') { %><a href="<%= collectionUrl('users', { userSearch: '', userStatus: 'all', userPage: 1 }) %>" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50">Сбросить</a><% } %>
+            </form>
             <% if (users.length===0) { %>
-                <p class="text-gray-500 text-center py-8">Нет пользователей. Добавьте первого пользователя.</p>
+                <p class="text-gray-500 text-center py-8"><%= totals.users.total ? 'Пользователи по заданным условиям не найдены.' : 'Нет пользователей. Добавьте первого пользователя.' %></p>
                 <% } else { %>
                     <table class="w-full hidden md:table [&_th]:px-3 [&_td]:px-3">
                         <thead>
@@ -173,7 +228,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                         </thead>
                         <tbody>
                             <% users.forEach(function(user) { %>
-                                <tr class="border-b last:border-0" data-user-item data-user-search="<%= `${user.username} ${user.id}`.toLowerCase() %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
+                                <tr class="border-b last:border-0" data-user-item data-user-item-id="<%= user.id %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
                                     <td class="py-3 align-top">
                                         <div class="font-medium"><%= user.username %></div>
                                         <div class="mt-2 flex max-w-[19rem] flex-wrap gap-1" aria-label="Ручные серверы">
@@ -231,7 +286,7 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                     </table>
                     <div class="md:hidden space-y-3">
                         <% users.forEach(function(user) { %>
-                            <div class="border border-gray-200 rounded-lg p-4" data-user-item data-user-search="<%= `${user.username} ${user.id}`.toLowerCase() %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
+                            <div class="border border-gray-200 rounded-lg p-4" data-user-item data-user-item-id="<%= user.id %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="font-medium text-gray-800">
                                         <%= user.username %>
@@ -281,6 +336,29 @@ class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold t
                             <% }); %>
                     </div>
                     <% } %>
+            <% if (collections.users.total > 0) { %><nav class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Пагинация пользователей" data-pagination="users">
+                <p class="text-sm text-slate-500" data-pagination-info="users" aria-live="polite">Показаны <%= collections.users.total ? (collections.users.page - 1) * collections.users.perPage + 1 : 0 %>–<%= Math.min(collections.users.page * collections.users.perPage, collections.users.total) %> из <%= collections.users.total %> пользователей</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <% if (collections.users.page > 1) { %>
+                        <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page - 1 }) %>">Назад</a>
+                    <% } else { %>
+                        <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                    <% } %>
+                    <div class="flex flex-wrap gap-1" data-page-numbers="users">
+                        <% paginationPages(collections.users.page, collections.users.totalPages).forEach(page => { %>
+                            <% if (typeof page === 'number') { %>
+                                <a class="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-lg px-3 py-2 text-sm font-medium <%= page === collections.users.page ? 'bg-blue-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50' %>" href="<%= collectionUrl('users', { userPage: page }) %>" aria-label="<%= page === collections.users.page ? `Текущая страница ${page}` : `Перейти на страницу ${page}` %>" <%= page === collections.users.page ? 'aria-current="page"' : '' %>><%= page %></a>
+                            <% } else { %><span class="inline-flex min-h-[38px] items-center px-1 text-sm text-slate-400" aria-hidden="true">…</span><% } %>
+                        <% }); %>
+                    </div>
+                    <% if (collections.users.page < collections.users.totalPages) { %>
+                        <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page + 1 }) %>">Вперёд</a>
+                    <% } else { %>
+                        <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                    <% } %>
+                </div>
+            </nav><% } %>
+            </div>
         </div>
     </main>
 
@@ -413,47 +491,7 @@ if (result.status === 'healthy') {
         }
     </script>
 
-    <script>
-        function setupCollectionFilters(searchId, filterId, itemSelector, emptyText) {
-            const search = document.getElementById(searchId);
-            const filter = document.getElementById(filterId);
-            const items = [...document.querySelectorAll(itemSelector)];
-            if (!search || !filter || !items.length) return;
 
-            const empty = document.createElement('p');
-            empty.className = 'hidden mb-4 rounded-lg bg-slate-50 py-4 text-center text-sm text-slate-500';
-            empty.textContent = emptyText;
-            search.parentElement.parentElement.after(empty);
-
-            const dataPrefix = itemSelector.includes('server') ? 'server' : 'user';
-            const apply = () => {
-                const query = search.value.trim().toLowerCase();
-                const state = filter.value;
-                let visible = 0;
-                items.forEach(item => {
-                    const matchesQuery = !query || item.dataset[`${dataPrefix}Search`].includes(query);
-                    const matchesState = state === 'all' || item.dataset[`${dataPrefix}Active`] === (state === 'active' ? 'true' : 'false');
-                    item.classList.toggle('hidden', !matchesQuery || !matchesState);
-                    if (matchesQuery && matchesState) visible += 1;
-                });
-                empty.classList.toggle('hidden', visible > 0);
-            };
-
-            search.addEventListener('input', apply);
-            filter.addEventListener('change', apply);
-        }
-
-        setupCollectionFilters('serverSearch', 'serverFilter', '[data-server-item]', 'Серверы по заданным условиям не найдены.');
-        setupCollectionFilters('userSearch', 'userFilter', '[data-user-item]', 'Пользователи по заданным условиям не найдены.');
-
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-    </script>
 </body>
 
 </html>

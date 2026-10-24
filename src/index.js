@@ -4,7 +4,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
-const { initDb, getDb, saveDb, closeDb, transaction, getAllUsersTraffic, resetAllTraffic, getThreeXuiClientTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
+const { initDb, getDb, saveDb, closeDb, transaction, getPaginatedServers, getPaginatedUsers, getAllUsersTraffic, resetAllTraffic, getThreeXuiClientsTraffic, getThreeXuiInboundTraffic, getThreeXuiInboundTrafficTotals, getThreeXuiInboundMonthlyTraffic, getThreeXuiInboundClientTraffic, getThreeXuiUsersTraffic, getThreeXuiClientMonthlyTraffic } = require('./db/database');
 const { extractHostPortFromLink, parseLinkAndExtractName } = require('./utils/linkBuilder');
 const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
@@ -203,12 +203,26 @@ app.post('/admin/password', requireAuth, requireCsrf, (req, res) => {
 });
 
 app.get('/admin', requireAuth, (req, res) => {
-    const servers = dbAll('SELECT * FROM servers ORDER BY created_at DESC');
-    const serversWithInfo = servers.map(server => {
-        const info = extractHostPortFromLink(server.link);
-        return { ...server, ...info };
-    });
-    const users = dbAll('SELECT * FROM users ORDER BY created_at DESC');
+    const pageSize = 10;
+    const activeTab = req.query.tab === 'users' ? 'users' : 'servers';
+    const pageNumber = value => /^\d+$/.test(String(value || '')) ? Number(value) : 1;
+    const collection = {
+        servers: {
+            search: typeof req.query.serverSearch === 'string' ? req.query.serverSearch.trim() : '',
+            status: ['active', 'inactive'].includes(req.query.serverStatus) ? req.query.serverStatus : 'all',
+            page: pageNumber(req.query.serverPage)
+        },
+        users: {
+            search: typeof req.query.userSearch === 'string' ? req.query.userSearch.trim() : '',
+            status: ['active', 'inactive'].includes(req.query.userStatus) ? req.query.userStatus : 'all',
+            page: pageNumber(req.query.userPage)
+        }
+    };
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const serverPage = getPaginatedServers({ search: collection.servers.search, status: collection.servers.status, page: collection.servers.page, perPage: pageSize });
+    const userPage = getPaginatedUsers({ search: collection.users.search, status: collection.users.status, page: collection.users.page, perPage: pageSize, month: currentMonth });
+    const serverTotals = dbGet(`SELECT COUNT(*) AS total, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active FROM servers`) || { total: 0, active: 0 };
+    const userTotals = dbGet(`SELECT COUNT(*) AS total, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active FROM users`) || { total: 0, active: 0 };
 
     const subscriptionSources = dbAll('SELECT * FROM subscription_sources ORDER BY name, id');
     let healthyNodes = 0;
@@ -218,62 +232,92 @@ app.get('/admin', requireAuth, (req, res) => {
         });
     });
 
+    const visibleUserIds = userPage.rows.map(user => user.id);
+    const userPlaceholders = visibleUserIds.map(() => '?').join(', ');
     const manualServersByUser = new Map();
-    dbAll(`
-        SELECT us.user_id, s.name
-        FROM user_servers us
-        JOIN servers s ON s.id = us.server_id
-        ORDER BY s.name, us.server_id
-    `).forEach(row => {
-        if (!manualServersByUser.has(row.user_id)) manualServersByUser.set(row.user_id, []);
-        manualServersByUser.get(row.user_id).push(row.name);
-    });
+    if (visibleUserIds.length) {
+        dbAll(`
+            SELECT us.user_id, s.name
+            FROM user_servers us
+            JOIN servers s ON s.id = us.server_id
+            WHERE us.user_id IN (${userPlaceholders})
+            ORDER BY s.name, us.server_id
+        `, visibleUserIds).forEach(row => {
+            if (!manualServersByUser.has(row.user_id)) manualServersByUser.set(row.user_id, []);
+            manualServersByUser.get(row.user_id).push(row.name);
+        });
+    }
     const subscriptionSourcesByUser = new Map();
-    dbAll(`
-        SELECT us.user_id, s.name
-        FROM user_subscription_sources us
-        JOIN subscription_sources s ON s.id = us.source_id
-        ORDER BY s.name, us.source_id
-    `).forEach(row => {
-        if (!subscriptionSourcesByUser.has(row.user_id)) subscriptionSourcesByUser.set(row.user_id, []);
-        subscriptionSourcesByUser.get(row.user_id).push(row.name);
-    });
+    if (visibleUserIds.length) {
+        dbAll(`
+            SELECT us.user_id, s.name
+            FROM user_subscription_sources us
+            JOIN subscription_sources s ON s.id = us.source_id
+            WHERE us.user_id IN (${userPlaceholders})
+            ORDER BY s.name, us.source_id
+        `, visibleUserIds).forEach(row => {
+            if (!subscriptionSourcesByUser.has(row.user_id)) subscriptionSourcesByUser.set(row.user_id, []);
+            subscriptionSourcesByUser.get(row.user_id).push(row.name);
+        });
+    }
 
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const monthlyPanelTrafficByEmail = new Map();
-    getThreeXuiClientMonthlyTraffic(currentMonth).forEach(traffic => {
-        const current = monthlyPanelTrafficByEmail.get(traffic.email) || { total_upload: 0, total_download: 0, total_traffic: 0 };
-        current.total_upload += traffic.up_bytes || 0;
-        current.total_download += traffic.down_bytes || 0;
-        current.total_traffic += traffic.total_bytes || 0;
-        monthlyPanelTrafficByEmail.set(traffic.email, current);
+    const serversWithInfo = serverPage.rows.map(server => {
+        const info = extractHostPortFromLink(server.link);
+        return { ...server, ...info };
     });
-
-    // Add traffic and assignments data to users
-    const usersWithTraffic = users.map(user => {
-        const panelTraffic = getThreeXuiClientTraffic(user.username);
-        const monthlyTraffic = monthlyPanelTrafficByEmail.get(user.username) || { total_upload: 0, total_download: 0, total_traffic: 0 };
-        const traffic = {
-            total_upload: panelTraffic.total_upload || 0,
-            total_download: panelTraffic.total_download || 0,
-            total_traffic: panelTraffic.total_traffic || 0
+    const usersWithTraffic = userPage.rows.map(user => ({
+        ...user,
+        formatted_upload: formatBytes(user.total_upload),
+        formatted_download: formatBytes(user.total_download),
+        formatted_total: formatBytes(user.total_traffic),
+        formatted_monthly: formatBytes(user.monthly_traffic),
+        manual_servers: manualServersByUser.get(user.id) || [],
+        subscription_sources: subscriptionSourcesByUser.get(user.id) || []
+    }));
+    const dashboardCollections = {
+        servers: { ...collection.servers, page: serverPage.page, total: serverPage.total, totalPages: serverPage.totalPages, perPage: serverPage.perPage },
+        users: { ...collection.users, page: userPage.page, total: userPage.total, totalPages: userPage.totalPages, perPage: userPage.perPage }
+    };
+    const collectionUrl = (targetTab, overrides = {}) => {
+        const values = {
+            tab: targetTab,
+            serverSearch: dashboardCollections.servers.search,
+            serverStatus: dashboardCollections.servers.status,
+            serverPage: dashboardCollections.servers.page,
+            userSearch: dashboardCollections.users.search,
+            userStatus: dashboardCollections.users.status,
+            userPage: dashboardCollections.users.page,
+            ...overrides
         };
-        return {
-            ...user,
-            total_upload: traffic.total_upload,
-            total_download: traffic.total_download,
-            total_traffic: traffic.total_traffic,
-            monthly_traffic: monthlyTraffic.total_traffic,
-            formatted_upload: formatBytes(traffic.total_upload),
-            formatted_download: formatBytes(traffic.total_download),
-            formatted_total: formatBytes(traffic.total_traffic),
-            formatted_monthly: formatBytes(monthlyTraffic.total_traffic),
-            manual_servers: manualServersByUser.get(user.id) || [],
-            subscription_sources: subscriptionSourcesByUser.get(user.id) || []
-        };
-    });
+        const params = new URLSearchParams();
+        if (values.serverSearch) params.set('serverSearch', values.serverSearch);
+        if (values.serverStatus && values.serverStatus !== 'all') params.set('serverStatus', values.serverStatus);
+        if (Number(values.serverPage) > 1) params.set('serverPage', values.serverPage);
+        if (values.userSearch) params.set('userSearch', values.userSearch);
+        if (values.userStatus && values.userStatus !== 'all') params.set('userStatus', values.userStatus);
+        if (Number(values.userPage) > 1) params.set('userPage', values.userPage);
+        params.set('tab', values.tab);
+        return `/admin?${params.toString()}`;
+    };
+    const paginationPages = (page, pageCount) => {
+        if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index + 1);
+        if (page <= 4) return [1, 2, 3, 4, 5, 'ellipsis-end', pageCount];
+        if (page >= pageCount - 3) return [1, 'ellipsis-start', pageCount - 4, pageCount - 3, pageCount - 2, pageCount - 1, pageCount];
+        return [1, 'ellipsis-start', page - 1, page, page + 1, 'ellipsis-end', pageCount];
+    };
 
-    res.render('dashboard', { servers: serversWithInfo, users: usersWithTraffic, username: req.session.username, appName: APP_NAME, stats: { totalSources: subscriptionSources.length, healthyNodes } });
+    res.render('dashboard', {
+        servers: serversWithInfo,
+        users: usersWithTraffic,
+        username: req.session.username,
+        appName: APP_NAME,
+        activeTab,
+        collections: dashboardCollections,
+        collectionUrl,
+        paginationPages,
+        totals: { servers: serverTotals, users: userTotals },
+        stats: { totalSources: subscriptionSources.length, healthyNodes }
+    });
 });
 
 app.get('/admin/servers/new', requireAuth, (req, res) => {

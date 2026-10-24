@@ -27,6 +27,12 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   const login = await post('/admin/login', { username: 'test-admin', password: 'test-password' });
   assert.equal(login.status, 302);
   const cookie = login.headers.get('set-cookie').split(';')[0];
+  const dashboard = await (await request('/admin', { headers: { cookie } })).text();
+  assert.ok(dashboard.includes('Ручные серверы'));
+  assert.ok(dashboard.includes('Пользователи'));
+  const usersDashboard = await (await request('/admin?tab=users', { headers: { cookie } })).text();
+  assert.ok(usersDashboard.includes('aria-selected="true"'));
+  assert.ok(usersDashboard.includes('Найти'));
   const form = await (await request('/admin/subscription-sources/new', { headers: { cookie } })).text();
   const csrf = /name="csrf-token" content="([a-f\d]+)"/.exec(form)[1];
   const csrfInput = /name="_csrf" value="([a-f\d]+)"/.exec(form)[1];

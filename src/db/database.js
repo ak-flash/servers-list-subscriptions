@@ -7,6 +7,16 @@ const db = {
   run: (...args) => getDb().run(...args)
 };
 
+function initDatabase(options = {}) {
+  return connection.initDb({
+    ...options,
+    functions: {
+      ...options.functions,
+      contains_ci: (value, query) => String(value || '').toLowerCase().includes(String(query || '').toLowerCase())
+    }
+  });
+}
+
 // Traffic management functions
 function getUserTraffic(userId, serverId = null) {
   let sql = `
@@ -95,6 +105,66 @@ function resetAllTraffic() {
   db.run('DELETE FROM server_traffic');
   db.run('DELETE FROM traffic_snapshots');
   saveDb();
+}
+
+function getPaginatedServers({ search = '', status = 'all', page = 1, perPage = 10 } = {}) {
+  const clauses = [];
+  const params = [];
+  const query = String(search || '').trim();
+  if (query) {
+    clauses.push('(contains_ci(name, ?) OR contains_ci(link, ?))');
+    params.push(query, query);
+  }
+  if (status === 'active' || status === 'inactive') {
+    clauses.push('is_active = ?');
+    params.push(status === 'active' ? 1 : 0);
+  }
+  const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
+  const total = connection.get(`SELECT COUNT(*) AS total FROM servers${where}`, params).total;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const currentPage = Math.min(Math.max(Number.parseInt(page, 10) || 1, 1), totalPages);
+  const rows = connection.all(`SELECT * FROM servers${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+    [...params, perPage, (currentPage - 1) * perPage]);
+  return { rows, total, page: currentPage, perPage, totalPages };
+}
+
+function getPaginatedUsers({ search = '', status = 'all', page = 1, perPage = 10, month = null } = {}) {
+  const clauses = [];
+  const params = [];
+  const query = String(search || '').trim();
+  if (query) {
+    clauses.push('(contains_ci(u.username, ?) OR contains_ci(u.id, ?))');
+    params.push(query, query);
+  }
+  if (status === 'active' || status === 'inactive') {
+    clauses.push('u.is_active = ?');
+    params.push(status === 'active' ? 1 : 0);
+  }
+  const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
+  const total = connection.get(`SELECT COUNT(*) AS total FROM users u${where}`, params).total;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const currentPage = Math.min(Math.max(Number.parseInt(page, 10) || 1, 1), totalPages);
+  const rows = connection.all(`SELECT u.*,
+      COALESCE(ct.total_upload, 0) AS total_upload,
+      COALESCE(ct.total_download, 0) AS total_download,
+      COALESCE(ct.total_traffic, 0) AS total_traffic,
+      COALESCE(mt.total_traffic, 0) AS monthly_traffic
+    FROM users u
+    LEFT JOIN (
+      SELECT email, SUM(up_bytes) AS total_upload, SUM(down_bytes) AS total_download, SUM(total_bytes) AS total_traffic
+      FROM threexui_client_traffic GROUP BY email
+    ) ct ON ct.email = u.username
+    LEFT JOIN (
+      SELECT m.email, SUM(m.total_bytes) AS total_traffic
+      FROM threexui_client_monthly_traffic m
+      JOIN threexui_panels p ON p.id = m.panel_id
+      WHERE p.is_active = 1 AND m.month = ?
+      GROUP BY m.email
+    ) mt ON mt.email = u.username
+    ${where}
+    ORDER BY u.created_at DESC, u.id DESC LIMIT ? OFFSET ?`,
+    [month, ...params, perPage, (currentPage - 1) * perPage]);
+  return { rows, total, page: currentPage, perPage, totalPages };
 }
 
 function getAllUsersTraffic(yearMonth = null) {
@@ -500,10 +570,13 @@ function getThreeXuiUsersTraffic() {
 
 module.exports = {
   ...connection,
+  initDb: initDatabase,
   getUserTraffic,
   updateUserTraffic,
   getTrafficSnapshots,
   createTrafficSnapshot,
+  getPaginatedServers,
+  getPaginatedUsers,
   getAllUsersTraffic,
   getUserServerUuid,
   getUserServersWithUuid,
