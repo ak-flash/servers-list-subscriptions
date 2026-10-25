@@ -547,14 +547,14 @@ function formatBytes(bytes) {
 }
 
 app.get('/admin/stats', requireAuth, (req, res) => {
-    const selectedMonth = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : null;
+    const selectedMonth = typeof req.query.month === 'string' && req.query.month.length === 7 && /^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.month) ? req.query.month : null;
 
     const totalUsers = dbGet('SELECT COUNT(*) as count FROM users')?.count || 0;
     const activeUsers = dbGet('SELECT COUNT(*) as count FROM users WHERE is_active = 1')?.count || 0;
 
-    const requestMonthFilter = selectedMonth ? " WHERE strftime('%Y-%m', requested_at) = ?" : '';
+    const requestMonthFilter = selectedMonth ? " WHERE strftime('%Y-%m', sr.requested_at) = ?" : '';
     const requestMonthParams = selectedMonth ? [selectedMonth] : [];
-    const totalRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests${requestMonthFilter}`, requestMonthParams)?.count || 0;
+    const totalRequests = dbGet(`SELECT COUNT(*) as count FROM subscription_requests sr${requestMonthFilter}`, requestMonthParams)?.count || 0;
     const todayRequests = selectedMonth ? 0 : dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE date(requested_at) = date('now')`)?.count || 0;
     const weekRequests = selectedMonth ? 0 : dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-7 days')`)?.count || 0;
     const monthRequests = selectedMonth ? 0 : dbGet(`SELECT COUNT(*) as count FROM subscription_requests WHERE requested_at >= datetime('now', '-30 days')`)?.count || 0;
@@ -620,13 +620,39 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         formatted_total: formatBytes(client.total_bytes || 0)
     }));
 
+    const requestPerPage = 10;
+    const requestedPage = typeof req.query.requestPage === 'string' && !/\D/.test(req.query.requestPage) ? Number(req.query.requestPage) : 1;
+    const totalRequestPages = Math.max(1, Math.ceil(totalRequests / requestPerPage));
+    const requestPage = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, totalRequestPages) : 1;
+    const requestOffset = (requestPage - 1) * requestPerPage;
+    let requestPages;
+    if (totalRequestPages <= 7) requestPages = Array.from({ length: totalRequestPages }, (_, index) => index + 1);
+    else if (requestPage <= 4) requestPages = [1, 2, 3, 4, 5, null, totalRequestPages];
+    else if (requestPage >= totalRequestPages - 3) requestPages = [1, null, totalRequestPages - 4, totalRequestPages - 3, totalRequestPages - 2, totalRequestPages - 1, totalRequestPages];
+    else requestPages = [1, null, requestPage - 1, requestPage, requestPage + 1, null, totalRequestPages];
+    const requestPagination = {
+        page: requestPage,
+        perPage: requestPerPage,
+        total: totalRequests,
+        totalPages: totalRequestPages,
+        from: totalRequests ? requestOffset + 1 : 0,
+        to: Math.min(requestOffset + requestPerPage, totalRequests),
+        pages: requestPages
+    };
+    const requestPageUrl = page => {
+        const params = new URLSearchParams();
+        if (selectedMonth) params.set('month', selectedMonth);
+        params.set('requestPage', page);
+        return `/admin/stats?${params.toString()}#requests`;
+    };
     const lastRequests = dbAll(`
         SELECT sr.*, u.username
         FROM subscription_requests sr
         LEFT JOIN users u ON sr.user_id = u.id
-        ORDER BY sr.requested_at DESC
-        LIMIT 50
-    `);
+        ${requestMonthFilter}
+        ORDER BY sr.requested_at DESC, sr.id DESC
+        LIMIT ? OFFSET ?
+    `, [...requestMonthParams, requestPerPage, requestOffset]);
 
     const topUsers = dbAll(`
         SELECT u.username, u.id, COUNT(*) as request_count, MAX(sr.requested_at) as last_request
@@ -647,8 +673,10 @@ app.get('/admin/stats', requireAuth, (req, res) => {
 
     const availableMonths = [...new Set([
         ...dbAll(`SELECT DISTINCT strftime('%Y-%m', recorded_at) as month FROM server_traffic WHERE recorded_at IS NOT NULL`).map(row => row.month),
-        ...dbAll('SELECT DISTINCT month FROM threexui_inbound_monthly_traffic').map(row => row.month)
+        ...dbAll('SELECT DISTINCT month FROM threexui_inbound_monthly_traffic').map(row => row.month),
+        ...dbAll(`SELECT DISTINCT strftime('%Y-%m', requested_at) as month FROM subscription_requests WHERE requested_at IS NOT NULL`).map(row => row.month)
     ])].filter(Boolean).sort().reverse().slice(0, 24);
+    if (selectedMonth && !availableMonths.includes(selectedMonth)) availableMonths.push(selectedMonth);
 
     const trafficByUsername = new Map();
     const threeXuiUsersForTraffic = selectedMonth ? getThreeXuiClientMonthlyTraffic(selectedMonth) : threeXuiUsersTraffic;
@@ -710,6 +738,8 @@ app.get('/admin/stats', requireAuth, (req, res) => {
         formattedTotalTraffic,
         activeTrafficUsers,
         lastRequests,
+        requestPagination,
+        requestPageUrl,
         topUsers,
         topTrafficUsers,
         userTrafficTotal,

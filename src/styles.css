@@ -3,6 +3,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 .stats-card {
+  min-width: 0;
   border: 1px solid rgb(226 232 240);
   border-radius: 1rem;
   background: white;
@@ -31,6 +32,11 @@
   padding: 0.85rem 0.75rem;
   border-bottom: 1px solid rgb(241 245 249);
   vertical-align: middle;
+}
+
+.stats-table td,
+.stats-wrap {
+  overflow-wrap: anywhere;
 }
 
 .stats-table tbody tr:last-child td {
