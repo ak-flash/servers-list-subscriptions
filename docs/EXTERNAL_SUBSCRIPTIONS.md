@@ -20,7 +20,7 @@
 | --- | --- |
 | VLESS TCP / RAW + TLS, `encryption=none` | Да |
 | VLESS WebSocket + TLS | Да |
-| VLESS TCP / RAW + Reality | Да: `pbk`, `sid`, SNI, fingerprint, `spx`, опциональный `pqv` |
+| VLESS TCP / RAW + Reality | Да: `pbk`, `sid`, SNI, fingerprint, `spx`, опциональный `pqv`; `packetEncoding=none` нормализуется в стандартное значение |
 | VLESS XHTTP + TLS или Reality | Да: `host`, `path`, `mode`; `extra=null` и поддерживаемые JSON-параметры допускаются |
 | VLESS gRPC + TLS или Reality | Да: `serviceName`, `authority`, `mode=gun|multi` |
 | VLESS gRPC/Reality с TCP FinalMask fragment (`fm`) | Да: `packets=tlshello`, `delays`, `lengths`, `maxSplit` |

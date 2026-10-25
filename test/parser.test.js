@@ -16,6 +16,14 @@ test('VMess TCP TLS subscription links are parsed', () => {
   assert.equal(built.outbounds[0].streamSettings.tlsSettings.serverName, '158.160.180.165');
 });
 
+test('VMess raw network is normalized to TCP', () => {
+  const raw = 'vmess://eyJhZGQiOiIxNTguMTYwLjE4MC4xNjUiLCJpZCI6ImM1OGMxMjA1LWIzMDgtNDE2Zi04NTAzLWMwNDU1N2FiZjkzZCIsInBvcnQiOiIyNDIxMiIsInNjeSI6ImF1dG8iLCJ2IjoiMiIsIm5ldCI6InJhdyIsInR5cGUiOiJub25lIiwidGxzIjoidGxzIiwiYWxwbiI6ImgyLGh0dHAvMS4xIiwiZnAiOiIiLCJzbmkiOiIiLCJwcyI6IvCfh7fwn4e6IFJ1c3NpYSB8IFsqQ0lEUl0gWUEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsInBhdGgiOiIifQ==';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].config.network, 'tcp');
+  assert.equal(parsed.nodes[0].name, '🇷🇺 Russia | [*CIDR] YA');
+});
+
 test('Hysteria2 subscription links are parsed', () => {
   const raw = 'hysteria2://46785352-db89-4839-8079-d4c69ad87996@80.90.189.93:443?sni=rugiig.cryposikel.ru#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%5B%2ACIDR%5D';
   const parsed = parseSubscription(raw);
@@ -53,6 +61,14 @@ test('VLESS Reality TCP accepts packetEncoding=xudp', () => {
   assert.equal(parsed.report.supported, 1);
   assert.equal(parsed.nodes[0].capability, 'supported');
   assert.equal(parsed.nodes[0].config.extra.packetEncoding, undefined);
+});
+
+test('VLESS Reality TCP normalizes packetEncoding=none', () => {
+  const raw = 'vless://7c464358-6c89-4623-bd20-7c7bcd51bc55@vd2.outlinevpn.cc:12213?security=reality&type=tcp&packetEncoding=none&allowInsecure=1&sni=music.yandex.ru&fp=chrome&flow=xtls-rprx-vision&sid=6a29a03b21&pbk=kTKM-s7XF0s878Ydmq1KeZFiGT6k1Bw_rLE79s1l1jI#%F0%9F%87%B3%F0%9F%87%B1%20The%20Netherlands%20%5B%2ACIDR%5D';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.equal(parsed.config.packetEncoding, '');
+  assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
 });
 
 test('VLESS accepts non-UUID user identifiers', () => {

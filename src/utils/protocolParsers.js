@@ -130,7 +130,7 @@ function parseVmess(raw) {
   if (!Number.isInteger(port) || port < 1 || port > 65535 || !UUID.test(uuid) || name.length > 256 || /[\u0000-\u001f\u007f]/u.test(name)) {
     throw new SubscriptionError('invalid_link');
   }
-  const network = String(data.net || 'tcp');
+  const network = String(data.net || 'tcp') === 'raw' ? 'tcp' : String(data.net || 'tcp');
   const security = String(data.tls || 'none');
   const type = String(data.type || 'none');
   const alpn = String(data.alpn || '').split(',').filter(Boolean);
@@ -185,7 +185,7 @@ function parseVless(raw) {
     schema_version: 1, protocol: 'vless', host, port, uuid,
     encryption: params.encryption || 'none', network, security,
     sni: params.sni ? normalizeHost(params.sni) : host,
-     alpn, fingerprint: params.fp || (security === 'reality' ? 'chrome' : ''), flow: params.flow || '', packetEncoding: params.packetEncoding || '',
+     alpn, fingerprint: params.fp || (security === 'reality' ? 'chrome' : ''), flow: params.flow || '', packetEncoding: params.packetEncoding === 'none' ? '' : (params.packetEncoding || ''),
      allowInsecure: insecure[0] === true,
     headerType: params.headerType || 'none',
      ws: network === 'ws' ? { host: params.host || host, path: params.path ? (params.path.startsWith('/') ? params.path : `/${params.path}`) : '/' } : null,
