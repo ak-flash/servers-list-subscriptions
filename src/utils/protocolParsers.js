@@ -5,7 +5,8 @@ const { domainToASCII } = require('url');
 const { SubscriptionError } = require('./subscriptionErrors');
 
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
-const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'extra', 'mode', 'serviceName', 'fm', 'x_padding_bytes', 'packetEncoding']);
+const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'insecure', 'extra', 'mode', 'serviceName', 'authority', 'fm', 'x_padding_bytes', 'packetEncoding']);
+const METADATA_PARAMS = new Set(['telegram']);
 const REALITY_PARAMS = new Set(['pbk', 'sid', 'spx', 'pqv']);
 const FINGERPRINTS = new Set(['', 'chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'random', 'randomized']);
 const PACKET_ENCODINGS = new Set(['', 'xudp']);
@@ -57,7 +58,7 @@ function vlessCapability(config) {
   if (config.ws && (!config.ws.path.startsWith('/') || /[\r\n]/.test(config.ws.host))) return unsupported('Неподдерживаемые параметры WebSocket.');
   if (config.httpupgrade && (!config.httpupgrade.path.startsWith('/') || /[\r\n]/.test(config.httpupgrade.host))) return unsupported('Неподдерживаемые параметры HTTPUpgrade.');
   if (config.xhttp && (!config.xhttp.path.startsWith('/') || /[\r\n]/.test(config.xhttp.host) || !['auto', 'packet-up', 'stream-up', 'stream-one'].includes(config.xhttp.mode))) return invalid('Неподдерживаемые параметры XHTTP.');
-  if (config.grpc && (/[\r\n]/.test(config.grpc.serviceName) || !['gun', 'multi'].includes(config.grpc.mode))) return invalid('Для gRPC нужен mode=gun или mode=multi.');
+  if (config.grpc && (/[\r\n]/.test(config.grpc.serviceName) || /[\r\n]/.test(config.grpc.authority || '') || !['gun', 'multi'].includes(config.grpc.mode))) return invalid('Для gRPC нужен mode=gun или mode=multi.');
   if (config.finalmask) {
     if (!Array.isArray(config.finalmask.tcp)) return invalid('FinalMask tcp должен быть массивом.');
     for (const mask of config.finalmask.tcp) {
@@ -172,7 +173,10 @@ function parseVless(raw) {
     if (Object.hasOwn(params, key) || value.length > 4096 || /[\u0000-\u001f\u007f]/u.test(value)) throw new SubscriptionError('invalid_link');
     params[key] = value;
   }
-  if (params.allowInsecure && !['0', '1', 'true', 'false'].includes(params.allowInsecure)) throw new SubscriptionError('invalid_link');
+  const insecureValues = [params.allowInsecure, params.insecure].filter(value => value !== undefined);
+  if (insecureValues.some(value => !['0', '1', 'true', 'false'].includes(value))) throw new SubscriptionError('invalid_link');
+  const insecure = insecureValues.map(value => ['1', 'true'].includes(value));
+  if (insecure.length === 2 && insecure[0] !== insecure[1]) throw new SubscriptionError('invalid_link');
   const network = params.type === 'raw' ? 'tcp' : (params.type || 'tcp');
   const security = params.security || 'none';
   const alpn = params.alpn ? params.alpn.split(',') : [];
@@ -182,15 +186,16 @@ function parseVless(raw) {
     encryption: params.encryption || 'none', network, security,
     sni: params.sni ? normalizeHost(params.sni) : host,
      alpn, fingerprint: params.fp || (security === 'reality' ? 'chrome' : ''), flow: params.flow || '', packetEncoding: params.packetEncoding || '',
-     allowInsecure: ['1', 'true'].includes(params.allowInsecure),
+     allowInsecure: insecure[0] === true,
     headerType: params.headerType || 'none',
      ws: network === 'ws' ? { host: params.host || host, path: params.path ? (params.path.startsWith('/') ? params.path : `/${params.path}`) : '/' } : null,
      httpupgrade: network === 'httpupgrade' ? { host: params.host || host, path: params.path || '/' } : null,
      xhttp: network === 'xhttp' ? { host: params.host || host, path: params.path || '/', mode: params.mode || 'auto', extra: null } : null,
-    grpc: network === 'grpc' ? { serviceName: params.serviceName || '', mode: params.mode || 'gun' } : null,
+    grpc: network === 'grpc' ? { serviceName: params.serviceName || '', ...(params.authority ? { authority: params.authority } : {}), mode: params.mode || 'gun' } : null,
      extra: Object.fromEntries(Object.entries(params).filter(([key]) =>
-       (!KNOWN_PARAMS.has(key) && !(security === 'reality' && REALITY_PARAMS.has(key))) ||
-       (network !== 'ws' && network !== 'xhttp' && network !== 'httpupgrade' && network !== 'tcp' && ['host', 'path'].includes(key))))
+       !METADATA_PARAMS.has(key.toLowerCase()) &&
+       ((!KNOWN_PARAMS.has(key) && !(security === 'reality' && REALITY_PARAMS.has(key))) ||
+       (network !== 'ws' && network !== 'xhttp' && network !== 'httpupgrade' && network !== 'tcp' && ['host', 'path'].includes(key)))))
   };
   if (network === 'grpc' && params.mode === 'multi') config.grpc.mode = 'multi';
   if (params.fm) {
@@ -242,6 +247,7 @@ function serializeVless(config, name = '') {
     if (config.xhttp.extra) params.set('extra', JSON.stringify(config.xhttp.extra));
   }
   if (config.grpc) {
+    if (config.grpc.authority) params.set('authority', config.grpc.authority);
     params.set('serviceName', config.grpc.serviceName);
     params.set('mode', config.grpc.mode);
   }

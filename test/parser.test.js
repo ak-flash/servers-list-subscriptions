@@ -93,6 +93,24 @@ test('unsupported connection parameters are retained and never silently discarde
   }
 });
 
+test('VLESS WebSocket TLS accepts insecure as an allowInsecure alias', () => {
+  const raw = 'vless://3d0a1a17-a0a4-41d5-8b6c-37f76ba3ed41@cdn.cubeland.top:443?path=%2Fws%2Fgenerate%2Fpositions&security=tls&alpn=http%2F1.1&encryption=none&insecure=0&host=cdn.cubeland.top&type=ws&allowInsecure=0&sni=cdn.cubeland.top&fp=edge#%F0%9F%87%AB%F0%9F%87%AE%20Finland%20%7C%20%5B%2ACIDR%5D';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.equal(parsed.config.allowInsecure, false);
+  assert.deepEqual(parsed.config.extra, {});
+  assert.equal(parsed.name, '🇫🇮 Finland | [*CIDR]');
+  assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
+  const built = buildXrayConfig(parsed.config, 'cdn.cubeland.top', 12000, { user: 'test', password: 'test' });
+  assert.equal(built.outbounds[0].streamSettings.tlsSettings.serverName, 'cdn.cubeland.top');
+  assert.deepEqual(built.outbounds[0].streamSettings.tlsSettings.alpn, ['http/1.1']);
+  assert.equal(built.outbounds[0].streamSettings.wsSettings.path, '/ws/generate/positions');
+  assert.equal(parsed.config.allowInsecure, parseVless(raw.replace('&allowInsecure=0', '')).config.allowInsecure);
+  assert.equal(parseVless(raw.replace('insecure=0', 'insecure=true').replace('allowInsecure=0', 'allowInsecure=1')).config.allowInsecure, true);
+  assert.throws(() => parseVless(raw.replace('allowInsecure=0', 'allowInsecure=1')), { code: 'invalid_link' });
+  assert.throws(() => parseVless(raw.replace('insecure=0', 'insecure=yes')), { code: 'invalid_link' });
+});
+
 test('Reality parameters are validated, included in identity and mapped to the pinned Xray version', () => {
   const publicKey = Buffer.alloc(32, 7).toString('base64url');
   const uri = `vless://${UUID}@vpn.example.com:443?encryption=none&type=raw&security=reality&sni=cover.example.com&flow=xtls-rprx-vision&pbk=${publicKey}&sid=A1B2&spx=%2Fcheck%3Ffoo%3Dbar#Reality`;
@@ -162,6 +180,19 @@ test('VLESS XHTTP with Reality preserves transport settings and builds Xray conf
   assert.equal(invalidExtra.capability, 'invalid');
 });
 
+test('VLESS TCP Reality ignores provider metadata and TCP host parameter', () => {
+  const raw = 'vless://30572b57-f5ab-4eb8-82d4-a24d399b99f6@45.144.221.169:443?Telegram=%40GozargahAzad%2C%40GozargahAzad%2C%40GozargahAzad%2C%40GozargahAzad%2C%40GozargahAzad%2C%40GozargahAzad%2C%40GozargahAzad&security=reality&encryption=none&pbk=Buy9pirx5Ih_LHwc6R3BCmvRL4g4Ljx6B3MEsZfIZhU&host=%2F%3FTELEGRAM---MARAMBASHI---MARAMBASHI---MARAMBASHI---MARAMBASHI&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=arizona.eosapp.net&fp=chrome#%F0%9F%87%BA%F0%9F%87%B8%20United%20States%20%5B%2ACIDR%5D';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.deepEqual(parsed.config.extra, {});
+  assert.equal(parsed.config.flow, 'xtls-rprx-vision');
+  assert.equal(parsed.name, '🇺🇸 United States [*CIDR]');
+  assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
+  const built = buildXrayConfig(parsed.config, '45.144.221.169', 12000, { user: 'test', password: 'test' });
+  assert.equal(built.outbounds[0].streamSettings.network, 'tcp');
+  assert.equal(built.outbounds[0].streamSettings.realitySettings.serverName, 'arizona.eosapp.net');
+});
+
 test('VLESS gRPC with Reality preserves serviceName and multi mode', () => {
   const raw = 'Vless://03ca8c3f-e777-45b5-a1b1-592094ca99ee@82.202.178.132:443?encryption=none&fp=chrome&mode=multi&pbk=1A9loATtqTbKfErpj24clMebWdbmBRDgUIADwtlvtAw&security=reality&serviceName=google.storage.v2.Storage&sid=70c20a2f5a7d542e&sni=mobile-api-12.sova.toys&type=grpc#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%E2%80%94%20%23167';
   const parsed = parseVless(raw);
@@ -171,6 +202,16 @@ test('VLESS gRPC with Reality preserves serviceName and multi mode', () => {
   assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
   const built = buildXrayConfig(parsed.config, '82.202.178.132', 12000, { user: 'test', password: 'test' });
   assert.deepEqual(built.outbounds[0].streamSettings.grpcSettings, { serviceName: 'google.storage.v2.Storage', multiMode: true });
+  const authorityRaw = raw.replace('serviceName=google.storage.v2.Storage', 'authority=grpc.example.com&serviceName=google.storage.v2.Storage');
+  const withAuthority = parseVless(authorityRaw);
+  assert.equal(withAuthority.capability, 'supported');
+  assert.equal(withAuthority.config.grpc.authority, 'grpc.example.com');
+  assert.equal(parseVless(serializeVless(withAuthority.config)).config.grpc.authority, 'grpc.example.com');
+  const authorityBuilt = buildXrayConfig(withAuthority.config, '82.202.178.132', 12000, { user: 'test', password: 'test' });
+  assert.equal(authorityBuilt.outbounds[0].streamSettings.grpcSettings.authority, 'grpc.example.com');
+  const emptyAuthority = parseVless(raw.replace('serviceName=google.storage.v2.Storage', 'authority=&serviceName=google.storage.v2.Storage'));
+  assert.equal(emptyAuthority.capability, 'supported');
+  assert.equal(emptyAuthority.config.grpc.authority, undefined);
   assert.equal(built.outbounds[0].streamSettings.realitySettings.password, parsed.config.reality.publicKey);
   assert.equal(parseVless(raw.replace('serviceName=google.storage.v2.Storage', 'serviceName=')).capability, 'supported');
   const emptyServiceName = parseVless('vless://1bb2af63-4472-44ed-9c70-8f316258b68b@62.152.58.90:443?encryption=none&fp=random&mode=gun&pbk=JBKJlzuJH1YzDHAoz28wEKbzWTGpDpKjgtSq0oT0a0k&security=reality&sid=27e53bbcab7593d7&sni=360.yandex.ru&type=grpc#Poland');

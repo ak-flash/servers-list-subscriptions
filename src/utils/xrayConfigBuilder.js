@@ -146,7 +146,10 @@ function buildXrayConfig(node, address, port, credentials, certificateAuthority,
   if (node.network === 'ws') streamSettings.wsSettings = { path: node.ws.path, headers: { Host: node.ws.host } };
   if (node.network === 'httpupgrade') streamSettings.httpupgradeSettings = { path: node.httpupgrade.path, host: node.httpupgrade.host };
   if (node.network === 'xhttp') streamSettings.xhttpSettings = buildXhttpSettings(node);
-  if (node.network === 'grpc') streamSettings.grpcSettings = { serviceName: node.grpc.serviceName, multiMode: node.grpc.mode === 'multi' };
+  if (node.network === 'grpc') {
+    streamSettings.grpcSettings = { serviceName: node.grpc.serviceName, multiMode: node.grpc.mode === 'multi' };
+    if (node.grpc.authority) streamSettings.grpcSettings.authority = node.grpc.authority;
+  }
   if (node.finalmask) streamSettings.finalmask = buildFinalmask(node);
   const outbounds = [{
     tag: 'probe-vpn', protocol: 'vless',

@@ -22,15 +22,16 @@
 | VLESS WebSocket + TLS | Да |
 | VLESS TCP / RAW + Reality | Да: `pbk`, `sid`, SNI, fingerprint, `spx`, опциональный `pqv` |
 | VLESS XHTTP + TLS или Reality | Да: `host`, `path`, `mode`; `extra=null` и поддерживаемые JSON-параметры допускаются |
-| VLESS gRPC + TLS или Reality | Да: `serviceName`, `mode=gun|multi` |
+| VLESS gRPC + TLS или Reality | Да: `serviceName`, `authority`, `mode=gun|multi` |
 | VLESS gRPC/Reality с TCP FinalMask fragment (`fm`) | Да: `packets=tlshello`, `delays`, `lengths`, `maxSplit` |
 | VLESS TCP / RAW или WebSocket с `security=none` | Да; TLS к VPN endpoint не добавляется |
 | SNI, ALPN, поддерживаемый Xray TLS fingerprint | Передаются в TLS-конфиг; у Reality ALPN определяется fingerprint |
+| Информационный параметр `Telegram` | Игнорируется и не влияет на fingerprint узла |
 | `flow=xtls-rprx-vision` с TCP/TLS или TCP/Reality | Да; с `security=none` этот flow не поддерживается |
 | IPv4, IPv6, Unicode-имена, percent-encoding | Да |
 | gRPC и другие транспорты, Reality поверх WebSocket | `unsupported`, не попадают в автоматическую выдачу |
 | Явный `alpn` в Reality URI | `unsupported`: закреплённое ядро не поддерживает отдельную настройку Reality ALPN |
-| `allowInsecure=1` | `unsupported`: этот параметр удалён в закреплённой версии Xray |
+| `insecure` | Совместимый псевдоним `allowInsecure`; при наличии обоих значения должны совпадать |
 | VMess, Trojan, Shadowsocks, Clash YAML, sing-box JSON | Импорт источников в MVP не поддерживает; существующие ручные назначения остаются отдельным механизмом |
 | Неизвестные параметры подключения | Не отбрасываются молча; конфигурация считается неподдерживаемой |
 
