@@ -31,7 +31,6 @@
       </a>
     </nav>
     <div class="flex items-center gap-2">
-      <a href="<%= languageUrl(locale === 'ru' ? 'en' : 'ru') %>" class="rounded-lg border border-slate-700 bg-white/5 px-3 py-2 text-sm text-slate-100" lang="<%= locale === 'ru' ? 'en' : 'ru' %>" rel="nofollow"><%= locale === 'ru' ? 'English' : 'Русский' %></a>
       <button type="button" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-white/5 px-3 py-2 text-slate-100 shadow-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="<%= t('Переключить тему') %>" aria-pressed="false" data-theme-toggle>
         <svg data-theme-icon-moon viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
         <svg data-theme-icon-sun viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>

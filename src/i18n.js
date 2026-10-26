@@ -159,7 +159,9 @@ const dictionaries = {
     'Дополнительно (extra)': 'Additional (extra)',
     'Только через прокси (only)': 'Proxy only (only)',
     'Сохранить': 'Save',
-    'Проверить прокси': 'Check proxy',
+     'Проверить прокси': 'Check proxy',
+     'Язык интерфейса': 'Interface language',
+
     'Доступность узлов через прокси: доступно {healthy} / {total}': 'Node availability through proxy: {healthy} / {total} available',
     'Недоступно {failed} · устарело {stale} · Не проверено {unchecked}': '{failed} unavailable · {stale} stale · {unchecked} unchecked',
     'Перепроверить': 'Recheck',
@@ -351,7 +353,7 @@ function languageUrl(req, locale) {
 function i18n(req, res, next) {
   const locale = detectLocale(req);
   if (typeof req.query?.lang === 'string' && supportedLocales.includes(req.query.lang.toLowerCase())) {
-    res.cookie('locale', locale, { maxAge: 31536000000, httpOnly: false, sameSite: 'lax' });
+    res.setHeader('Set-Cookie', `locale=${encodeURIComponent(locale)}; Max-Age=31536000; Path=/; SameSite=Lax`);
   }
   res.locals.locale = locale;
   res.locals.t = createTranslator(locale);
