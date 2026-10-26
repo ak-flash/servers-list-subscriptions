@@ -19,7 +19,7 @@
 | Конфигурация | Автоматический импорт и VPN-проверка |
 | --- | --- |
 | VLESS TCP / RAW + TLS, `encryption=none` | Да |
-| VLESS WebSocket + TLS | Да |
+| VLESS WebSocket + TLS | Да: `host`, `path`, JSON-параметр `headers` |
 | VLESS TCP / RAW + Reality | Да: `pbk`, `sid`, SNI, fingerprint, `spx`, опциональный `pqv`; `packetEncoding=none` нормализуется в стандартное значение |
 | VLESS XHTTP + TLS или Reality | Да: `host`, `path`, `mode`; `extra=null` и поддерживаемые JSON-параметры допускаются |
 | VLESS gRPC + TLS или Reality | Да: `serviceName`, `authority`, `mode=gun|multi` |

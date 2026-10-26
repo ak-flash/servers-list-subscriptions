@@ -143,7 +143,7 @@ function buildXrayConfig(node, address, port, credentials, certificateAuthority,
     };
     if (node.reality.mldsa65Verify) streamSettings.realitySettings.mldsa65Verify = node.reality.mldsa65Verify;
   }
-  if (node.network === 'ws') streamSettings.wsSettings = { path: node.ws.path, headers: { Host: node.ws.host } };
+  if (node.network === 'ws') streamSettings.wsSettings = { path: node.ws.path, headers: { Host: node.ws.host, ...(node.ws.headers || {}) } };
   if (node.network === 'httpupgrade') streamSettings.httpupgradeSettings = { path: node.httpupgrade.path, host: node.httpupgrade.host };
   if (node.network === 'xhttp') streamSettings.xhttpSettings = buildXhttpSettings(node);
   if (node.network === 'grpc') {

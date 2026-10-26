@@ -127,6 +127,17 @@ test('VLESS WebSocket TLS accepts insecure as an allowInsecure alias', () => {
   assert.throws(() => parseVless(raw.replace('insecure=0', 'insecure=yes')), { code: 'invalid_link' });
 });
 
+test('VLESS WebSocket accepts JSON headers', () => {
+  const raw = 'vless://5204fa5d-73ef-4f77-937c-a2379efc8b5c@lk.floweroom.vip:443?encryption=none&security=tls&sni=lk.floweroom.vip&alpn=http%2F1.1&type=ws&host=lk.floweroom.vip&path=%2Fcart%2Fsync%2Fg-jSjxyhq24P&headers=%7B%0A++%22Host%22%3A+%22lk.floweroom.vip%22%0A%7D&fp=edge#%F0%9F%8C%90%20Anycast-IP%20%7C%20%F0%9F%87%A7%F0%9F%87%AA%20%F0%9F%87%B3%F0%9F%87%B1%20%7C%20%5B%2ACIDR%5D';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.deepEqual(parsed.config.ws.headers, { Host: 'lk.floweroom.vip' });
+  assert.equal(parsed.config.ws.path, '/cart/sync/g-jSjxyhq24P');
+  assert.deepEqual(parseVless(serializeVless(parsed.config, parsed.name)).config, parsed.config);
+  const built = buildXrayConfig(parsed.config, 'lk.floweroom.vip', 12000, { user: 'test', password: 'test' });
+  assert.deepEqual(built.outbounds[0].streamSettings.wsSettings.headers, { Host: 'lk.floweroom.vip' });
+});
+
 test('Reality parameters are validated, included in identity and mapped to the pinned Xray version', () => {
   const publicKey = Buffer.alloc(32, 7).toString('base64url');
   const uri = `vless://${UUID}@vpn.example.com:443?encryption=none&type=raw&security=reality&sni=cover.example.com&flow=xtls-rprx-vision&pbk=${publicKey}&sid=A1B2&spx=%2Fcheck%3Ffoo%3Dbar#Reality`;

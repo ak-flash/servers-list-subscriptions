@@ -5,7 +5,7 @@ const { domainToASCII } = require('url');
 const { SubscriptionError } = require('./subscriptionErrors');
 
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
-const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headerType', 'allowInsecure', 'insecure', 'extra', 'mode', 'serviceName', 'authority', 'fm', 'x_padding_bytes', 'packetEncoding']);
+const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headers', 'headerType', 'allowInsecure', 'insecure', 'extra', 'mode', 'serviceName', 'authority', 'fm', 'x_padding_bytes', 'packetEncoding']);
 const METADATA_PARAMS = new Set(['telegram']);
 const REALITY_PARAMS = new Set(['pbk', 'sid', 'spx', 'pqv']);
 const FINGERPRINTS = new Set(['', 'chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'random', 'randomized']);
@@ -170,7 +170,7 @@ function parseVless(raw) {
   }
   const params = Object.create(null);
   for (const [key, value] of url.searchParams) {
-    if (Object.hasOwn(params, key) || value.length > 4096 || /[\u0000-\u001f\u007f]/u.test(value)) throw new SubscriptionError('invalid_link');
+    if (Object.hasOwn(params, key) || value.length > 4096 || (key === 'headers' ? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u : /[\u0000-\u001f\u007f]/u).test(value)) throw new SubscriptionError('invalid_link');
     params[key] = value;
   }
   const insecureValues = [params.allowInsecure, params.insecure].filter(value => value !== undefined);
@@ -195,7 +195,8 @@ function parseVless(raw) {
      extra: Object.fromEntries(Object.entries(params).filter(([key]) =>
        !METADATA_PARAMS.has(key.toLowerCase()) &&
        ((!KNOWN_PARAMS.has(key) && !(security === 'reality' && REALITY_PARAMS.has(key))) ||
-       (network !== 'ws' && network !== 'xhttp' && network !== 'httpupgrade' && network !== 'tcp' && ['host', 'path'].includes(key)))))
+       (network !== 'ws' && network !== 'xhttp' && network !== 'httpupgrade' && network !== 'tcp' && ['host', 'path'].includes(key)) ||
+       (key === 'headers' && network !== 'ws'))))
   };
   if (network === 'grpc' && params.mode === 'multi') config.grpc.mode = 'multi';
   if (params.fm) {
@@ -218,6 +219,19 @@ function parseVless(raw) {
     if (config.xhttp.extra === null) config.xhttp.extra = {};
     if (config.xhttp.extra.xPaddingBytes === undefined) config.xhttp.extra.xPaddingBytes = params.x_padding_bytes;
   }
+  if (network === 'ws' && params.headers) {
+    let headers;
+    try {
+      headers = JSON.parse(params.headers);
+    } catch {
+      throw new SubscriptionError('invalid_link');
+    }
+    if (!headers || typeof headers !== 'object' || Array.isArray(headers) || Object.entries(headers).some(([key, value]) => !/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(key) || key.length > 256 || typeof value !== 'string' || value.length > 4096 || /[\u0000-\u001f\u007f]/u.test(value))) {
+      throw new SubscriptionError('invalid_link');
+    }
+    config.ws.headers = headers;
+    if (typeof headers.Host === 'string' && headers.Host) config.ws.host = headers.Host;
+  }
   if (security === 'reality') {
     config.reality = { publicKey: params.pbk || '', shortId: (params.sid || '').toLowerCase(), spiderX: params.spx || '/', mldsa65Verify: params.pqv || '' };
   }
@@ -235,6 +249,7 @@ function serializeVless(config, name = '') {
   if (config.ws) {
     params.set('host', config.ws.host);
     params.set('path', config.ws.path);
+    if (config.ws.headers && Object.keys(config.ws.headers).length) params.set('headers', JSON.stringify(config.ws.headers));
   }
   if (config.httpupgrade) {
     params.set('host', config.httpupgrade.host);
