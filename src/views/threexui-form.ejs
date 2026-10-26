@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head><%- include('partials/subscription-head', { title: `${panel ? 'Редактирование' : 'Добавление'} панели 3x-ui — ${appName}` }) %></head>
+<html lang="<%= locale %>">
+<head><%- include('partials/subscription-head', { title: `${t(panel ? 'Редактирование' : 'Добавление')} ${t('панели 3x-ui')} — ${appName}` }) %></head>
 <body class="bg-slate-100 text-slate-900">
-  <%- include('partials/subscription-header', { heading: panel ? 'Редактирование 3x-ui панели' : 'Добавление 3x-ui панели' }) %>
+  <%- include('partials/subscription-header', { heading: `${t(panel ? 'Редактирование' : 'Добавление')} ${t('панели 3x-ui')}` }) %>
   <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
     <section class="mb-6 rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
       <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">3x-ui API</p>

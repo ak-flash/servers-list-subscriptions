@@ -40,7 +40,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
         is_active: source ? source.is_active : 1, ...values, ...(error ? { is_active: values.is_active || 0 } : {}) },
       linkedUsers: source ? db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n : 0,
       saved: req.query.saved === '1',
-      error: error instanceof SubscriptionError ? error.message : error ? 'Не удалось сохранить источник. Проверьте данные и повторите попытку.' : null
+      error: error instanceof SubscriptionError ? error.message : error ? req.t('Не удалось сохранить источник. Проверьте данные и повторите попытку.') : null
     });
   }
 
@@ -59,12 +59,12 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   });
   router.get('/admin/subscription-sources/:id/edit', ...auth, (req, res) => {
     const source = sources.getSource(req.params.id);
-    if (!source) return res.status(404).send('Источник не найден');
+    if (!source) return res.status(404).send(req.t('Источник не найден'));
     renderForm(req, res, source);
   });
   router.post('/admin/subscription-sources/:id', ...auth, requireCsrf, (req, res) => {
     const previous = sources.getSource(req.params.id);
-    if (!previous) return res.status(404).send('Источник не найден');
+    if (!previous) return res.status(404).send(req.t('Источник не найден'));
     let source;
     try { source = sources.updateSource(previous.id, req.body, currentConfig()); }
     catch (error) { return renderForm(req, res, previous, error, req.body); }
@@ -74,7 +74,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   });
   router.post('/admin/subscription-sources/:id/assign-all', ...auth, requireCsrf, (req, res) => {
     const source = sources.getSource(req.params.id);
-    if (!source) return res.status(404).send('Источник не найден');
+    if (!source) return res.status(404).send(req.t('Источник не найден'));
     try {
       assignSourceToAllUsers(source.id, req.body.node_limit);
       res.redirect(`/admin/subscription-sources/${source.id}/edit?saved=1`);
@@ -89,7 +89,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   });
   router.get('/admin/subscription-sources/:id/nodes', ...auth, (req, res) => {
     const source = sources.getSource(req.params.id);
-    if (!source) return res.status(404).send('Источник не найден');
+    if (!source) return res.status(404).send(req.t('Источник не найден'));
     const all = health.getNodes(source.id).map(node => health.safeNode(node, currentConfig()));
     const filter = typeof req.query.status === 'string' ? req.query.status : '';
     const isCapabilityFilter = ['unsupported', 'invalid'].includes(filter);
@@ -116,7 +116,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   function action(handler) {
     return (req, res) => {
       try { handler(req, res); }
-      catch (error) { res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? error.message : 'Не удалось выполнить действие. Повторите попытку.' }); }
+      catch (error) { res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? error.message : req.t('Не удалось выполнить действие. Повторите попытку.') }); }
     };
   }
   router.post('/api/subscription-sources/:id/sync', ...auth, requireCsrf, action((req, res) => {
@@ -132,23 +132,23 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       const result = await scheduler.checkNodeNow(req.params.id);
       res.json({ result: { status: result.status, latencyMs: result.latencyMs ?? null, errorMessage: result.errorMessage ?? null } });
     } catch (error) {
-      res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? error.message : 'Не удалось выполнить проверку. Повторите попытку.' });
+      res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? error.message : req.t('Не удалось выполнить проверку. Повторите попытку.') });
     }
   });
   router.post('/api/subscription-nodes/:id/settings', ...auth, requireCsrf, action((req, res) => {
-    if (!['0', '1', 0, 1, true, false].includes(req.body.is_enabled)) throw new SubscriptionError('validation', 'Укажите состояние узла.');
+    if (!['0', '1', 0, 1, true, false].includes(req.body.is_enabled)) throw new SubscriptionError('validation', req.t('Укажите состояние узла.'));
     const node = sources.setNodeEnabled(req.params.id, ['1', 1, true].includes(req.body.is_enabled));
     res.json({ id: node.id, is_enabled: node.is_enabled });
   }));
   router.get('/api/background-jobs/:id', ...auth, (req, res) => {
     const job = scheduler.job(req.params.id);
-    if (!job) return res.status(404).json({ error: 'Задача не найдена.' });
+    if (!job) return res.status(404).json({ error: req.t('Задача не найдена.') });
     res.json({ ...job, runner: scheduler.metrics().runner });
   });
 
   function renderAssignments(req, res, error = null, values = null) {
     const user = db.get('SELECT id, username, is_active FROM users WHERE id = ?', [req.params.id]);
-    if (!user) return res.status(404).send('Пользователь не найден');
+    if (!user) return res.status(404).send(req.t('Пользователь не найден'));
     const assigned = db.getUserServerAssignments(user.id);
     const selected = input => typeof input === 'string' ? [input] : Array.isArray(input) ? input : [];
     res.status(error ? 400 : 200).render('user-servers', {
@@ -158,7 +158,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       sources: sourceList(), bindings: db.all('SELECT * FROM user_subscription_sources WHERE user_id = ?', [user.id]),
       values, selectedSources: values ? selected(values.sources) : null,
       preview: subscriptionPreview(resolveUserSubscription(user.id, Date.now(), currentConfig())),
-      saved: req.query.saved === '1', error: error instanceof SubscriptionError ? error.message : error ? 'Не удалось сохранить назначения. Повторите попытку.' : null
+      saved: req.query.saved === '1', error: error instanceof SubscriptionError ? error.message : error ? req.t('Не удалось сохранить назначения. Повторите попытку.') : null
     });
   }
   router.get('/admin/users/:id/servers', ...auth, (req, res) => renderAssignments(req, res));
@@ -169,7 +169,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   });
   router.get('/api/users/:id/subscription-preview', ...auth, (req, res) => {
     const result = resolveUserSubscription(req.params.id, Date.now(), currentConfig());
-    if (!result.user) return res.status(404).json({ error: 'Пользователь не найден или отключён.' });
+    if (!result.user) return res.status(404).json({ error: req.t('Пользователь не найден или отключён.') });
     res.json(subscriptionPreview(result));
   });
   return router;

@@ -20,6 +20,7 @@ const health = require('./services/subscriptionHealth');
 const { hashPassword, verifyPassword } = require('./utils/passwords');
 const { csrfToken, requireCsrf } = require('./middleware/csrf');
 const logger = require('./utils/logger');
+const { i18n } = require('./i18n');
 
 // 'auto' включает Secure-флаг только на реальном HTTPS (учитывая TRUST_PROXY),
 // чтобы вход по HTTP не терял cookie сессии. SESSION_COOKIE_SECURE=1/0 форсирует режим.
@@ -70,6 +71,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(i18n);
 app.use((req, res, next) => {
     res.set({
         'X-Content-Type-Options': 'nosniff',
@@ -100,7 +102,7 @@ function requireAuth(req, res, next) {
         if (req.session.mustChangePassword && req.path !== '/admin/password' && !req.path.startsWith('/api/')) return res.redirect('/admin/password');
         return next();
     }
-    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Войдите в админ-панель.' });
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: req.t ? req.t('Войдите в админ-панель.') : 'Войдите в админ-панель.' });
     res.redirect('/admin/login');
 }
 
@@ -160,10 +162,10 @@ app.get('/admin/login', (req, res) => {
 
 app.post('/admin/login', (req, res) => {
     const { username, password } = req.body;
-    if (typeof username !== 'string' || username.length > 128) return res.status(400).render('login', { error: 'Неверные данные входа', appName: APP_NAME });
+    if (typeof username !== 'string' || username.length > 128) return res.status(400).render('login', { error: req.t('Неверные данные входа'), appName: APP_NAME });
     const key = String(req.ip || req.socket.remoteAddress || 'unknown');
     if (!rateLimit(`login:${key}`, LOGIN_RATE_WINDOW_MS, MAX_LOGIN_ATTEMPTS)) {
-        return res.status(429).render('login', { error: 'Слишком много попыток. Повторите позже.', appName: APP_NAME });
+        return res.status(429).render('login', { error: req.t('Слишком много попыток. Повторите позже.'), appName: APP_NAME });
     }
     const user = dbGet('SELECT * FROM users WHERE username = ? AND is_active = 1', [username]);
     const normalizedPassword = typeof password === 'string' ? password : '';
@@ -171,7 +173,7 @@ app.post('/admin/login', (req, res) => {
 
     if (user && verification.valid) {
         return req.session.regenerate(error => {
-            if (error) return res.status(500).render('login', { error: 'Не удалось создать сессию.', appName: APP_NAME });
+            if (error) return res.status(500).render('login', { error: req.t('Не удалось создать сессию.'), appName: APP_NAME });
             req.session.userId = user.id;
             req.session.username = user.username;
             req.session.mustChangePassword = Boolean(user.must_change_password || verification.legacy);
@@ -179,7 +181,7 @@ app.post('/admin/login', (req, res) => {
             res.redirect('/admin');
         });
     }
-    res.render('login', { error: 'Неверное имя пользователя или пароль', appName: APP_NAME });
+    res.render('login', { error: req.t('Неверное имя пользователя или пароль'), appName: APP_NAME });
 });
 
 app.get('/admin/logout', (req, res) => {
@@ -195,7 +197,7 @@ app.post('/admin/password', requireAuth, requireCsrf, (req, res) => {
     const password = typeof req.body.password === 'string' ? req.body.password : '';
     const confirmation = typeof req.body.password_confirmation === 'string' ? req.body.password_confirmation : '';
     if (password.length < 8 || password !== confirmation) {
-        return res.status(400).render('password-form', { error: 'Пароли должны совпадать и содержать минимум 8 символов.', appName: APP_NAME });
+        return res.status(400).render('password-form', { error: req.t('Пароли должны совпадать и содержать минимум 8 символов.'), appName: APP_NAME });
     }
     dbRun('UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?', [hashPassword(password), req.session.userId]);
     req.session.mustChangePassword = false;
@@ -328,7 +330,7 @@ app.post('/admin/servers', requireAuth, requireCsrf, (req, res) => {
     const { link, name } = req.body;
 
     if (!link || !link.trim()) {
-        res.render('server-form', { server: req.body, error: 'Вставьте ссылку на сервер', appName: APP_NAME });
+        res.render('server-form', { server: req.body, error: req.t('Вставьте ссылку на сервер'), appName: APP_NAME });
         return;
     }
 
@@ -344,7 +346,7 @@ app.post('/admin/servers', requireAuth, requireCsrf, (req, res) => {
 
         res.redirect('/admin');
     } catch (err) {
-        res.render('server-form', { server: req.body, error: 'Ошибка: ' + err.message, appName: APP_NAME });
+        res.render('server-form', { server: req.body, error: req.t('Ошибка: ') + err.message, appName: APP_NAME });
     }
 });
 
@@ -377,7 +379,7 @@ app.post('/admin/servers/:id', requireAuth, requireCsrf, (req, res) => {
         if (!server) return res.redirect('/admin');
         const info = extractHostPortFromLink(server.link);
         const serverWithInfo = { ...server, ...info, name: name || server.name, link: link || server.link, tag: tag, traffic_limit: traffic_limit, is_active: is_active ? 1 : 0 };
-        res.render('server-form', { server: serverWithInfo, error: 'Ошибка: ' + err.message, appName: APP_NAME });
+        res.render('server-form', { server: serverWithInfo, error: req.t('Ошибка: ') + err.message, appName: APP_NAME });
     }
 });
 
@@ -401,7 +403,7 @@ app.post('/admin/users', requireAuth, requireCsrf, (req, res) => {
 
         res.redirect('/admin');
     } catch (err) {
-        res.render('user-form', { user: req.body, error: 'Ошибка при создании пользователя: ' + err.message, appName: APP_NAME });
+        res.render('user-form', { user: req.body, error: req.t('Ошибка при создании пользователя: ') + err.message, appName: APP_NAME });
     }
 });
 
@@ -427,7 +429,7 @@ app.post('/admin/users/:id', requireAuth, requireCsrf, (req, res) => {
         }
         res.redirect('/admin');
     } catch (err) {
-        res.render('user-form', { user: req.body, error: 'Ошибка при обновлении пользователя: ' + err.message, appName: APP_NAME });
+        res.render('user-form', { user: req.body, error: req.t('Ошибка при обновлении пользователя: ') + err.message, appName: APP_NAME });
     }
 });
 
@@ -440,13 +442,13 @@ async function checkManualServer(server) {
     try {
         const parsed = parseVless(server.link);
         if (parsed.capability !== 'supported') {
-            return { id: server.id, name: server.name, status: parsed.capability, errorCode: 'unsupported', errorMessage: parsed.error || 'Конфигурация не поддерживается' };
+            return { id: server.id, name: server.name, status: parsed.capability, errorCode: 'unsupported', errorMessage: parsed.error || req.t('Конфигурация не поддерживается') };
         }
         const result = await manualVpnChecker.check({ normalized_config_json: JSON.stringify(parsed.config) });
         return { id: server.id, name: server.name, status: result.status, latency_ms: result.latencyMs ?? null, target_id: result.targetId ?? null,
             errorCode: result.errorCode ?? null, errorMessage: result.errorMessage ?? null, errorDetail: result.errorDetail ?? null };
     } catch (error) {
-        return { id: server.id, name: server.name, status: 'runner_error', latency_ms: null, errorCode: 'runner_error', errorMessage: error.message || 'Не удалось выполнить VPN-проверку.' };
+        return { id: server.id, name: server.name, status: 'runner_error', latency_ms: null, errorCode: 'runner_error', errorMessage: error.message || req.t('Не удалось выполнить VPN-проверку.') };
     }
 }
 
@@ -459,7 +461,7 @@ app.post('/api/servers/check', requireAuth, requireCsrf, async (req, res) => {
 
 app.post('/api/servers/:id/check', requireAuth, requireCsrf, async (req, res) => {
     const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
-    if (!server) return res.status(404).json({ error: 'Сервер не найден' });
+    if (!server) return res.status(404).json({ error: req.t('Сервер не найден') });
     res.json(await checkManualServer(server));
 });
 

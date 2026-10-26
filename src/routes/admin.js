@@ -5,10 +5,10 @@ const { requestThroughHttpProxy } = require('../services/vpnChecker');
 
 module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, appName, scheduler, refreshProxyConfig, csrfToken }) {
   const router = express.Router();
-  router.post('/admin/stats/clear', requireAuth, requireCsrf, (_req, res) => {
+  router.post('/admin/stats/clear', requireAuth, requireCsrf, (req, res) => {
     dbRun('DELETE FROM subscription_requests');
     dbRun('UPDATE users SET first_request_at = NULL, last_request_at = NULL');
-    res.json({ success: true, message: 'Статистика успешно очищена' });
+    res.json({ success: true, message: req.t('Статистика успешно очищена') });
   });
 
   function proxyStats(config, now = Date.now()) {
@@ -93,7 +93,7 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
 
   router.post('/api/settings/proxy/check', requireAuth, requireCsrf, async (req, res) => {
     const { proxy } = proxySettings.effectiveHttpProxy(scheduler.config.httpProxy, scheduler.config.httpProxyMode);
-    if (!proxy) return res.status(400).json({ error: 'HTTP-прокси не настроен' });
+    if (!proxy) return res.status(400).json({ error: req.t('HTTP-прокси не настроен') });
     const target = scheduler.config.targets[0];
     const result = await requestThroughHttpProxy(target, proxy, scheduler.config.attemptTimeoutMs, new AbortController().signal, scheduler.checker.targetCa);
     res.json({ status: result.outcome === 'success' ? 'healthy' : 'proxy_error', latencyMs: result.latencyMs ?? null, httpStatus: result.httpStatus, errorCode: result.errorCode });

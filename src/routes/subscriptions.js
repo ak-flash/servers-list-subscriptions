@@ -9,16 +9,17 @@ module.exports = function subscriptionRoutes({ config, getConfig, recordRequest 
   const currentConfig = () => getConfig ? getConfig() : config;
   router.rateLimits = new Map();
   router.use('/join/:id', (req, res, next) => {
+    const t = req.t || (value => value);
     const key = `join:${req.ip || req.socket.remoteAddress || 'unknown'}`;
     const now = Date.now();
     const entry = router.rateLimits.get(key);
     if (!entry || entry.resetAt <= now) router.rateLimits.set(key, { count: 1, resetAt: now + 60 * 1000 });
-    else if (entry.count >= 120) return res.status(429).send('Слишком много запросов. Повторите позже.');
+    else if (entry.count >= 120) return res.status(429).send(t('Слишком много запросов. Повторите позже.'));
     else entry.count++;
     res.set('Cache-Control', 'no-store');
     const result = resolveUserSubscription(req.params.id, Date.now(), currentConfig());
-    if (!result.user) return res.status(404).send('Пользователь не найден или отключён');
-    if (!result.servers.length) return res.status(404).send('Нет доступных серверов для этого пользователя');
+    if (!result.user) return res.status(404).send(t('Пользователь не найден или отключён'));
+    if (!result.servers.length) return res.status(404).send(t('Нет доступных серверов для этого пользователя'));
     res.locals.subscription = result;
     next();
   });
@@ -63,7 +64,7 @@ module.exports = function subscriptionRoutes({ config, getConfig, recordRequest 
         if (suffix === 'qr-img') return res.json({ qrCode, username: user.username, subscriptionUrl: url });
         res.render('subscription-qr', { user, qrCode, subscriptionUrl: url });
       } catch {
-        res.status(500).send('Не удалось создать QR-код. Повторите попытку.');
+        res.status(500).send((req.t || (value => value))('Не удалось создать QR-код. Повторите попытку.'));
       }
     });
   }

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="<%= locale %>">
 
-<head><%- include('partials/subscription-head', { title: `Админ-панель — ${appName}` }) %></head>
+<head><%- include('partials/subscription-head', { title: `${t('Админ-панель')} — ${appName}` }) %></head>
 
 <body class="bg-slate-100 text-slate-900">
-    <%- include('partials/subscription-header', { heading: 'Админ-панель' }) %>
+    <%- include('partials/subscription-header', { heading: t('Админ-панель') }) %>
     <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
         <section class="relative mb-4 overflow-hidden rounded-2xl bg-slate-900 p-5 text-white shadow-xl md:p-6">
             <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>

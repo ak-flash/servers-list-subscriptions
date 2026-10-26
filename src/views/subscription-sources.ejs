@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head><%- include('partials/subscription-head', { title: `Источники подписок — ${appName}` }) %></head>
+<html lang="<%= locale %>">
+<head><%- include('partials/subscription-head', { title: `${t('Источники подписок')} — ${appName}` }) %></head>
 <body class="bg-slate-100 text-slate-900">
-  <%- include('partials/subscription-header', { heading: 'Источники подписок' }) %>
+  <%- include('partials/subscription-header', { heading: t('Источники подписок') }) %>
   <% const totalNodes = sources.reduce((sum, source) => sum + source.count, 0); %>
   <% const totalHealthy = sources.reduce((sum, source) => sum + source.healthy, 0); %>
   <% const totalUsers = sources.reduce((sum, source) => sum + source.users, 0); %>

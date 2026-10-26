@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head><%- include('partials/subscription-head', { title: `${server ? 'Редактирование' : 'Добавление'} сервера — ${appName}` }) %></head>
+<html lang="<%= locale %>">
+<head><%- include('partials/subscription-head', { title: `${t(server ? 'Редактирование' : 'Добавление')} ${t('сервера')} — ${appName}` }) %></head>
 <body class="bg-slate-100 text-slate-900">
-    <%- include('partials/subscription-header', { heading: server ? 'Редактирование сервера' : 'Добавление сервера' }) %>
+    <%- include('partials/subscription-header', { heading: `${t(server ? 'Редактирование' : 'Добавление')} ${t('сервера')}` }) %>
     <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
         <section class="mb-6 rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Ручной каталог</p>
-            <h2 class="mt-2 text-2xl font-semibold"><%= server ? 'Обновите параметры сервера' : 'Добавьте сервер вручную' %></h2>
-            <p class="mt-2 max-w-xl text-sm leading-6 text-slate-300">Ссылка подключения будет использоваться в персональных подписках пользователей.</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300"><%= t('Ручной каталог') %></p>
+            <h2 class="mt-2 text-2xl font-semibold"><%= t(server ? 'Обновите параметры сервера' : 'Добавьте сервер вручную') %></h2>
+            <p class="mt-2 max-w-xl text-sm leading-6 text-slate-300"><%= t('Ссылка подключения будет использоваться в персональных подписках пользователей.') %></p>
         </section>
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
             <% if (error) { %>
@@ -46,13 +46,13 @@
                 <div class="mb-6">
                     <label class="flex items-center gap-2">
                         <input type="checkbox" name="is_active" id="is_active" value="1" <%= (!server || server.is_active) ? 'checked' : '' %> class="h-5 w-5 rounded border-slate-300 text-blue-700 focus:ring-blue-600">
-                        <span class="text-sm font-medium text-slate-700">Сервер активен</span>
+                        <span class="text-sm font-medium text-slate-700"><%= t('Сервер активен') %></span>
                     </label>
                 </div>
 
                 <div class="flex flex-wrap gap-3 border-t border-slate-100 pt-5">
-                    <button type="submit" data-icon="save" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"><%= server ? 'Сохранить сервер' : 'Создать сервер' %></button>
-                    <a href="/admin" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">Отмена</a>
+                    <button type="submit" data-icon="save" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"><%= t(server ? 'Сохранить сервер' : 'Создать сервер') %></button>
+                    <a href="/admin" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"><%= t('Отмена') %></a>
                 </div>
             </form>
         </div>

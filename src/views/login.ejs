@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head><%- include('partials/subscription-head', { title: `Вход — ${appName}` }) %></head>
+<html lang="<%= locale %>">
+<head><%- include('partials/subscription-head', { title: `${t('Вход')} — ${appName}` }) %></head>
 <body class="min-h-screen bg-slate-950 text-slate-900">
   <main class="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8">
     <div class="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
     <div class="absolute -bottom-32 -right-20 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl" aria-hidden="true"></div>
-    <button type="button" class="fixed right-4 top-4 z-50 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-white/5 px-3 py-2 text-slate-100 shadow-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="Переключить тему" aria-pressed="false" data-theme-toggle>
+    <a href="<%= languageUrl(locale === 'ru' ? 'en' : 'ru') %>" class="fixed left-4 top-4 z-50 rounded-lg border border-slate-700 bg-white/5 px-3 py-2 text-sm text-white" aria-label="<%= locale === 'ru' ? 'Switch to English' : 'Переключить на русский' %>" lang="<%= locale === 'ru' ? 'en' : 'ru' %>"><%= locale === 'ru' ? 'English' : 'Русский' %></a>
+    <button type="button" class="fixed right-4 top-4 z-50 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-white/5 px-3 py-2 text-slate-100 shadow-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="<%= t('Переключить тему') %>" aria-pressed="false" data-theme-toggle>
       <svg data-theme-icon-moon viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
       <svg data-theme-icon-sun viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
     </button>
@@ -17,14 +18,14 @@
       <form method="POST" action="/admin/login" class="space-y-5">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div>
-          <label class="mb-2 block text-sm font-semibold text-slate-700" for="login-username">Имя пользователя</label>
+          <label class="mb-2 block text-sm font-semibold text-slate-700" for="login-username"><%= t('Имя пользователя') %></label>
           <input id="login-username" type="text" name="username" required autocomplete="username" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
         </div>
         <div>
-          <label class="mb-2 block text-sm font-semibold text-slate-700" for="login-password">Пароль</label>
+          <label class="mb-2 block text-sm font-semibold text-slate-700" for="login-password"><%= t('Пароль') %></label>
           <input id="login-password" type="password" name="password" required autocomplete="current-password" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
         </div>
-        <button type="submit" class="min-h-[46px] w-full rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white shadow-sm hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">Войти в панель</button>
+        <button type="submit" class="min-h-[46px] w-full rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white shadow-sm hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"><%= t('Войти в панель') %></button>
       </form>
     </section>
   </main>

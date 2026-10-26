@@ -11,7 +11,7 @@ function requireCsrf(req, res, next) {
   const expected = req.session?.csrfToken;
   if (typeof token !== 'string' || !/^[a-f\d]{64}$/.test(token) || !expected || token.length !== expected.length ||
       !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
-    const message = 'Сессия формы истекла. Обновите страницу и повторите действие.';
+    const message = (req.t || (value => value))('Сессия формы истекла. Обновите страницу и повторите действие.');
     if (req.path.startsWith('/api/')) return res.status(403).json({ error: message });
     return res.status(403).send(message);
   }

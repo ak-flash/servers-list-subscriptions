@@ -1,21 +1,21 @@
-<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:bg-white focus:p-4 focus:text-slate-950 focus:z-50">Перейти к содержимому</a>
+<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:bg-white focus:p-4 focus:text-slate-950 focus:z-50"><%= t('Перейти к содержимому') %></a>
 <header class="bg-slate-950 text-white shadow-lg">
   <div class="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-8" data-nav-root>
     <div class="flex min-w-0 items-center gap-3">
-      <a href="/admin" class="shrink-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="На главную админ-панели">
+      <a href="/admin" class="shrink-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="<%= t('На главную админ-панели') %>">
         <img src="/logo.svg" alt="" class="h-11 w-11" aria-hidden="true">
       </a>
       <h1 class="min-w-0 break-words text-lg font-semibold tracking-tight md:text-xl"><%= heading %></h1>
     </div>
 
-    <nav id="admin-navigation" aria-label="Админ-панель" class="absolute right-4 top-full z-40 hidden w-[min(18rem,calc(100vw-2rem))] flex-col gap-1 rounded-2xl border border-white/10 bg-slate-900 p-2 text-sm shadow-2xl md:static md:flex md:w-auto md:flex-row md:items-center md:gap-0.5 md:rounded-xl md:border-white/10 md:bg-white/5 md:p-1 md:shadow-none" data-nav-menu>
+    <nav id="admin-navigation" aria-label="<%= t('Админ-панель') %>" class="absolute right-4 top-full z-40 hidden w-[min(18rem,calc(100vw-2rem))] flex-col gap-1 rounded-2xl border border-white/10 bg-slate-900 p-2 text-sm shadow-2xl md:static md:flex md:w-auto md:flex-row md:items-center md:gap-0.5 md:rounded-xl md:border-white/10 md:bg-white/5 md:p-1 md:shadow-none" data-nav-menu>
       <a href="/admin" class="nav-link flex items-center gap-3 rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:bg-white/10 md:hover:no-underline">
         <svg viewBox="0 0 24 24" class="h-5 w-5 text-blue-300 md:hidden" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z"/><path d="M4 21a8 8 0 0116 0"/></svg>
-        <span>Серверы и пользователи</span>
+        <span><%= t('Серверы и пользователи') %></span>
       </a>
       <a href="/admin/subscription-sources" class="nav-link flex items-center gap-3 rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:underline">
         <svg viewBox="0 0 24 24" class="h-5 w-5 text-emerald-300 md:hidden" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-        <span>Источники подписок</span>
+        <span><%= t('Источники подписок') %></span>
       </a>
       <a href="/admin/threexui" class="nav-link flex items-center gap-3 rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:underline">
         <svg viewBox="0 0 24 24" class="h-5 w-5 text-cyan-300 md:hidden" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -23,20 +23,21 @@
       </a>
       <a href="/admin/stats" class="nav-link flex items-center gap-3 rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:underline">
         <svg viewBox="0 0 24 24" class="h-5 w-5 text-purple-300 md:hidden" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
-        <span>Статистика</span>
+        <span><%= t('Статистика') %></span>
       </a>
       <a href="/admin/settings" class="nav-link flex items-center gap-3 rounded-xl px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-300 md:rounded-lg md:px-3 md:py-2 md:text-slate-300 md:font-normal md:underline-offset-4 md:hover:underline">
         <svg viewBox="0 0 24 24" class="h-5 w-5 text-amber-300 md:hidden" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-        <span>Настройки</span>
+        <span><%= t('Настройки') %></span>
       </a>
     </nav>
     <div class="flex items-center gap-2">
-      <button type="button" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-white/5 px-3 py-2 text-slate-100 shadow-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="Переключить тему" aria-pressed="false" data-theme-toggle>
+      <a href="<%= languageUrl(locale === 'ru' ? 'en' : 'ru') %>" class="rounded-lg border border-slate-700 bg-white/5 px-3 py-2 text-sm text-slate-100" lang="<%= locale === 'ru' ? 'en' : 'ru' %>" rel="nofollow"><%= locale === 'ru' ? 'English' : 'Русский' %></a>
+      <button type="button" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-white/5 px-3 py-2 text-slate-100 shadow-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300" aria-label="<%= t('Переключить тему') %>" aria-pressed="false" data-theme-toggle>
         <svg data-theme-icon-moon viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
         <svg data-theme-icon-sun viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
       </button>
-      <button type="button" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-white/5 px-3 py-2 text-slate-100 shadow-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300 md:hidden" aria-controls="admin-navigation" aria-expanded="false" aria-label="Открыть меню" data-nav-toggle>
-        <span class="sr-only">Меню</span>
+      <button type="button" class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-700 bg-white/5 px-3 py-2 text-slate-100 shadow-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-300 md:hidden" aria-controls="admin-navigation" aria-expanded="false" aria-label="<%= t('Открыть меню') %>" data-nav-toggle>
+        <span class="sr-only"><%= t('Меню') %></span>
         <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" data-nav-icon-open><path d="M4 7h16M4 12h16M4 17h16"/></svg>
         <svg viewBox="0 0 24 24" class="hidden h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" data-nav-icon-close><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>

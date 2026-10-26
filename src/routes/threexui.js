@@ -5,9 +5,9 @@ const { SubscriptionError } = require('../utils/subscriptionErrors');
 const { csrfToken, requireCsrf } = require('../middleware/csrf');
 const logger = require('../utils/logger');
 
-function renderError(error) {
+function renderError(error, t) {
   if (error instanceof SubscriptionError) return error.message;
-  return 'Не удалось сохранить панель 3x-ui. Проверьте данные и повторите попытку.';
+  return t('Не удалось сохранить панель 3x-ui. Проверьте данные и повторите попытку.');
 }
 
 module.exports = function createThreeXuiRoutes({ requireAuth, appName }) {
@@ -33,13 +33,13 @@ module.exports = function createThreeXuiRoutes({ requireAuth, appName }) {
       res.redirect('/admin/threexui?saved=1');
     } catch (error) {
       logger.error('threexui_panel_create_failed', { error: error.message, stack: error.stack });
-      res.status(error.status || 400).render('threexui-form', { panel: null, values: req.body, error: renderError(error) });
+      res.status(error.status || 400).render('threexui-form', { panel: null, values: req.body, error: renderError(error, req.t) });
     }
   });
 
   router.get('/admin/threexui/:id/edit', ...auth, (req, res) => {
     const panel = service.getPanel(req.params.id);
-    if (!panel) return res.status(404).send('Панель не найдена');
+    if (!panel) return res.status(404).send(req.t('Панель не найдена'));
     res.render('threexui-form', { panel: service.publicPanel(panel), values: { ...panel, token: panel.token }, error: null });
   });
 
@@ -50,8 +50,8 @@ module.exports = function createThreeXuiRoutes({ requireAuth, appName }) {
     } catch (error) {
       logger.error('threexui_panel_update_failed', { panelId: req.params.id, error: error.message, stack: error.stack });
       const panel = service.getPanel(req.params.id);
-      if (!panel) return res.status(404).send('Панель не найдена');
-      res.status(error.status || 400).render('threexui-form', { panel: service.publicPanel(panel), values: req.body, error: renderError(error) });
+      if (!panel) return res.status(404).send(req.t('Панель не найдена'));
+      res.status(error.status || 400).render('threexui-form', { panel: service.publicPanel(panel), values: req.body, error: renderError(error, req.t) });
     }
   });
 
@@ -71,7 +71,7 @@ module.exports = function createThreeXuiRoutes({ requireAuth, appName }) {
       const result = await service.syncPanel(req.params.id, { force: true });
       res.json({ success: true, result });
     } catch (error) {
-      res.status(error.status || 500).json({ success: false, error: renderError(error) });
+      res.status(error.status || 500).json({ success: false, error: renderError(error, req.t) });
     }
   });
 

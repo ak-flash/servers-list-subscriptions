@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head><%- include('partials/subscription-head', { title: `Узлы источника — ${appName}` }) %></head>
+<html lang="<%= locale %>">
+<head><%- include('partials/subscription-head', { title: `${t('Каталог узлов')} — ${appName}` }) %></head>
 <body class="bg-slate-100 text-slate-900">
   <%- include('partials/subscription-header', { heading: source.name }) %>
   <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
