@@ -5,15 +5,15 @@ const health = require('../services/subscriptionHealth');
 const { saveAssignments, assignSourceToAllUsers } = require('../services/subscriptionAssignments');
 const { resolveUserSubscription, subscriptionPreview } = require('../services/subscriptionResolver');
 const { extractHostPortFromLink } = require('../utils/linkBuilder');
-const { SubscriptionError } = require('../utils/subscriptionErrors');
+const { SubscriptionError, translateError } = require('../utils/subscriptionErrors');
 const { csrfToken, requireCsrf } = require('../middleware/csrf');
 const view = require('../utils/subscriptionView');
 
 module.exports = function subscriptionSourceRoutes({ config, getConfig, scheduler, requireAuth, appName }) {
   const currentConfig = () => getConfig ? getConfig() : config;
   const router = express.Router();
-  const auth = [requireAuth, csrfToken, (_req, res, next) => {
-    Object.assign(res.locals, { appName, ...view });
+  const auth = [requireAuth, csrfToken, (req, res, next) => {
+    Object.assign(res.locals, { appName, ...view.createView(req.locale) });
     res.set('Cache-Control', 'no-store');
     next();
   }];
@@ -40,7 +40,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
         is_active: source ? source.is_active : 1, ...values, ...(error ? { is_active: values.is_active || 0 } : {}) },
       linkedUsers: source ? db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n : 0,
       saved: req.query.saved === '1',
-      error: error instanceof SubscriptionError ? error.message : error ? req.t('Не удалось сохранить источник. Проверьте данные и повторите попытку.') : null
+      error: error instanceof SubscriptionError ? translateError(error, req.t) : error ? req.t('Не удалось сохранить источник. Проверьте данные и повторите попытку.') : null
     });
   }
 
@@ -116,7 +116,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   function action(handler) {
     return (req, res) => {
       try { handler(req, res); }
-      catch (error) { res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? error.message : req.t('Не удалось выполнить действие. Повторите попытку.') }); }
+      catch (error) { res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? translateError(error, req.t) : req.t('Не удалось выполнить действие. Повторите попытку.') }); }
     };
   }
   router.post('/api/subscription-sources/:id/sync', ...auth, requireCsrf, action((req, res) => {
@@ -132,7 +132,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       const result = await scheduler.checkNodeNow(req.params.id);
       res.json({ result: { status: result.status, latencyMs: result.latencyMs ?? null, errorMessage: result.errorMessage ?? null } });
     } catch (error) {
-      res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? error.message : req.t('Не удалось выполнить проверку. Повторите попытку.') });
+      res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? translateError(error, req.t) : req.t('Не удалось выполнить проверку. Повторите попытку.') });
     }
   });
   router.post('/api/subscription-nodes/:id/settings', ...auth, requireCsrf, action((req, res) => {
@@ -158,7 +158,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       sources: sourceList(), bindings: db.all('SELECT * FROM user_subscription_sources WHERE user_id = ?', [user.id]),
       values, selectedSources: values ? selected(values.sources) : null,
       preview: subscriptionPreview(resolveUserSubscription(user.id, Date.now(), currentConfig())),
-      saved: req.query.saved === '1', error: error instanceof SubscriptionError ? error.message : error ? req.t('Не удалось сохранить назначения. Повторите попытку.') : null
+      saved: req.query.saved === '1', error: error instanceof SubscriptionError ? translateError(error, req.t) : error ? req.t('Не удалось сохранить назначения. Повторите попытку.') : null
     });
   }
   router.get('/admin/users/:id/servers', ...auth, (req, res) => renderAssignments(req, res));

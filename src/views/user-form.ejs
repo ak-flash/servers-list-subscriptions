@@ -18,13 +18,13 @@
                     <form method="POST" action="/admin/users<%= user ? '/' + user.id : '' %>">
                         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                         <div class="mb-4">
-                            <label class="mb-2 block text-sm font-semibold text-slate-700" for="username">Имя пользователя</label>
+                            <label class="mb-2 block text-sm font-semibold text-slate-700" for="username"><%= t('Имя пользователя') %></label>
                             <input id="username" type="text" name="username" value="<%= user ? user.username : '' %>" required
                                 class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                         </div>
                         <% if (user && user.username==='admin' ) { %>
                             <div class="mb-4">
-                                <label class="mb-2 block text-sm font-semibold text-slate-700" for="password">Новый пароль <span class="font-normal text-slate-500">(пусто — не менять)</span></label>
+                                <label class="mb-2 block text-sm font-semibold text-slate-700" for="password"><%= t('Новый пароль') %> <span class="font-normal text-slate-500">(<%= t('пусто — не менять') %>)</span></label>
                                 <input id="password" type="password" name="password"
                                     class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                             </div>

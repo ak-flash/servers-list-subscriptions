@@ -65,7 +65,7 @@
                   <% } %>
                 <% } %>
                 <span data-node-checked class="text-gray-500">Проверено: <%= ago(node.last_checked_at) %> (<%= time(node.last_checked_at) %>)</span>
-                <% if (node.parse_error || node.runner_error_message || node.error_message) { %><span class="text-red-700 break-all"><%= node.parse_error || node.runner_error_message || node.error_message %></span><% } %>
+                <% if (node.parse_error || node.runner_error_message || node.error_message) { %><span class="text-red-700 break-all"><%= node.parse_error ? t(`error.${node.parse_error}`) : node.runner_error_message || node.error_message %></span><% } %>
               </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 shrink-0">

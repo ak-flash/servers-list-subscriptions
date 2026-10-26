@@ -14,19 +14,19 @@
         <a href="/join/<%= user.id %>" target="_blank" rel="noopener" class="text-blue-700 underline underline-offset-4 py-2">Открыть подписку <%= user.id %></a>
         <a href="/join/<%= user.id %>/qr" target="_blank" rel="noopener" class="inline-flex min-h-[44px] items-center rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800">Открыть QR-код</a>
       </div>
-      <p class="text-sm text-gray-600 mt-3">Изменения состава появятся в VPN-клиенте после обновления подписки.</p>
+      <p class="text-sm text-gray-600 mt-3"><%= t('Изменения состава появятся в VPN-клиенте после обновления подписки.') %></p>
     </section>
     <% if (error) { %><p id="assignment-error" role="alert" tabindex="-1" class="bg-red-50 text-red-800 p-4 rounded-lg mb-6"><%= error %></p><% } %>
-    <% if (saved) { %><p role="status" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">Назначения сохранены.</p><% } %>
+    <% if (saved) { %><p role="status" class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800"><%= t('Назначения сохранены.') %></p><% } %>
     <form method="post" action="/admin/users/<%= user.id %>/servers" class="space-y-6">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-        <h2 class="text-lg font-semibold">Ручные назначения</h2>
-        <p class="text-sm text-gray-600 mt-2 mb-4">Отдельные серверы с пользовательским UUID. Они не входят в лимиты внешних источников.</p>
+<h2 class="text-lg font-semibold"><%= t('Ручные назначения') %></h2>
+         <p class="text-sm text-gray-600 mt-2 mb-4"><%= t('Отдельные серверы с пользовательским UUID. Они не входят в лимиты внешних источников.') %></p>
         <% if (!servers.length) { %>
-          <p class="text-gray-600">Ручных серверов нет. Можно назначить только источники ниже.</p>
+          <p class="text-gray-600"><%= t('Ручных серверов нет. Можно назначить только источники ниже.') %></p>
         <% } else { %>
-          <label class="flex items-center gap-3 mb-3 min-h-[44px]"><input type="checkbox" id="select-all" class="w-5 h-5">Выбрать все ручные серверы</label>
+          <label class="flex items-center gap-3 mb-3 min-h-[44px]"><input type="checkbox" id="select-all" class="w-5 h-5"><%= t('Выбрать все ручные серверы') %></label>
           <div class="space-y-4">
             <% servers.forEach(server => { %>
               <div class="border border-gray-200 rounded p-4">
@@ -35,13 +35,13 @@
                   <span class="min-w-0"><span class="block font-medium break-all"><%= server.name %></span><span class="block text-sm text-gray-600 break-all"><%= server.protocol.toUpperCase() %> · <%= server.host %>:<%= server.port %></span></span>
                 </label>
                 <div class="mt-3">
-                  <label for="uuid-<%= server.id %>" class="block text-sm font-medium mb-2">UUID для сервера «<%= server.name %>»</label>
+                  <label for="uuid-<%= server.id %>" class="block text-sm font-medium mb-2"><%= t('UUID для сервера «{name}»', { name: server.name }) %></label>
                   <div class="relative flex min-w-0 items-center gap-2" data-uuid-tools>
                     <input id="uuid-<%= server.id %>" name="uuids[<%= server.id %>]" type="text" value="<%= uuidMap[server.id] || '' %>" maxlength="256" class="min-w-0 flex-1 border border-gray-300 rounded px-3 py-2 font-mono" autocomplete="off" spellcheck="false" data-uuid-input>
-                    <button type="button" class="hidden inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100" data-uuid-copy aria-label="Скопировать UUID" title="Скопировать UUID">
+                    <button type="button" class="hidden inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100" data-uuid-copy aria-label="<%= t('Скопировать UUID') %>" title="<%= t('Скопировать UUID') %>">
                       <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                     </button>
-                    <button type="button" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100" data-uuid-paste aria-label="Вставить UUID" title="Вставить UUID">
+                    <button type="button" class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100" data-uuid-paste aria-label="<%= t('Вставить UUID') %>" title="<%= t('Вставить UUID') %>">
                       <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h1V5a2 2 0 0 1 2-2Z"/><path d="m8 13 2 2 4-4"/></svg>
                     </button>
                     <span class="pointer-events-none absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity" data-uuid-tooltip role="status" aria-live="polite"></span>
@@ -53,9 +53,9 @@
         <% } %>
       </section>
       <section class="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-        <h2 class="text-lg font-semibold">Внешние источники</h2>
-        <p class="text-sm text-gray-600 mt-2 mb-4">UUID берётся из источника. Выдаются только узлы со свежей успешной VPN-проверкой.</p>
-        <% if (!sources.length) { %><p>Источников пока нет. <a href="/admin/subscription-sources/new" class="text-blue-700 underline underline-offset-4">Добавить источник</a>.</p><% } %>
+<h2 class="text-lg font-semibold"><%= t('Внешние источники') %></h2>
+         <p class="text-sm text-gray-600 mt-2 mb-4"><%= t('UUID берётся из источника. Выдаются только узлы со свежей успешной VPN-проверкой.') %></p>
+        <% if (!sources.length) { %><p><%= t('Источников пока нет.') %> <a href="/admin/subscription-sources/new" class="text-blue-700 underline underline-offset-4"><%= t('Добавить источник') %></a>.</p><% } %>
         <div class="space-y-4">
           <% sources.forEach(source => {
             const binding = bindings.find(item => item.source_id === source.id);
@@ -66,15 +66,15 @@
             <div class="min-w-0 overflow-hidden border border-gray-200 rounded p-4" data-source-binding>
               <label class="flex items-center gap-3 min-h-[44px] cursor-pointer">
                 <input type="checkbox" name="sources" value="<%= source.id %>" <%= selected ? 'checked' : '' %> class="w-5 h-5 shrink-0" data-source-checkbox>
-                <span class="min-w-0"><span class="block font-medium break-all"><%= source.name %></span><span class="text-sm text-gray-600"><%= source.is_active ? `Работают через VPN: ${source.healthy} из ${source.count}` : 'Источник отключён' %></span></span>
+                <span class="min-w-0"><span class="block font-medium break-all"><%= source.name %></span><span class="text-sm text-gray-600"><%= source.is_active ? t('Работают через VPN: {healthy} из {count}', { healthy: source.healthy, count: source.count }) : t('Источник отключён') %></span></span>
               </label>
               <fieldset class="grid sm:grid-cols-3 gap-4 mt-4" data-source-fields>
-                <legend class="sr-only">Отбор узлов из источника «<%= source.name %>»</legend>
-                <div><label for="limit-<%= source.id %>" class="block text-sm font-medium mb-2">Количество узлов</label><input id="limit-<%= source.id %>" name="source_limits[<%= source.id %>]" type="number" min="1" max="10000" step="1" value="<%= values?.source_limits?.[source.id] ?? binding?.node_limit ?? '' %>" placeholder="без ограничений" class="w-full min-w-0 max-w-full border border-gray-300 rounded px-3 py-2" aria-describedby="limit-hint-<%= source.id %>"><p id="limit-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Пусто — без ограничения</p></div>
-                <div><label for="latency-<%= source.id %>" class="block text-sm font-medium mb-2">Задержка до, мс</label><input id="latency-<%= source.id %>" name="max_latency[<%= source.id %>]" type="number" min="1" max="60000" step="1" value="<%= maxLatency %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="latency-hint-<%= source.id %>"><p id="latency-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Пусто — без ограничения</p></div>
+                <legend class="sr-only"><%= t('Отбор узлов из источника «{name}»', { name: source.name }) %></legend>
+                <div><label for="limit-<%= source.id %>" class="block text-sm font-medium mb-2">Количество узлов</label><input id="limit-<%= source.id %>" name="source_limits[<%= source.id %>]" type="number" min="1" max="10000" step="1" value="<%= values?.source_limits?.[source.id] ?? binding?.node_limit ?? '' %>" placeholder="<%= t('без ограничений') %>" class="w-full min-w-0 max-w-full border border-gray-300 rounded px-3 py-2" aria-describedby="limit-hint-<%= source.id %>"><p id="limit-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1"><%= t('Пусто — без ограничения') %></p></div>
+                <div><label for="latency-<%= source.id %>" class="block text-sm font-medium mb-2">Задержка до, мс</label><input id="latency-<%= source.id %>" name="max_latency[<%= source.id %>]" type="number" min="1" max="60000" step="1" value="<%= maxLatency %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="latency-hint-<%= source.id %>"><p id="latency-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1"><%= t('Пусто — без ограничения') %></p></div>
                 <div><label for="priority-<%= source.id %>" class="block text-sm font-medium mb-2">Приоритет</label><input id="priority-<%= source.id %>" name="priorities[<%= source.id %>]" type="number" min="0" max="1000" step="1" value="<%= priority %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="priority-hint-<%= source.id %>"><p id="priority-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Меньшее число — раньше</p></div>
               </fieldset>
-              <a href="/admin/subscription-sources/<%= source.id %>/nodes" class="inline-block text-sm text-blue-700 underline underline-offset-4 mt-4">Посмотреть узлы источника</a>
+              <a href="/admin/subscription-sources/<%= source.id %>/nodes" class="inline-block text-sm text-blue-700 underline underline-offset-4 mt-4"><%= t('Посмотреть узлы источника') %></a>
             </div>
           <% }); %>
         </div>
@@ -86,11 +86,11 @@
     </form>
     <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 class="text-lg font-semibold">Текущий сохранённый состав</h2>
-        <a href="/admin/users/<%= user.id %>/servers" class="text-blue-700 underline underline-offset-4 py-2">Обновить состав</a>
+        <h2 class="text-lg font-semibold"><%= t('Текущий сохранённый состав') %></h2>
+        <a href="/admin/users/<%= user.id %>/servers" class="text-blue-700 underline underline-offset-4 py-2"><%= t('Обновить состав') %></a>
       </div>
-      <p class="text-sm text-gray-600 mb-4">Состояние на <%= time(preview.resolved_at) %>. Изменения формы учитываются после сохранения.</p>
-      <% if (!preview.servers.length) { %><p class="mb-4">Пока нет доступных узлов. Назначьте серверы или дождитесь успешной проверки источников.</p><% } %>
+      <p class="text-sm text-gray-600 mb-4"><%= t('Состояние на {date}. Изменения формы учитываются после сохранения.', { date: time(preview.resolved_at) }) %></p>
+      <% if (!preview.servers.length) { %><p class="mb-4"><%= t('Пока нет доступных узлов. Назначьте серверы или дождитесь успешной проверки источников.') %></p><% } %>
       <% preview.sources.forEach(source => { %>
         <div class="border-b border-gray-200 pb-4 mb-4">
           <h3 class="font-medium break-all"><%= source.name %></h3>
@@ -103,15 +103,15 @@
             <div class="min-w-0">
               <strong class="block truncate text-sm font-semibold text-slate-900" title="<%= server.name %>"><%= server.name %></strong>
               <% if (server.origin === 'manual') { %>
-                <p class="mt-1 truncate text-xs text-slate-500">Ручное назначение</p>
+                <p class="mt-1 truncate text-xs text-slate-500"><%= t('Ручное назначение') %></p>
               <% } else { %>
                 <div class="mt-1 flex flex-wrap items-center gap-2">
                   <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums <%= server.latency_ms !== null && server.latency_ms !== undefined ? (server.latency_ms <= 150 ? 'bg-emerald-100 text-emerald-800' : server.latency_ms <= 400 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800') : 'bg-slate-200 text-slate-600' %>"><%= latency(server.latency_ms) %></span>
                   <% if (server.proxy_checked_at && ['healthy', 'degraded'].includes(server.proxy_status) && server.proxy_latency_ms !== null && server.proxy_latency_ms !== undefined) { %>
-                    <span class="inline-flex rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600" title="Дополнительная задержка через HTTP-прокси">Прокси: <%= latency(server.proxy_latency_ms) %></span>
+                    <span class="inline-flex rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600" title="<%= t('Дополнительная задержка через HTTP-прокси') %>"><%= t('Прокси:') %> <%= latency(server.proxy_latency_ms) %></span>
                   <% } %>
                 </div>
-                <p class="mt-1 truncate text-xs text-slate-500">Проверено <%= ago(server.last_checked_at) %> (<%= time(server.last_checked_at) %>)</p>
+                <p class="mt-1 truncate text-xs text-slate-500"><%= t('Проверено {ago} ({date})', { ago: ago(server.last_checked_at), date: time(server.last_checked_at) }) %></p>
               <% } %>
             </div>
           </article>
@@ -145,11 +145,11 @@
         if (!input.value) return;
         try {
           await navigator.clipboard.writeText(input.value);
-          showTooltip('Скопировано');
+          showTooltip('<%= t('Скопировано') %>');
         } catch (error) {
           input.select();
           document.execCommand('copy');
-          showTooltip('Скопировано');
+          showTooltip('<%= t('Скопировано') %>');
         }
       });
       group.querySelector('[data-uuid-paste]').addEventListener('click', async () => {
@@ -158,10 +158,10 @@
           if (!navigator.clipboard?.readText) throw new Error('clipboard_unavailable');
           input.value = await navigator.clipboard.readText();
           input.dispatchEvent(new Event('input', { bubbles: true }));
-          showTooltip('Вставлено');
+          showTooltip('<%= t('Вставлено') %>');
         } catch (error) {
           input.focus();
-          showTooltip('Вставьте через Ctrl+V');
+          showTooltip('<%= t('Вставьте через Ctrl+V') %>');
         }
       });
     });

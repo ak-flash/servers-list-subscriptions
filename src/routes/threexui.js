@@ -1,19 +1,19 @@
 const express = require('express');
 const db = require('../db/database');
 const service = require('../services/threeXui');
-const { SubscriptionError } = require('../utils/subscriptionErrors');
+const { SubscriptionError, translateError } = require('../utils/subscriptionErrors');
 const { csrfToken, requireCsrf } = require('../middleware/csrf');
 const logger = require('../utils/logger');
 
 function renderError(error, t) {
-  if (error instanceof SubscriptionError) return error.message;
+  if (error instanceof SubscriptionError) return translateError(error, t);
   return t('Не удалось сохранить панель 3x-ui. Проверьте данные и повторите попытку.');
 }
 
 module.exports = function createThreeXuiRoutes({ requireAuth, appName }) {
   const router = express.Router();
-  const auth = [requireAuth, csrfToken, (_req, res, next) => {
-    res.locals.appName = appName;
+  const auth = [requireAuth, csrfToken, (req, res, next) => {
+    Object.assign(res.locals, { appName, ...require('../utils/subscriptionView').createView(req.locale) });
     res.set('Cache-Control', 'no-store');
     next();
   }];

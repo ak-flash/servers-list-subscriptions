@@ -17,28 +17,28 @@
             <form method="POST" action="/admin/servers<%= server ? '/' + server.id : '' %>">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <div class="mb-4">
-                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-name">Название</label>
-                    <input id="server-name" type="text" name="name" value="<%= server ? server.name : '' %>" placeholder="Например, Германия — основной" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-name"><%= t('Название') %></label>
+                    <input id="server-name" type="text" name="name" value="<%= server ? server.name : '' %>" placeholder="<%= t('Например, Германия — основной') %>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                 </div>
 
                 <% if (!server) { %>
                 <div class="mb-4">
-                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-link">Ссылка подключения</label>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-link"><%= t('Ссылка подключения') %></label>
                     <textarea id="server-link" name="link" rows="4" placeholder="vless://..." class="w-full rounded-lg border border-slate-300 px-4 py-3 font-mono text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><%= server ? server.link : '' %></textarea>
                 </div>
                 <% } else { %>
                 <div class="mb-4">
-                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-link">Ссылка подключения</label>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-link"><%= t('Ссылка подключения') %></label>
                     <textarea id="server-link" name="link" rows="4" placeholder="vless://..." class="w-full rounded-lg border border-slate-300 px-4 py-3 font-mono text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><%= server ? server.link : '' %></textarea>
                 </div>
 
                 <div class="mb-4">
-                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-tag">Тег подключения <span class="font-normal text-slate-500">(необязательно)</span></label>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="server-tag"><%= t('Тег подключения') %> <span class="font-normal text-slate-500">(<%= t('необязательно') %>)</span></label>
                     <input id="server-tag" type="text" name="tag" value="<%= server ? (server.tag || '') : '' %>" placeholder="inbound-8443" class="w-full rounded-lg border border-slate-300 px-4 py-3 font-mono text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                 </div>
 
                 <div class="mb-4">
-                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="traffic-limit">Лимит трафика <span class="font-normal text-slate-500">(ГБ, 0 — без лимита)</span></label>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="traffic-limit"><%= t('Лимит трафика') %> <span class="font-normal text-slate-500">(<%= t('ГБ, 0 — без лимита') %>)</span></label>
                     <input id="traffic-limit" type="number" name="traffic_limit" value="<%= server ? (server.traffic_limit || 0) : 0 %>" placeholder="0" min="0" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                 </div>
                 <% } %>

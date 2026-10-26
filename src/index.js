@@ -81,7 +81,10 @@ app.use((req, res, next) => {
     });
     next();
 });
-app.locals = { ...app.locals, ...subscriptionView };
+app.use((req, res, next) => {
+    Object.assign(res.locals, subscriptionView.createView(req.locale));
+    next();
+});
 if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 
 app.use(session({

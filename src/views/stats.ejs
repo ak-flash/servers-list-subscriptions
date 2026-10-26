@@ -294,9 +294,9 @@
         const csrfToken = '<%= csrfToken %>';
         async function clearStatistics() {
             const ok = await uiConfirm({
-                title: 'Очистить статистику',
-                message: 'Все данные о запросах будут удалены. Действие нельзя отменить.',
-                confirmText: 'Очистить',
+title: '<%= t('Очистить статистику') %>',
+                 message: '<%= t('Все данные о запросах будут удалены. Действие нельзя отменить.') %>',
+                 confirmText: '<%= t('Очистить') %>',
                 danger: true,
             });
             if (!ok) return;

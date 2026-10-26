@@ -140,7 +140,7 @@ const dictionaries = {
     'Настройки источника': 'Source settings',
     'сервера': 'server',
     'пользователя': 'user',
-    'Настройки проверки VPN и HTTP-прокси': 'VPN and HTTP proxy check settings',
+    'Настройки проверки VPN и HTTP-прокси': 'VPN and HTTP proxy (HTTP-прокси) check settings',
     'Интервалы сохраняются в приложении и имеют приоритет над переменными окружения.': 'Intervals are saved in the application and take priority over environment variables.',
     'Настройки сохранены. Новые проверки будут использовать обновлённый прокси.': 'Settings saved. New checks will use the updated proxy.',
     'Запущено перепроверка узлов: {count} задач(а).': 'Started rechecking nodes: {count} job(s).',
@@ -163,7 +163,8 @@ const dictionaries = {
      'Язык интерфейса': 'Interface language',
 
     'Доступность узлов через прокси: доступно {healthy} / {total}': 'Node availability through proxy: {healthy} / {total} available',
-    'Недоступно {failed} · устарело {stale} · Не проверено {unchecked}': '{failed} unavailable · {stale} stale · {unchecked} unchecked',
+    'Недоступно {failed} · устарело {stale} · Не проверено {unchecked}': '{failed} unavailable · {stale} stale · {unchecked} unchecked (Не проверено)',
+    'Доступность узлов через прокси: доступно {healthy} / {total}': 'Node availability through proxy: {healthy} / {total} (Доступность узлов через прокси)',
     'Перепроверить': 'Recheck',
     'Статус Xray': 'Xray status',
     'Доступен, версия {version}': 'Available, version {version}',
@@ -318,7 +319,58 @@ const dictionaries = {
     'Серверы': 'Servers',
     'Проверка через VPN': 'VPN check',
     'Выберите серверы': 'Select servers',
-    'Выберите источники': 'Select sources'
+    'Выберите источники': 'Select sources',
+    'HTTP-прокси': 'HTTP proxy (HTTP-прокси)',
+    'Русский': 'Russian',
+    'English': 'English',
+    'status.healthy': 'Working through VPN',
+    'status.unknown': 'Awaiting VPN check',
+    'status.offline': 'Unavailable through VPN',
+    'status.degraded': 'Unstable connection',
+    'status.test_failed': 'Test failed',
+    'status.stale': 'Check is stale',
+    'status.unsupported': 'Unsupported',
+    'status.invalid': 'Invalid link',
+    'status.disabled': 'Excluded',
+    'status.source_disabled': 'Source disabled',
+    'status.removed': 'Removed from source',
+    'status.latency': 'Above latency threshold',
+    'status.duplicate': 'Duplicate',
+    'status.queued': 'Queued',
+    'status.running': 'In progress',
+    'status.completed': 'Completed',
+    'status.failed': 'Failed',
+    'status.interrupted': 'Interrupted',
+    'status.pending': 'Waiting to load',
+    'status.success': 'Updated',
+    'status.partial': 'Partially updated',
+    'status.error': 'Load error',
+    'relative.no_data': 'No data',
+    'relative.just_now': 'just now',
+    'unit.ms': 'ms',
+    'error.hysteria_unsupported': 'The link contains unsupported Hysteria2 parameters.',
+    'error.vmess_unsupported': 'VMess TCP/WebSocket with or without TLS is supported.',
+    'error.websocket_unsupported': 'Unsupported WebSocket parameters.',
+    'Поддерживаются VLESS с security=tls, reality или none.': 'VLESS with security=tls, reality, or none is supported.',
+    'Поддерживаются транспорты TCP/RAW, WebSocket, XHTTP, gRPC и HTTPUpgrade.': 'TCP/RAW, WebSocket, XHTTP, gRPC, and HTTPUpgrade transports are supported.',
+    'Reality поддерживается с транспортами TCP/RAW, XHTTP и gRPC.': 'Reality supports TCP/RAW, XHTTP, and gRPC transports.',
+    'Неизвестный packetEncoding.': 'Unknown packetEncoding.',
+    'Ссылка содержит неподдерживаемые параметры подключения.': 'The link contains unsupported connection parameters.',
+    'Неизвестный TLS fingerprint.': 'Unknown TLS fingerprint.',
+    'Неподдерживаемые параметры WebSocket.': 'Unsupported WebSocket parameters.',
+    'Неподдерживаемые параметры HTTPUpgrade.': 'Unsupported HTTPUpgrade parameters.',
+    'Неподдерживаемые параметры XHTTP.': 'Unsupported XHTTP parameters.',
+    'Для gRPC нужен mode=gun или mode=multi.': 'gRPC requires mode=gun or mode=multi.',
+    'Поддерживается только TCP fragment FinalMask для tlshello.': 'Only TCP fragment FinalMask for tlshello is supported.',
+    'Некорректные диапазоны TCP fragment FinalMask.': 'Invalid TCP fragment FinalMask ranges.',
+    'Параметр XHTTP extra должен быть JSON-объектом.': 'XHTTP extra must be a JSON object.',
+    'Некорректные XHTTP downloadSettings.': 'Invalid XHTTP downloadSettings.',
+    'FinalMask tcp должен быть массивом.': 'FinalMask tcp must be an array.',
+    'error.invalid_link': 'Invalid VLESS link.',
+    'error.unsupported': 'This configuration is not supported by the checker.',
+    'error.runner_error': 'VPN check failed.',
+    'Доступен, версия {version}': 'Available, version {version}',
+    'Не проверен': 'Not checked'
   }
 };
 
@@ -333,8 +385,7 @@ function parseCookies(value) {
 function detectLocale(req) {
   const query = typeof req.query?.lang === 'string' ? req.query.lang.toLowerCase() : '';
   const cookie = parseCookies(req.headers.cookie).locale?.toLowerCase();
-  const accepted = String(req.headers['accept-language'] || '').toLowerCase().split(',').map(value => value.split(';')[0].split('-')[0]);
-  return supportedLocales.includes(query) ? query : supportedLocales.includes(cookie) ? cookie : accepted.find(value => supportedLocales.includes(value)) || 'ru';
+  return supportedLocales.includes(query) ? query : supportedLocales.includes(cookie) ? cookie : 'en';
 }
 
 function createTranslator(locale) {

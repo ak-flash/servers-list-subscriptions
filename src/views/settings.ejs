@@ -13,8 +13,8 @@
       <div class="mt-5 rounded-lg border border-slate-200 p-4">
         <label class="block text-sm font-medium mb-1" for="languageSelect"><%= t('Язык интерфейса') %></label>
         <select id="languageSelect" class="w-full rounded-lg border border-slate-300 px-3 py-2" onchange="window.location.href = this.value">
-          <option value="<%= languageUrl('ru') %>" <%= locale === 'ru' ? 'selected' : '' %>>Русский</option>
-          <option value="<%= languageUrl('en') %>" <%= locale === 'en' ? 'selected' : '' %>>English</option>
+          <option value="<%= languageUrl('ru') %>" <%= locale === 'ru' ? 'selected' : '' %>><%= t('Русский') %></option>
+          <option value="<%= languageUrl('en') %>" <%= locale === 'en' ? 'selected' : '' %>><%= t('English') %></option>
         </select>
       </div>
       <form method="post" action="/admin/settings" class="mt-5 space-y-4">
@@ -60,18 +60,18 @@
       </form>
       <% if (proxyStats.configured) { %>
         <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600">
-          <p class="font-medium text-slate-700">Доступность узлов через прокси: доступно <%= proxyStats.healthy %> / <%= proxyStats.total %></p>
-          <p>Недоступно <%= proxyStats.failed %> · устарело <%= proxyStats.stale %> · Не проверено <%= proxyStats.unchecked %></p>
+<p class="font-medium text-slate-700"><%= t('Доступность узлов через прокси: доступно {healthy} / {total}', { healthy: proxyStats.healthy, total: proxyStats.total }) %></p>
+           <p><%= t('Недоступно {failed} · устарело {stale} · Не проверено {unchecked}', { failed: proxyStats.failed, stale: proxyStats.stale, unchecked: proxyStats.unchecked }) %></p>
           <form method="post" action="/admin/settings/recheck">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button type="submit" class="text-sm font-semibold text-blue-700 hover:underline">Перепроверить</button>
+            <button type="submit" class="text-sm font-semibold text-blue-700 hover:underline"><%= t('Перепроверить') %></button>
           </form>
         </div>
       <% } %>
       <div id="proxyResult" class="mt-4 hidden rounded-lg border p-3 text-sm"></div>
       <div class="mt-6 border-t pt-4">
-        <h3 class="text-sm font-semibold text-gray-700">Статус Xray</h3>
-        <p class="mt-1 text-sm text-gray-600"><%= runner.available ? `Доступен, версия ${runner.version}` : runner.error || 'Не проверен' %></p>
+        <h3 class="text-sm font-semibold text-gray-700"><%= t('Статус Xray') %></h3>
+        <p class="mt-1 text-sm text-gray-600"><%= runner.available ? t('Доступен, версия {version}', { version: runner.version }) : runner.error || t('Не проверен') %></p>
       </div>
     </section>
   </main>
@@ -79,7 +79,7 @@
     document.getElementById('checkProxyBtn').addEventListener('click', async () => {
       const out = document.getElementById('proxyResult');
       out.className = 'mt-4 rounded-lg border p-3 text-sm bg-slate-50 text-slate-700';
-      out.textContent = 'Проверка…';
+      out.textContent = '<%= t('Проверка…') %>';
       out.classList.remove('hidden');
       try {
         const response = await fetch('/api/settings/proxy/check', {
@@ -87,13 +87,13 @@
           headers: { 'x-csrf-token': document.querySelector('meta[name="csrf-token"]').content }
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Ошибка проверки');
+        if (!response.ok) throw new Error(data.error || '<%= t('Ошибка проверки') %>');
         if (data.status === 'healthy') {
           out.className = 'mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700';
-          out.textContent = `Прокси работает. Задержка: ${Math.round(data.latencyMs)} мс`;
+          out.textContent = `<%= t('Прокси работает. Задержка: {latency} мс') %>`.replace('{latency}', Math.round(data.latencyMs));
         } else {
           out.className = 'mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700';
-          out.textContent = `Прокси недоступен: ${data.errorCode || 'unknown'}`;
+          out.textContent = `<%= t('Прокси недоступен: {code}') %>`.replace('{code}', data.errorCode || 'unknown');
         }
       } catch (error) {
         out.className = 'mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700';

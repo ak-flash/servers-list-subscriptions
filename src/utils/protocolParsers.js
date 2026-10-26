@@ -110,7 +110,7 @@ function parseHysteria2(raw) {
   const config = { schema_version: 1, protocol: 'hysteria2', host, port, password: decodeURIComponent(url.username), sni,
     insecure: ['1', 'true'].includes(url.searchParams.get('insecure') || ''), obfs: url.searchParams.get('obfs') || '', obfsPassword: url.searchParams.get('obfs-password') || '' };
   const supported = !config.obfs && ![...url.searchParams.keys()].some(key => !['sni', 'insecure', 'obfs', 'obfs-password'].includes(key));
-  return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : 'Ссылка содержит неподдерживаемые параметры Hysteria2.' };
+  return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : new SubscriptionError('hysteria_unsupported').code };
 }
 
 function parseVmess(raw) {
@@ -136,10 +136,10 @@ function parseVmess(raw) {
   const alpn = String(data.alpn || '').split(',').filter(Boolean);
   const path = String(data.path || '');
   if (!['tcp', 'ws'].includes(network) || !['tls', 'none', ''].includes(security) || type !== 'none' || alpn.length && security === 'none') {
-    return { config: null, name: name || `${host}:${port}`, fingerprint: fingerprint(data), capability: 'unsupported', error: 'Поддерживаются VMess TCP/WebSocket с TLS или без TLS.' };
+    return { config: null, name: name || `${host}:${port}`, fingerprint: fingerprint(data), capability: 'unsupported', error: new SubscriptionError('vmess_unsupported').code };
   }
   if (network === 'ws' && (!path.startsWith('/') || /[\r\n]/.test(String(data.host || '')))) {
-    return { config: null, name: name || `${host}:${port}`, fingerprint: fingerprint(data), capability: 'unsupported', error: 'Неподдерживаемые параметры WebSocket.' };
+    return { config: null, name: name || `${host}:${port}`, fingerprint: fingerprint(data), capability: 'unsupported', error: new SubscriptionError('websocket_unsupported').code };
   }
   const config = { schema_version: 1, protocol: 'vmess', host, port, uuid, security: security || 'none', network, sni: String(data.sni || host), alpn, fingerprint: String(data.fp || ''), hostHeader: String(data.host || ''), path: path || '/', alterId: Number.parseInt(data.aid, 10) || 0, scy: String(data.scy || 'auto') };
   return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: 'supported', error: null };
