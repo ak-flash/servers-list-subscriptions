@@ -1,30 +1,20 @@
 # VPN Subscription Service
 
+**Русский** | [English](README.en.md)
+
 Сервис формирования VPN-подписок с админ-панелью: ручные назначения серверов и автоматический отбор работающих VLESS-узлов из внешних источников.
 
 Xray используется как временный клиент для проверок внешних VPN. Пользовательский трафик идёт напрямую на выданные узлы; VPN-сервер для пользователей здесь не поднимается.
 
 ## Скриншоты
 
-### Ручные серверы
-
-![Ручные серверы](screenshots/dashboard-servers.png)
-
-### Пользователи
-
-![Пользователи](screenshots/dashboard-users.png)
-
-### Настройки
-
-![Настройки](screenshots/settings.png)
-
-### Статистика
-
-![Статистика](screenshots/stats.png)
-
-### Источники подписок
-
-![Источники подписок](screenshots/subscription-sources.png)
+| Ручные серверы | Пользователи |
+|:---:|:---:|
+| [<img src="screenshots/dashboard-servers.png" alt="Ручные серверы" width="360">](screenshots/dashboard-servers.png) | [<img src="screenshots/dashboard-users.png" alt="Пользователи" width="360">](screenshots/dashboard-users.png) |
+| **Настройки** | **Статистика** |
+| [<img src="screenshots/settings.png" alt="Настройки" width="360">](screenshots/settings.png) | [<img src="screenshots/stats.png" alt="Статистика" width="360">](screenshots/stats.png) |
+| **Источники подписок** | |
+| [<img src="screenshots/subscription-sources.png" alt="Источники подписок" width="360">](screenshots/subscription-sources.png) | |
 
 ## Возможности
 
