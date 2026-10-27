@@ -7,44 +7,44 @@
     <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
       <div class="flex flex-wrap justify-between items-start gap-4">
         <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Каталог узлов</h2>
-          <p class="text-sm text-gray-600 mt-1 break-all"><%= source.masked_url %> · <%= source.is_active ? statusLabel(source.sync_status) : 'Источник отключён' %></p>
-          <p class="mt-3"><strong><%= healthy %></strong> работают через VPN. Последняя успешная загрузка: <%= time(source.last_success_at) %></p>
-          <p class="text-sm text-gray-600 mt-2">Задержка измеряется от хоста проверки через VPN до HTTPS-цели. На устройстве пользователя она может отличаться.<%= proxyConfigured ? ' В подписку попадают узлы, успешно прошедшие проверку и напрямую, и через HTTP-прокси (бейдж «Прокси»).' : '' %></p>
+          <h2 class="text-lg font-semibold"><%= t('Каталог узлов') %></h2>
+          <p class="text-sm text-gray-600 mt-1 break-all"><%= source.masked_url %> · <%= source.is_active ? statusLabel(source.sync_status) : t('Источник отключён') %></p>
+          <p class="mt-3"><%= t('Работают через VPN: {healthy}. Последняя успешная загрузка: {time}', { healthy, time: time(source.last_success_at) }) %></p>
+          <p class="text-sm text-gray-600 mt-2"><%= t('Задержка измеряется от хоста проверки через VPN до HTTPS-цели. На устройстве пользователя она может отличаться.') %><%= proxyConfigured ? t('В подписку попадают узлы, успешно прошедшие проверку и напрямую, и через HTTP-прокси (бейдж «Прокси»).') : '' %></p>
           <% if (source.last_error) { %><p class="text-red-700 mt-2"><%= source.last_error %></p><% } %>
-          <% if (report) { %><p class="text-sm text-gray-600 mt-2">Последний импорт: новых — <%= report.added %>, существующих — <%= report.existing %>, дублей — <%= report.duplicates %>, неподдерживаемых — <%= report.unsupported %>, некорректных — <%= report.invalid %>.</p><% } %>
+          <% if (report) { %><p class="text-sm text-gray-600 mt-2"><%= t('Последний импорт: новых — {added}, существующих — {existing}, дублей — {duplicates}, неподдерживаемых — {unsupported}, некорректных — {invalid}.', report) %></p><% } %>
           <% if (source.metadata_json) { const metadata = JSON.parse(source.metadata_json); %>
-            <details class="mt-3 text-sm"><summary class="cursor-pointer">Квота внешнего источника</summary>
-              <p class="text-gray-600 mt-2">Общая квота поставщика используется всеми пользователями этого источника.</p>
+            <details class="mt-3 text-sm"><summary class="cursor-pointer"><%= t('Квота внешнего источника') %></summary>
+              <p class="text-gray-600 mt-2"><%= t('Общая квота поставщика используется всеми пользователями этого источника.') %></p>
               <dl class="mt-2 space-y-1">
-                <div><dt class="inline">Передано: </dt><dd class="inline"><%= (((metadata.upload || 0) + (metadata.download || 0)) / 1073741824).toFixed(2) %> GiB</dd></div>
-                <div><dt class="inline">Лимит: </dt><dd class="inline"><%= metadata.total ? `${(metadata.total / 1073741824).toFixed(2)} GiB` : 'Не указан' %></dd></div>
-                <div><dt class="inline">Срок действия: </dt><dd class="inline"><%= metadata.expire ? time(metadata.expire * 1000) : 'Не указан' %></dd></div>
+                <div><dt class="inline"><%= t('Передано:') %> </dt><dd class="inline"><%= (((metadata.upload || 0) + (metadata.download || 0)) / 1073741824).toFixed(2) %> GiB</dd></div>
+                <div><dt class="inline"><%= t('Лимит:') %> </dt><dd class="inline"><%= metadata.total ? `${(metadata.total / 1073741824).toFixed(2)} GiB` : t('Не указан') %></dd></div>
+                <div><dt class="inline"><%= t('Срок действия:') %> </dt><dd class="inline"><%= metadata.expire ? time(metadata.expire * 1000) : t('Не указан') %></dd></div>
               </dl>
             </details>
           <% } %>
         </div>
         <div class="flex flex-wrap gap-3">
           <% if (source.is_active) { %>
-            <form method="post" action="/api/subscription-sources/<%= source.id %>/sync" data-background-action><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="min-h-[44px] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 font-semibold text-blue-800 hover:bg-blue-100">Загрузить список</button></form>
-            <form method="post" action="/api/subscription-sources/<%= source.id %>/check" data-background-action><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="min-h-[44px] rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white hover:bg-blue-800">Проверить VPN</button></form>
+            <form method="post" action="/api/subscription-sources/<%= source.id %>/sync" data-background-action><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="min-h-[44px] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 font-semibold text-blue-800 hover:bg-blue-100"><%= t('Загрузить список') %></button></form>
+            <form method="post" action="/api/subscription-sources/<%= source.id %>/check" data-background-action><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="min-h-[44px] rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white hover:bg-blue-800"><%= t('Проверить VPN') %></button></form>
           <% } %>
-          <a href="/admin/subscription-sources/<%= source.id %>/edit" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50">Настроить источник</a>
+          <a href="/admin/subscription-sources/<%= source.id %>/edit" class="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"><%= t('Настроить источник') %></a>
         </div>
       </div>
     </section>
     <div class="mb-6"><%- include('partials/subscription-job', { job, metrics, refreshUrl: `/admin/subscription-sources/${source.id}/nodes` }) %></div>
     <form method="get" class="flex flex-wrap items-end gap-4 mb-6">
-      <div><label for="status-filter" class="block text-sm font-medium mb-2">Состояние</label>
+      <div><label for="status-filter" class="block text-sm font-medium mb-2"><%= t('Состояние') %></label>
         <select id="status-filter" name="status" class="border border-gray-300 rounded px-3 py-2 min-h-[44px]">
-          <option value="">Все состояния</option>
+          <option value=""><%= t('Все состояния') %></option>
           <% ['healthy', 'unknown', 'degraded', 'offline', 'unsupported', 'invalid', 'disabled'].forEach(state => { %><option value="<%= state %>" <%= filter === state ? 'selected' : '' %>><%= statusLabel(state) %></option><% }); %>
         </select>
       </div>
-      <label class="flex items-center gap-3 min-h-[44px]"><input type="checkbox" name="removed" value="1" <%= showRemoved ? 'checked' : '' %> class="w-5 h-5">Показать удалённые</label>
-      <button class="bg-white border border-gray-300 rounded px-4 py-2 min-h-[44px]">Применить фильтр</button>
+      <label class="flex items-center gap-3 min-h-[44px]"><input type="checkbox" name="removed" value="1" <%= showRemoved ? 'checked' : '' %> class="w-5 h-5"><%= t('Показать удалённые') %></label>
+      <button class="bg-white border border-gray-300 rounded px-4 py-2 min-h-[44px]"><%= t('Применить фильтр') %></button>
     </form>
-    <% if (!nodes.length) { %><p class="bg-white rounded-lg p-6">Узлы не найдены. <%= source.last_success_at ? 'Измените фильтр или загрузите список повторно.' : 'Запустите загрузку списка и дождитесь её завершения.' %></p><% } %>
+    <% if (!nodes.length) { %><p class="bg-white rounded-lg p-6"><%= t('Узлы не найдены.') %> <%= source.last_success_at ? t('Измените фильтр или загрузите список повторно.') : t('Запустите загрузку списка и дождитесь её завершения.') %></p><% } %>
     <ul class="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white shadow-sm">
       <% nodes.forEach(node => { %>
         <li class="px-3 py-3 md:px-4">
@@ -52,52 +52,52 @@
             <div class="min-w-0 flex-1 basis-64">
               <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <h3 class="font-semibold break-all"><%= node.name %></h3>
-                <span class="text-sm text-gray-600 break-all"><%= node.protocol.toUpperCase() %> · <%= node.host || 'Адрес не распознан' %><%= node.port ? `:${node.port}` : '' %></span>
+                <span class="text-sm text-gray-600 break-all"><%= node.protocol.toUpperCase() %> · <%= node.host || t('Адрес не распознан') %><%= node.port ? `:${node.port}` : '' %></span>
               </div>
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
                 <span data-node-status class="font-medium <%= node.effective_status === 'healthy' ? 'text-green-800' : 'text-gray-700' %>"><%= statusLabel(node.effective_status) %></span>
-                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums <%= node.latency_ms !== null && node.latency_ms !== undefined ? (node.latency_ms <= 150 ? 'bg-green-100 text-green-800' : node.latency_ms <= 400 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') : 'bg-gray-100 text-gray-600' %>" title="Задержка HTTPS через VPN"><%= latency(node.latency_ms) %></span>
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums <%= node.latency_ms !== null && node.latency_ms !== undefined ? (node.latency_ms <= 150 ? 'bg-green-100 text-green-800' : node.latency_ms <= 400 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') : 'bg-gray-100 text-gray-600' %>" title="<%= t('Задержка HTTPS через VPN') %>"><%= latency(node.latency_ms) %></span>
                 <% if (node.proxy_checked_at) { %>
                   <% if (['healthy', 'degraded'].includes(node.proxy_status) && node.proxy_latency_ms !== null && node.proxy_latency_ms !== undefined) { %>
-                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums <%= node.proxy_latency_ms <= 150 ? 'bg-green-100 text-green-800' : node.proxy_latency_ms <= 400 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800' %>" title="Дополнительная задержка через HTTP-прокси">Прокси: <%= latency(node.proxy_latency_ms) %></span>
+                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums <%= node.proxy_latency_ms <= 150 ? 'bg-green-100 text-green-800' : node.proxy_latency_ms <= 400 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800' %>" title="<%= t('Дополнительная задержка через HTTP-прокси') %>"><%= t('Прокси:') %> <%= latency(node.proxy_latency_ms) %></span>
                   <% } else { %>
-                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600" title="Проверка через HTTP-прокси<%= node.proxy_error_code ? ': ' + node.proxy_error_code : '' %>">Прокси: —<%= node.proxy_error_code ? ` (${node.proxy_error_code})` : '' %></span>
+                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600" title="<%= t('Проверка через HTTP-прокси') %><%= node.proxy_error_code ? ': ' + node.proxy_error_code : '' %>"><%= t('Прокси:') %> —<%= node.proxy_error_code ? ` (${node.proxy_error_code})` : '' %></span>
                   <% } %>
                 <% } %>
-                <span data-node-checked class="text-gray-500">Проверено: <%= ago(node.last_checked_at) %> (<%= time(node.last_checked_at) %>)</span>
+                <span data-node-checked class="text-gray-500"><%= t('Проверено:') %> <%= ago(node.last_checked_at) %> (<%= time(node.last_checked_at) %>)</span>
                 <% if (node.parse_error || node.runner_error_message || node.error_message) { %><span class="text-red-700 break-all"><%= node.parse_error ? t(`error.${node.parse_error}`) : node.runner_error_message || node.error_message %></span><% } %>
               </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 shrink-0">
               <% if (node.raw_link) { %>
                 <span class="relative inline-flex">
-                  <button type="button" class="border border-gray-300 hover:bg-gray-100 rounded px-3 py-2 min-h-[40px] text-sm" data-copy-connection="<%= encodeURIComponent(node.raw_link) %>" data-icon="copy">Копировать</button>
+                  <button type="button" class="border border-gray-300 hover:bg-gray-100 rounded px-3 py-2 min-h-[40px] text-sm" data-copy-connection="<%= encodeURIComponent(node.raw_link) %>" data-icon="copy"><%= t('Копировать') %></button>
                   <span class="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-xs text-white shadow-lg" data-copy-status aria-live="polite"></span>
                 </span>
               <% } %>
               <% if (node.is_present && node.is_enabled && node.capability_status === 'supported' && source.is_active) { %>
-                <form method="post" action="/api/subscription-nodes/<%= node.id %>/check" data-background-action data-node-check><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" data-icon="check" class="relative bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[40px] min-w-[86px] text-sm" aria-label="Проверить VPN: <%= node.name %>"><span data-check-label>Проверить</span><span data-check-spinner class="pointer-events-none absolute inset-0 hidden items-center justify-center" aria-hidden="true"><span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span></span></button></form>
+                <form method="post" action="/api/subscription-nodes/<%= node.id %>/check" data-background-action data-node-check><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" data-icon="check" class="relative bg-blue-600 hover:bg-blue-700 text-white rounded px-3 py-2 min-h-[40px] min-w-[86px] text-sm" aria-label="<%= t('Проверить VPN: {name}', { name: node.name }) %>"><span data-check-label><%= t('Проверить') %></span><span data-check-spinner class="pointer-events-none absolute inset-0 hidden items-center justify-center" aria-hidden="true"><span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span></span></button></form>
               <% } %>
               <form method="post" action="/api/subscription-nodes/<%= node.id %>/settings" data-node-setting>
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="is_enabled" value="<%= node.is_enabled ? '0' : '1' %>">
-                <button class="inline-flex h-10 w-10 items-center justify-center border border-gray-300 rounded text-sm" data-icon="<%= node.is_enabled ? 'ban' : 'play' %>" aria-label="<%= node.is_enabled ? 'Исключить узел' : 'Включить узел' %>: <%= node.name %>" title="<%= node.is_enabled ? 'Исключить' : 'Включить' %>"></button>
+                <button class="inline-flex h-10 w-10 items-center justify-center border border-gray-300 rounded text-sm" data-icon="<%= node.is_enabled ? 'ban' : 'play' %>" aria-label="<%= node.is_enabled ? t('Исключить узел') : t('Включить узел') %>: <%= node.name %>" title="<%= node.is_enabled ? t('Исключить') : t('Включить') %>"></button>
               </form>
             </div>
           </div>
         </li>
       <% }); %>
     </ul>
-    <nav aria-label="Страницы каталога" class="flex flex-wrap items-center gap-4 mt-6">
-      <span>Страница <%= page %> из <%= pages %> · Найдено: <%= total %></span>
-      <nav class="flex flex-wrap gap-2" aria-label="Пагинация">
+    <nav aria-label="<%= t('Страницы каталога') %>" class="flex flex-wrap items-center gap-4 mt-6">
+      <span><%= t('Страница {page} из {pages} · Найдено: {total}', { page, pages, total }) %></span>
+      <nav class="flex flex-wrap gap-2" aria-label="<%= t('Пагинация') %>">
         <% if (page > 1) { %>
-          <a class="bg-white border rounded px-3 py-2" href="?page=<%= page - 1 %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>" aria-label="Назад">Назад</a>
+          <a class="bg-white border rounded px-3 py-2" href="?page=<%= page - 1 %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>" aria-label="<%= t('Назад') %>"><%= t('Назад') %></a>
         <% } %>
         <% for (let number = 1; number <= pages; number++) { %>
           <a class="<%= number === page ? 'bg-blue-700 text-white' : 'bg-white' %> border rounded px-3 py-2" href="?page=<%= number %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>" <%= number === page ? 'aria-current="page"' : '' %>><%= number %></a>
         <% } %>
         <% if (page < pages) { %>
-          <a class="bg-white border rounded px-3 py-2" href="?page=<%= page + 1 %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>" aria-label="Вперёд">Вперёд</a>
+          <a class="bg-white border rounded px-3 py-2" href="?page=<%= page + 1 %>&amp;status=<%= encodeURIComponent(filter) %>&amp;removed=<%= showRemoved ? 1 : 0 %>" aria-label="<%= t('Вперёд') %>"><%= t('Вперёд') %></a>
         <% } %>
       </nav>
     </nav>

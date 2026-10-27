@@ -1,11 +1,3 @@
-const russianStatusLabels = {
-  healthy: 'Работает через VPN', unknown: 'Ожидает VPN-проверки', offline: 'Недоступен через VPN', degraded: 'Нестабильное соединение',
-  test_failed: 'Тест не пройден', stale: 'Проверка устарела', unsupported: 'Не поддерживается', invalid: 'Некорректная ссылка',
-  disabled: 'Исключён', source_disabled: 'Источник отключён', removed: 'Удалён из источника', latency: 'Выше порога задержки', duplicate: 'Дубликат',
-  queued: 'В очереди', running: 'Выполняется', completed: 'Завершена', failed: 'Ошибка', interrupted: 'Прервана', pending: 'Ожидает загрузки',
-  success: 'Обновлён', partial: 'Частично обновлён', error: 'Ошибка загрузки'
-};
-
 const statusKeys = {
   healthy: 'status.healthy', unknown: 'status.unknown', offline: 'status.offline', degraded: 'status.degraded',
   test_failed: 'status.test_failed', stale: 'status.stale', unsupported: 'status.unsupported', invalid: 'status.invalid',
@@ -32,7 +24,6 @@ function formatDate(value, options = {}, locale = 'en') {
 
 function statusLabel(value, locale = 'en') {
   const t = translator(locale);
-  if (locale === 'ru') return russianStatusLabels[value] || value || 'Нет данных';
   return t(statusKeys[value] || value || '—');
 }
 

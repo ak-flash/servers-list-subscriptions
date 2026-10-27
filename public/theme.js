@@ -15,7 +15,7 @@
     root.classList.toggle('dark', dark);
     buttons.forEach(button => {
       button.setAttribute('aria-pressed', String(dark));
-      button.setAttribute('aria-label', dark ? 'Включить светлую тему' : 'Включить тёмную тему');
+      button.setAttribute('aria-label', dark ? (window.appTranslations?.lightTheme || 'Enable light theme') : (window.appTranslations?.darkTheme || 'Enable dark theme'));
     });
   };
 

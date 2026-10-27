@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const shouldShow = open || desktop.matches;
     menu.classList.toggle('hidden', !shouldShow);
     toggle.setAttribute('aria-expanded', String(open));
-    toggle.setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+    toggle.setAttribute('aria-label', open ? (window.appTranslations?.closeMenu || 'Close menu') : (window.appTranslations?.openMenu || 'Open menu'));
     openIcon?.classList.toggle('hidden', open);
     closeIcon?.classList.toggle('hidden', !open);
   };

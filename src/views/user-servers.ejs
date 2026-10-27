@@ -6,13 +6,13 @@
   <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
     <section class="relative mb-6 overflow-hidden rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
       <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
-      <div class="relative"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Персональная подписка</p><h2 class="mt-2 text-2xl font-semibold">Серверы пользователя</h2><p class="mt-2 max-w-xl text-sm leading-6 text-slate-300">Настройте ручные назначения и автоматический отбор рабочих узлов из источников.</p></div>
+      <div class="relative"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300"><%= t('Персональная подписка') %></p><h2 class="mt-2 text-2xl font-semibold"><%= t('Серверы пользователя') %></h2><p class="mt-2 max-w-xl text-sm leading-6 text-slate-300"><%= t('Настройте ручные назначения и автоматический отбор рабочих узлов из источников.') %></p></div>
     </section>
     <section class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
-      <h2 class="text-lg font-semibold mb-3">Ссылка подписки</h2>
+      <h2 class="text-lg font-semibold mb-3"><%= t('Ссылка подписки') %></h2>
       <div class="flex flex-wrap items-center gap-3">
-        <a href="/join/<%= user.id %>" target="_blank" rel="noopener" class="text-blue-700 underline underline-offset-4 py-2">Открыть подписку <%= user.id %></a>
-        <a href="/join/<%= user.id %>/qr" target="_blank" rel="noopener" class="inline-flex min-h-[44px] items-center rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800">Открыть QR-код</a>
+        <a href="/join/<%= user.id %>" target="_blank" rel="noopener" class="text-blue-700 underline underline-offset-4 py-2"><%= t('Открыть подписку') %> <%= user.id %></a>
+        <a href="/join/<%= user.id %>/qr" target="_blank" rel="noopener" class="inline-flex min-h-[44px] items-center rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800"><%= t('Открыть QR-код') %></a>
       </div>
       <p class="text-sm text-gray-600 mt-3"><%= t('Изменения состава появятся в VPN-клиенте после обновления подписки.') %></p>
     </section>
@@ -70,9 +70,9 @@
               </label>
               <fieldset class="grid sm:grid-cols-3 gap-4 mt-4" data-source-fields>
                 <legend class="sr-only"><%= t('Отбор узлов из источника «{name}»', { name: source.name }) %></legend>
-                <div><label for="limit-<%= source.id %>" class="block text-sm font-medium mb-2">Количество узлов</label><input id="limit-<%= source.id %>" name="source_limits[<%= source.id %>]" type="number" min="1" max="10000" step="1" value="<%= values?.source_limits?.[source.id] ?? binding?.node_limit ?? '' %>" placeholder="<%= t('без ограничений') %>" class="w-full min-w-0 max-w-full border border-gray-300 rounded px-3 py-2" aria-describedby="limit-hint-<%= source.id %>"><p id="limit-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1"><%= t('Пусто — без ограничения') %></p></div>
-                <div><label for="latency-<%= source.id %>" class="block text-sm font-medium mb-2">Задержка до, мс</label><input id="latency-<%= source.id %>" name="max_latency[<%= source.id %>]" type="number" min="1" max="60000" step="1" value="<%= maxLatency %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="latency-hint-<%= source.id %>"><p id="latency-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1"><%= t('Пусто — без ограничения') %></p></div>
-                <div><label for="priority-<%= source.id %>" class="block text-sm font-medium mb-2">Приоритет</label><input id="priority-<%= source.id %>" name="priorities[<%= source.id %>]" type="number" min="0" max="1000" step="1" value="<%= priority %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="priority-hint-<%= source.id %>"><p id="priority-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1">Меньшее число — раньше</p></div>
+                <div><label for="limit-<%= source.id %>" class="block text-sm font-medium mb-2"><%= t('Количество узлов') %></label><input id="limit-<%= source.id %>" name="source_limits[<%= source.id %>]" type="number" min="1" max="10000" step="1" value="<%= values?.source_limits?.[source.id] ?? binding?.node_limit ?? '' %>" placeholder="<%= t('без ограничений') %>" class="w-full min-w-0 max-w-full border border-gray-300 rounded px-3 py-2" aria-describedby="limit-hint-<%= source.id %>"><p id="limit-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1"><%= t('Пусто — без ограничения') %></p></div>
+                <div><label for="latency-<%= source.id %>" class="block text-sm font-medium mb-2"><%= t('Задержка до, мс') %></label><input id="latency-<%= source.id %>" name="max_latency[<%= source.id %>]" type="number" min="1" max="60000" step="1" value="<%= maxLatency %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="latency-hint-<%= source.id %>"><p id="latency-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1"><%= t('Пусто — без ограничения') %></p></div>
+                <div><label for="priority-<%= source.id %>" class="block text-sm font-medium mb-2"><%= t('Приоритет') %></label><input id="priority-<%= source.id %>" name="priorities[<%= source.id %>]" type="number" min="0" max="1000" step="1" value="<%= priority %>" class="w-full border border-gray-300 rounded px-3 py-2" aria-describedby="priority-hint-<%= source.id %>"><p id="priority-hint-<%= source.id %>" class="text-xs text-gray-600 mt-1"><%= t('Меньшее число — раньше') %></p></div>
               </fieldset>
               <a href="/admin/subscription-sources/<%= source.id %>/nodes" class="inline-block text-sm text-blue-700 underline underline-offset-4 mt-4"><%= t('Посмотреть узлы источника') %></a>
             </div>
@@ -80,8 +80,8 @@
         </div>
       </section>
       <div class="flex flex-wrap gap-3">
-        <button type="submit" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800">Сохранить назначения</button>
-        <a href="/admin" class="bg-white border border-gray-300 px-5 py-3 rounded">Отмена</a>
+        <button type="submit" class="min-h-[44px] rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800"><%= t('Сохранить назначения') %></button>
+        <a href="/admin" class="bg-white border border-gray-300 px-5 py-3 rounded"><%= t('Отмена') %></a>
       </div>
     </form>
     <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
@@ -94,7 +94,7 @@
       <% preview.sources.forEach(source => { %>
         <div class="border-b border-gray-200 pb-4 mb-4">
           <h3 class="font-medium break-all"><%= source.name %></h3>
-          <p class="mt-1">Запрошено <%= source.requested %>, доступно <%= source.available %>, выбрано <%= source.selected.length %>.</p>
+          <p class="mt-1"><%= t('Запрошено {requested}, доступно {available}, выбрано {selected}.', { requested: source.requested, available: source.available, selected: source.selected.length }) %></p>
         </div>
       <% }); %>
       <div class="flex flex-wrap gap-3">

@@ -31,11 +31,11 @@
           <table class="w-full min-w-[860px] table-fixed">
             <thead>
               <tr class="border-b text-left text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
-                <th class="w-[26%] pb-3 pr-4">Панель</th>
-                <th class="w-[24%] pb-3 pr-4">Статус</th>
-                <th class="w-[16%] pb-3 pr-4">Интервал</th>
-                <th class="w-[18%] pb-3 pr-4">Последняя синхронизация</th>
-                <th class="w-[16%] pb-3 text-right">Действия</th>
+                <th class="w-[26%] pb-3 pr-4"><%= t('Панель') %></th>
+                <th class="w-[24%] pb-3 pr-4"><%= t('Статус') %></th>
+                <th class="w-[16%] pb-3 pr-4"><%= t('Интервал') %></th>
+                <th class="w-[18%] pb-3 pr-4"><%= t('Последняя синхронизация') %></th>
+                <th class="w-[16%] pb-3 text-right"><%= t('Действия') %></th>
               </tr>
             </thead>
             <tbody>
@@ -53,7 +53,7 @@
                       <div class="mt-2 max-w-xs text-xs leading-4 text-red-700"><%= panel.lastSyncError %></div>
                     <% } %>
                   </td>
-                  <td class="py-4 pr-4 align-top"><%= panel.syncIntervalSeconds %> с</td>
+                  <td class="py-4 pr-4 align-top"><%= panel.syncIntervalSeconds %> <%= t('с') %></td>
                   <td class="py-4 pr-4 align-top"><%= panel.lastSyncAt ? time(panel.lastSyncAt) : t('Никогда') %></td>
                   <td class="py-4 align-top">
                     <div class="flex flex-wrap justify-end gap-2">

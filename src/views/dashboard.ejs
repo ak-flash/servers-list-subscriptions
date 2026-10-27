@@ -10,27 +10,27 @@
             <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
             <div class="relative grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
                 <div class="min-w-0">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Центр управления</p>
-                    <h2 class="mt-2 text-xl font-semibold tracking-tight md:text-2xl">Серверы и пользователи</h2>
-                    <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300"><%= t('Центр управления') %></p>
+                    <h2 class="mt-2 text-xl font-semibold tracking-tight md:text-2xl"><%= t('Серверы и пользователи') %></h2>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-300"><%= t('Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.') %></p>
                 </div>
                 <div class="flex items-center gap-2 text-xs text-slate-400 md:pt-1">
                     <svg viewBox="0 0 24 24" class="h-4 w-4 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                    <span>Часовой пояс: <strong class="font-medium text-slate-200"><%= timezone %></strong></span>
+                    <span><%= t('Часовой пояс:') %> <strong class="font-medium text-slate-200"><%= timezone %></strong></span>
                 </div>
             </div>
         </section>
-        <section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="Сводка">
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Серверы</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= totals.servers.active || 0 %></p><p class="mt-1 text-xs text-slate-500"><%= totals.servers.total %> всего</p></div>
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Пользователи</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= totals.users.active || 0 %></p><p class="mt-1 text-xs text-slate-500"><%= totals.users.total %> всего</p></div>
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Источники подписок</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= stats.totalSources %></p><a href="/admin/subscription-sources" class="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline">Открыть каталог</a></div>
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500">Рабочие узлы</p><p class="mt-1 text-3xl font-bold text-slate-900"><%= stats.healthyNodes %></p><p class="mt-1 text-xs text-slate-500">работают через VPN</p></div>
+        <section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="<%= t('Сводка') %>">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500"><%= t('Серверы') %></p><p class="mt-1 text-3xl font-bold text-slate-900"><%= totals.servers.active || 0 %></p><p class="mt-1 text-xs text-slate-500"><%= totals.servers.total %> <%= t('всего') %></p></div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500"><%= t('Пользователи') %></p><p class="mt-1 text-3xl font-bold text-slate-900"><%= totals.users.active || 0 %></p><p class="mt-1 text-xs text-slate-500"><%= totals.users.total %> <%= t('всего') %></p></div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500"><%= t('Источники подписок') %></p><p class="mt-1 text-3xl font-bold text-slate-900"><%= stats.totalSources %></p><a href="/admin/subscription-sources" class="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline"><%= t('Открыть каталог') %></a></div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500"><%= t('Рабочие узлы') %></p><p class="mt-1 text-3xl font-bold text-slate-900"><%= stats.healthyNodes %></p><p class="mt-1 text-xs text-slate-500"><%= t('работают через VPN') %></p></div>
         </section>
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6 w-full" data-dashboard-collections>
-            <div class="border-b border-slate-200" role="tablist" aria-label="Список управления">
+            <div class="border-b border-slate-200" role="tablist" aria-label="<%= t('Список управления') %>">
                 <div class="flex flex-wrap gap-2">
                     <a id="servers-tab" href="<%= collectionUrl('servers', { tab: 'servers' }) %>" class="tab-button <%= activeTab === 'servers' ? 'inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 border-blue-700 px-3 py-2 text-sm font-semibold text-blue-700' : 'inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 border-transparent px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700' %>" role="tab" aria-selected="<%= activeTab === 'servers' ? 'true' : 'false' %>" aria-controls="servers-panel" data-tab-button="servers">
-                        Ручные серверы
+                        <%= t('Ручные серверы') %>
                     </a>
                     <a id="users-tab" href="<%= collectionUrl('users', { tab: 'users' }) %>" class="tab-button <%= activeTab === 'users' ? 'inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 border-blue-700 px-3 py-2 text-sm font-semibold text-blue-700' : 'inline-flex min-h-[44px] items-center rounded-t-lg border-b-2 border-transparent px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700' %>" role="tab" aria-selected="<%= activeTab === 'users' ? 'true' : 'false' %>" aria-controls="users-panel" data-tab-button="users">
                         Пользователи
@@ -39,10 +39,10 @@
             </div>
             <div id="servers-panel" role="tabpanel" aria-labelledby="servers-tab" data-tab-panel="servers" class="pt-4" <%= activeTab === 'servers' ? '' : 'hidden' %>>
             <div class="flex flex-col gap-4 mb-4 pb-4 border-b sm:flex-row sm:items-center sm:justify-between">
-                <div><h2 class="text-lg font-semibold text-gray-800">Ручные серверы</h2><p class="mt-1 text-sm text-slate-500">Проверьте доступность и управляйте подключениями.</p></div>
+                <div><h2 class="text-lg font-semibold text-gray-800"><%= t('Ручные серверы') %></h2><p class="mt-1 text-sm text-slate-500"><%= t('Проверьте доступность и управляйте подключениями.') %></p></div>
                 <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                    <button id="checkAllBtn" data-icon="check" onclick="checkAllServers()" class="min-h-[44px] flex-1 rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 sm:flex-none">Проверить все</button>
-                    <a href="/admin/servers/new" data-icon="add" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50">Добавить</a>
+                    <button id="checkAllBtn" data-icon="check" onclick="checkAllServers()" class="min-h-[44px] flex-1 rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800 sm:flex-none"><%= t('Проверить все') %></button>
+                    <a href="/admin/servers/new" data-icon="add" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50"><%= t('Добавить') %></a>
                 </div>
             </div>
             <form method="GET" action="/admin" class="mb-4 flex flex-col gap-3 sm:flex-row">
@@ -50,14 +50,14 @@
                 <% if (collections.users.search) { %><input type="hidden" name="userSearch" value="<%= collections.users.search %>"><% } %>
                 <% if (collections.users.status !== 'all') { %><input type="hidden" name="userStatus" value="<%= collections.users.status %>"><% } %>
                 <% if (collections.users.page > 1) { %><input type="hidden" name="userPage" value="<%= collections.users.page %>"><% } %>
-                <label class="relative flex-1"><span class="sr-only">Поиск серверов</span><input id="serverSearch" name="serverSearch" type="search" value="<%= collections.servers.search %>" placeholder="Поиск по названию, хосту или протоколу" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
+                <label class="relative flex-1"><span class="sr-only"><%= t('Поиск серверов') %></span><input id="serverSearch" name="serverSearch" type="search" value="<%= collections.servers.search %>" placeholder="<%= t('Поиск по названию, хосту или протоколу') %>" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
                 <select id="serverStatus" name="serverStatus" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" onchange="this.form.requestSubmit()">
-                    <option value="all" <%= collections.servers.status === 'all' ? 'selected' : '' %>>Все серверы</option>
-                    <option value="active" <%= collections.servers.status === 'active' ? 'selected' : '' %>>Только активные</option>
-                    <option value="inactive" <%= collections.servers.status === 'inactive' ? 'selected' : '' %>>Только отключённые</option>
+                    <option value="all" <%= collections.servers.status === 'all' ? 'selected' : '' %>><%= t('Все серверы') %></option>
+                    <option value="active" <%= collections.servers.status === 'active' ? 'selected' : '' %>><%= t('Только активные') %></option>
+                    <option value="inactive" <%= collections.servers.status === 'inactive' ? 'selected' : '' %>><%= t('Только отключённые') %></option>
                 </select>
-                <button type="submit" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">Найти</button>
-                <% if (collections.servers.search || collections.servers.status !== 'all') { %><a href="<%= collectionUrl('servers', { serverSearch: '', serverStatus: 'all', serverPage: 1 }) %>" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50">Сбросить</a><% } %>
+                <button type="submit" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"><%= t('Найти') %></button>
+                <% if (collections.servers.search || collections.servers.status !== 'all') { %><a href="<%= collectionUrl('servers', { serverSearch: '', serverStatus: 'all', serverPage: 1 }) %>" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"><%= t('Сбросить') %></a><% } %>
             </form>
             <% if (servers.length===0) { %>
                 <p class="text-gray-500 text-center py-8"><%= totals.servers.total ? 'Серверы по заданным условиям не найдены.' : 'Нет серверов. Добавьте первый сервер.' %></p>
@@ -65,12 +65,12 @@
                     <table class="w-full hidden md:table">
                         <thead>
                             <tr class="text-left text-gray-600 border-b">
-                                <th class="pb-3">Название</th>
-                                <th class="pb-3">Хост</th>
-                                <th class="pb-3">Порт</th>
-                                <th class="pb-3">Протокол</th>
-                                <th class="pb-3">VPN / задержка</th>
-                                <th class="pb-3 text-right">Действия</th>
+                                <th class="pb-3"><%= t('Название') %></th>
+                                <th class="pb-3"><%= t('Хост') %></th>
+                                <th class="pb-3"><%= t('Порт') %></th>
+                                <th class="pb-3"><%= t('Протокол') %></th>
+                                <th class="pb-3"><%= t('VPN / задержка') %></th>
+                                <th class="pb-3 text-right"><%= t('Действия') %></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -92,19 +92,19 @@
                                     </td>
                                     <td class="py-3">
                                         <span id="status-<%= server.id %>"
-class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" data-latency="">Не проверен</span>
+class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" data-latency=""><%= t('Не проверен') %></span>
                                         <div id="check-error-<%= server.id %>" class="mt-1 hidden max-w-xs break-words text-xs text-red-700"></div>
                                     </td>
                                     <td class="py-3 text-right">
                                         <div class="flex gap-2 items-center justify-end">
 <button type="button" onclick="checkServer('<%= server.id %>')"
-                                                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Проверить VPN: <%= server.name %>" title="Проверить VPN">
+                                                 class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="<%= t('Проверить VPN: {name}', { name: server.name }) %>" title="<%= t('Проверить VPN') %>">
                                                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h3l2-7 4 14 2-7h7"/></svg>
                                              </button>
 <a href="/admin/servers/<%= server.id %>/edit"
-                                                 class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-slate-600 px-3 py-1.5 text-center text-sm font-semibold leading-tight text-white hover:bg-slate-700">Редактировать</a>
+                                                 class="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-slate-600 px-3 py-1.5 text-center text-sm font-semibold leading-tight text-white hover:bg-slate-700"><%= t('Редактировать') %></a>
 <form method="POST" action="/admin/servers/<%= server.id %>/delete"
-                                                 data-confirm="Удалить сервер? Действие необратимо." data-confirm-ok="Удалить" data-confirm-danger="true">
+                                                 data-confirm="<%= t('Удалить сервер? Действие необратимо.') %>" data-confirm-ok="<%= t('Удалить') %>" data-confirm-danger="true">
                                                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit"
                                                     class="inline-flex min-h-[38px] items-center justify-center rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800">
@@ -139,7 +139,7 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                                         </div>
                                     </div>
                                     <span id="status-mobile-<%= server.id %>"
-class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" data-latency="">Не проверен</span>
+class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600" data-latency=""><%= t('Не проверен') %></span>
                                 </div>
 <div class="mb-3 text-xs text-gray-400">
                                       <%= server.protocol ? server.protocol.toUpperCase() : '' %> · проверка через Xray
@@ -147,15 +147,15 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                                   <div id="check-error-mobile-<%= server.id %>" class="mb-3 hidden break-words text-xs text-red-700"></div>
                                 <div class="flex gap-2">
 <button type="button" onclick="checkServer('<%= server.id %>')"
-                                         class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="Проверить VPN: <%= server.name %>" title="Проверить VPN">
+                                         class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="<%= t('Проверить VPN: {name}', { name: server.name }) %>" title="<%= t('Проверить VPN') %>">
                                          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h3l2-7 4 14 2-7h7"/></svg>
                                      </button>
                                     <a href="/admin/servers/<%= server.id %>/edit"
-                                        class="inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-gray-500 px-3 text-sm text-white hover:bg-gray-600 text-center">Редактировать</a>
+                                        class="inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-gray-500 px-3 text-sm text-white hover:bg-gray-600 text-center"><%= t('Редактировать') %></a>
                                      <form method="POST" action="/admin/servers/<%= server.id %>/delete"
-                                         data-confirm="Удалить сервер? Действие необратимо." data-confirm-ok="Удалить" data-confirm-danger="true">
+                                         data-confirm="<%= t('Удалить сервер? Действие необратимо.') %>" data-confirm-ok="<%= t('Удалить') %>" data-confirm-danger="true">
                                          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
- <button type="submit" aria-label="Удалить сервер <%= server.name %>" title="Удалить сервер"
+ <button type="submit" aria-label="<%= t('Удалить сервер {name}', { name: server.name }) %>" title="<%= t('Удалить сервер') %>"
                                                      class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-700 text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7l1-3h4l1 3"/></svg></button>
                                     </form>
                                 </div>
@@ -163,14 +163,14 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                             <% }); %>
                     </div>
                     <% } %>
-            <% if (collections.servers.totalPages > 1) { %><nav class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Пагинация серверов" data-pagination="servers">
-                <p class="text-sm text-slate-500" data-pagination-info="servers" aria-live="polite">Показаны <%= collections.servers.total ? (collections.servers.page - 1) * collections.servers.perPage + 1 : 0 %>–<%= Math.min(collections.servers.page * collections.servers.perPage, collections.servers.total) %> из <%= collections.servers.total %> серверов</p>
+            <% if (collections.servers.totalPages > 1) { %><nav class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="<%= t('Пагинация серверов') %>" data-pagination="servers">
+                <p class="text-sm text-slate-500" data-pagination-info="servers" aria-live="polite"><%= t('Показаны {from}–{to} из {total} серверов', { from: collections.servers.total ? (collections.servers.page - 1) * collections.servers.perPage + 1 : 0, to: Math.min(collections.servers.page * collections.servers.perPage, collections.servers.total), total: collections.servers.total }) %></p>
                 <div class="flex flex-wrap items-center gap-2">
                     <% if (collections.servers.totalPages > 1) { %>
                         <% if (collections.servers.page > 1) { %>
-                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page - 1 }) %>">Назад</a>
+                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page - 1 }) %>"><%= t('Назад') %></a>
                         <% } else { %>
-                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true"><%= t('Назад') %></span>
                         <% } %>
                     <% } %>
                     <div class="flex flex-wrap gap-1" data-page-numbers="servers">
@@ -182,9 +182,9 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                     </div>
                     <% if (collections.servers.totalPages > 1) { %>
                         <% if (collections.servers.page < collections.servers.totalPages) { %>
-                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page + 1 }) %>">Вперёд</a>
+                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('servers', { serverPage: collections.servers.page + 1 }) %>"><%= t('Вперёд') %></a>
                         <% } else { %>
-                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true"><%= t('Вперёд') %></span>
                         <% } %>
                     <% } %>
                 </div>
@@ -193,10 +193,10 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
 
             <div id="users-panel" role="tabpanel" aria-labelledby="users-tab" data-tab-panel="users" class="pt-4" <%= activeTab === 'users' ? '' : 'hidden' %>>
             <div class="flex flex-col gap-4 mb-4 pb-4 border-b sm:flex-row sm:items-center sm:justify-between">
-                <div><h2 class="text-lg font-semibold text-gray-800">Пользователи</h2><p class="mt-1 text-sm text-slate-500">Управляйте доступом и ссылками на подписки.</p></div>
+                <div><h2 class="text-lg font-semibold text-gray-800"><%= t('Пользователи') %></h2><p class="mt-1 text-sm text-slate-500"><%= t('Управляйте доступом и ссылками на подписки.') %></p></div>
                 <div class="flex flex-wrap gap-2">
-                    <a href="/admin/stats" data-icon="external" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50">Статистика</a>
-                    <a href="/admin/users/new" data-icon="add" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800">Добавить</a>
+                    <a href="/admin/stats" data-icon="external" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50""><%= t('Статистика') %></a>
+                    <a href="/admin/users/new" data-icon="add" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800"><%= t('Добавить') %></a>
                 </div>
             </div>
             <form method="GET" action="/admin" class="mb-4 flex flex-col gap-3 sm:flex-row">
@@ -204,14 +204,14 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                 <% if (collections.servers.search) { %><input type="hidden" name="serverSearch" value="<%= collections.servers.search %>"><% } %>
                 <% if (collections.servers.status !== 'all') { %><input type="hidden" name="serverStatus" value="<%= collections.servers.status %>"><% } %>
                 <% if (collections.servers.page > 1) { %><input type="hidden" name="serverPage" value="<%= collections.servers.page %>"><% } %>
-                <label class="relative flex-1"><span class="sr-only">Поиск пользователей</span><input id="userSearch" name="userSearch" type="search" value="<%= collections.users.search %>" placeholder="Поиск по имени пользователя или ID" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
+                <label class="relative flex-1"><span class="sr-only"><%= t('Поиск пользователей') %></span><input id="userSearch" name="userSearch" type="search" value="<%= collections.users.search %>" placeholder="<%= t('Поиск по имени пользователя или ID') %>" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 pl-10 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"><span class="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true">⌕</span></label>
                 <select id="userStatus" name="userStatus" class="min-h-[44px] rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100" onchange="this.form.requestSubmit()">
-                    <option value="all" <%= collections.users.status === 'all' ? 'selected' : '' %>>Все пользователи</option>
-                    <option value="active" <%= collections.users.status === 'active' ? 'selected' : '' %>>Только активные</option>
-                    <option value="inactive" <%= collections.users.status === 'inactive' ? 'selected' : '' %>>Только отключённые</option>
+                    <option value="all" <%= collections.users.status === 'all' ? 'selected' : '' %>><%= t('Все пользователи') %></option>
+                    <option value="active" <%= collections.users.status === 'active' ? 'selected' : '' %>><%= t('Только активные') %></option>
+                    <option value="inactive" <%= collections.users.status === 'inactive' ? 'selected' : '' %>><%= t('Только отключённые') %></option>
                 </select>
-                <button type="submit" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800">Найти</button>
-                <% if (collections.users.search || collections.users.status !== 'all') { %><a href="<%= collectionUrl('users', { userSearch: '', userStatus: 'all', userPage: 1 }) %>" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50">Сбросить</a><% } %>
+                <button type="submit" class="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"><%= t('Найти') %></button>
+                <% if (collections.users.search || collections.users.status !== 'all') { %><a href="<%= collectionUrl('users', { userSearch: '', userStatus: 'all', userPage: 1 }) %>" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"><%= t('Сбросить') %></a><% } %>
             </form>
             <% if (users.length===0) { %>
                 <p class="text-gray-500 text-center py-8"><%= totals.users.total ? 'Пользователи по заданным условиям не найдены.' : 'Нет пользователей. Добавьте первого пользователя.' %></p>
@@ -219,12 +219,12 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                     <table class="w-full hidden md:table [&_th]:px-3 [&_td]:px-3">
                         <thead>
                             <tr class="text-left text-gray-600 border-b">
-                                <th class="pb-3">Имя пользователя</th>
-                                <th class="pb-3">Статус</th>
-                                <th class="pb-3">Трафик</th>
-                                <th class="pb-3">Последний запрос</th>
-                                <th class="pb-3">Ссылка подписки</th>
-                                <th class="pb-3">Действия</th>
+                                <th class="pb-3"><%= t('Имя пользователя') %></th>
+                                <th class="pb-3"><%= t('Статус') %></th>
+                                <th class="pb-3"><%= t('Трафик') %></th>
+                                <th class="pb-3"><%= t('Последний запрос') %></th>
+                                <th class="pb-3"><%= t('Ссылка подписки') %></th>
+                                <th class="pb-3"><%= t('Действия') %></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -232,21 +232,21 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                                 <tr class="border-b last:border-0" data-user-item data-user-item-id="<%= user.id %>" data-user-active="<%= user.is_active ? 'true' : 'false' %>">
                                     <td class="py-3 align-top">
                                         <div class="font-medium"><%= user.username %></div>
-                                        <div class="mt-2 flex max-w-[19rem] flex-wrap gap-1" aria-label="Ручные серверы">
+                                        <div class="mt-2 flex max-w-[19rem] flex-wrap gap-1" aria-label="<%= t('Ручные серверы') %>">
                                             <% if (user.manual_servers.length) { %>
                                                 <% user.manual_servers.forEach(server => { %><span class="inline-flex max-w-[10rem] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600" title="<%= server %>"><%= server %></span><% }); %>
-                                            <% } else { %><span class="text-xs text-slate-400">Нет ручных серверов</span><% } %>
+                                            <% } else { %><span class="text-xs text-slate-400"><%= t('Нет ручных серверов') %></span><% } %>
                                         </div>
-                                        <div class="mt-1 flex max-w-[19rem] flex-wrap gap-1" aria-label="Подписки">
+                                        <div class="mt-1 flex max-w-[19rem] flex-wrap gap-1" aria-label="<%= t('Подписки') %>">
                                             <% if (user.subscription_sources.length) { %>
                                                 <% user.subscription_sources.forEach(source => { %><span class="inline-flex max-w-[10rem] truncate rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700" title="<%= source %>"><%= source %></span><% }); %>
-                                            <% } else { %><span class="text-xs text-slate-400">Нет подписок</span><% } %>
+                                            <% } else { %><span class="text-xs text-slate-400"><%= t('Нет подписок') %></span><% } %>
                                         </div>
                                     </td>
                                     <td class="py-3">
                                         <span
                                             class="px-2 py-1 text-xs rounded <%= user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
-                                            <%= user.is_active ? 'Активен' : 'Отключен' %>
+                                            <%= user.is_active ? t('Активен') : t('Отключен') %>
                                         </span>
                                     </td>
                                     <td class="py-3">
@@ -270,14 +270,14 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                                     <td class="py-3">
                                         <div class="flex gap-2 items-center">
                                             <a href="/admin/users/<%= user.id %>/servers"
-                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Серверы</a>
+                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700"><%= t('Серверы') %></a>
                                             <a href="/admin/users/<%= user.id %>/edit"
-                                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-600 text-white hover:bg-slate-700" aria-label="Редактировать пользователя <%= user.username %>" title="Редактировать"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg></a>
+                                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-600 text-white hover:bg-slate-700" aria-label="<%= t('Редактировать пользователя {name}', { name: user.username }) %>" title="<%= t('Редактировать') %>"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg></a>
 <form method="POST" action="/admin/users/<%= user.id %>/delete"
-                                                 data-confirm="Удалить пользователя и его подписки? Действие необратимо." data-confirm-ok="Удалить" data-confirm-danger="true">
+                                                 data-confirm="<%= t('Удалить пользователя и его подписки? Действие необратимо.') %>" data-confirm-ok="<%= t('Удалить') %>" data-confirm-danger="true">
                                                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit"
-                                                    class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-700 text-white hover:bg-red-800" aria-label="Удалить пользователя <%= user.username %>" title="Удалить"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 6V4h8v2m-9 0 1 16h8l1-16M10 11v6m4-6v6"/></svg></button>
+                                                    class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-700 text-white hover:bg-red-800" aria-label="<%= t('Удалить пользователя {name}', { name: user.username }) %>" title="<%= t('Удалить') %>"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 6V4h8v2m-9 0 1 16h8l1-16M10 11v6m4-6v6"/></svg></button>
                                             </form>
                                         </div>
                                     </td>
@@ -294,71 +294,71 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                                     </div>
                                     <span
                                         class="px-2 py-1 text-xs rounded <%= user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
-                                        <%= user.is_active ? 'Активен' : 'Отключен' %>
+                                        <%= user.is_active ? t('Активен') : t('Отключен') %>
                                     </span>
                                 </div>
                                 <div class="text-xs text-gray-400 mb-3">ID: <%= user.id %></div>
-                                <div class="mb-3 space-y-1" aria-label="Привязки пользователя">
+                                <div class="mb-3 space-y-1" aria-label="<%= t('Привязки пользователя') %>">
                                     <div class="flex flex-wrap gap-1">
                                         <% if (user.manual_servers.length) { %>
                                             <% user.manual_servers.forEach(server => { %><span class="inline-flex max-w-[14rem] truncate rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600" title="<%= server %>"><%= server %></span><% }); %>
-                                        <% } else { %><span class="text-xs text-slate-400">Нет ручных серверов</span><% } %>
+                                        <% } else { %><span class="text-xs text-slate-400"><%= t('Нет ручных серверов') %></span><% } %>
                                     </div>
                                     <div class="flex flex-wrap gap-1">
                                         <% if (user.subscription_sources.length) { %>
                                             <% user.subscription_sources.forEach(source => { %><span class="inline-flex max-w-[14rem] truncate rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700" title="<%= source %>"><%= source %></span><% }); %>
-                                        <% } else { %><span class="text-xs text-slate-400">Нет подписок</span><% } %>
+                                        <% } else { %><span class="text-xs text-slate-400"><%= t('Нет подписок') %></span><% } %>
                                     </div>
                                 </div>
                                 <div class="mb-3 text-sm font-semibold text-slate-800"><%= user.formatted_monthly %></div>
                                         <div class="flex flex-wrap gap-2 mb-3">
                                             <button onclick="showQrModal('<%= user.id %>', '<%= user.username %>')"
                                                 class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
-                                                QR код
+                                                <%= t('QR код') %>
                                             </button>
                                             <a href="/join/<%= user.id %>#Подписка_<%= user.username %>" target="_blank"
                                                 class="bg-blue-50 px-3 py-1 rounded text-sm hover:bg-blue-100 text-blue-600">
-                                                Ссылка
+                                                <%= t('Ссылка') %>
                                             </a>
                                         </div>
                                         <div class="flex flex-wrap gap-2">
                                             <a href="/admin/users/<%= user.id %>/servers"
-                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">Серверы</a>
+                                                class="inline-flex min-h-[38px] items-center rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700"><%= t('Серверы') %></a>
                                             <a href="/admin/users/<%= user.id %>/edit"
-                                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-600 text-white hover:bg-slate-700" aria-label="Редактировать пользователя <%= user.username %>" title="Редактировать"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg></a>
+                                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-600 text-white hover:bg-slate-700" aria-label="<%= t('Редактировать пользователя {name}', { name: user.username }) %>" title="<%= t('Редактировать') %>"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 20h9"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg></a>
 <form method="POST" action="/admin/users/<%= user.id %>/delete"
-                                                 data-confirm="Удалить пользователя и его подписки? Действие необратимо." data-confirm-ok="Удалить" data-confirm-danger="true">
+                                                 data-confirm="<%= t('Удалить пользователя и его подписки? Действие необратимо.') %>" data-confirm-ok="<%= t('Удалить') %>" data-confirm-danger="true">
                                                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                 <button type="submit"
-                                                    class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-700 text-white hover:bg-red-800" aria-label="Удалить пользователя <%= user.username %>" title="Удалить"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 6V4h8v2m-9 0 1 16h8l1-16M10 11v6m4-6v6"/></svg></button>
+                                                    class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-red-700 text-white hover:bg-red-800" aria-label="<%= t('Удалить пользователя {name}', { name: user.username }) %>" title="<%= t('Удалить') %>"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 6V4h8v2m-9 0 1 16h8l1-16M10 11v6m4-6v6"/></svg></button>
                                             </form>
                                         </div>
                             </div>
                             <% }); %>
                     </div>
                     <% } %>
-            <% if (collections.users.totalPages > 1) { %><nav class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Пагинация пользователей" data-pagination="users">
-                <p class="text-sm text-slate-500" data-pagination-info="users" aria-live="polite">Показаны <%= collections.users.total ? (collections.users.page - 1) * collections.users.perPage + 1 : 0 %>–<%= Math.min(collections.users.page * collections.users.perPage, collections.users.total) %> из <%= collections.users.total %> пользователей</p>
+            <% if (collections.users.totalPages > 1) { %><nav class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="<%= t('Пагинация пользователей') %>" data-pagination="users">
+                <p class="text-sm text-slate-500" data-pagination-info="users" aria-live="polite"><%= t('Показаны {from}–{to} из {total} пользователей', { from: collections.users.total ? (collections.users.page - 1) * collections.users.perPage + 1 : 0, to: Math.min(collections.users.page * collections.users.perPage, collections.users.total), total: collections.users.total }) %></p>
                 <div class="flex flex-wrap items-center gap-2">
                     <% if (collections.users.totalPages > 1) { %>
                         <% if (collections.users.page > 1) { %>
-                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page - 1 }) %>">Назад</a>
+                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page - 1 }) %>"><%= t('Назад') %></a>
                         <% } else { %>
-                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true"><%= t('Назад') %></span>
                         <% } %>
                     <% } %>
                     <div class="flex flex-wrap gap-1" data-page-numbers="users">
                         <% paginationPages(collections.users.page, collections.users.totalPages).forEach(page => { %>
                             <% if (typeof page === 'number') { %>
-                                <a class="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-lg px-3 py-2 text-sm font-medium <%= page === collections.users.page ? 'bg-blue-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50' %>" href="<%= collectionUrl('users', { userPage: page }) %>" aria-label="<%= page === collections.users.page ? `Текущая страница ${page}` : `Перейти на страницу ${page}` %>" <%= page === collections.users.page ? 'aria-current="page"' : '' %>><%= page %></a>
+                                <a class="inline-flex min-h-[38px] min-w-[38px] items-center justify-center rounded-lg px-3 py-2 text-sm font-medium <%= page === collections.users.page ? 'bg-blue-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50' %>" href="<%= collectionUrl('users', { userPage: page }) %>" aria-label="<%= page === collections.users.page ? t('Текущая страница {page}', { page }) : t('Перейти на страницу {page}', { page }) %>" <%= page === collections.users.page ? 'aria-current="page"' : '' %>><%= page %></a>
                             <% } else { %><span class="inline-flex min-h-[38px] items-center px-1 text-sm text-slate-400" aria-hidden="true">…</span><% } %>
                         <% }); %>
                     </div>
                     <% if (collections.users.totalPages > 1) { %>
                         <% if (collections.users.page < collections.users.totalPages) { %>
-                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page + 1 }) %>">Вперёд</a>
+                            <a class="inline-flex min-h-[38px] items-center rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" href="<%= collectionUrl('users', { userPage: collections.users.page + 1 }) %>"><%= t('Вперёд') %></a>
                         <% } else { %>
-                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                            <span class="inline-flex min-h-[38px] cursor-not-allowed items-center rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-400" aria-disabled="true"><%= t('Вперёд') %></span>
                         <% } %>
                     <% } %>
                 </div>
@@ -370,13 +370,13 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
     <div id="qr-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="display: none;">
         <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
             <div class="flex justify-between items-center mb-4">
-                <h3 id="qr-modal-title" class="text-lg font-semibold">QR код</h3>
+                <h3 id="qr-modal-title" class="text-lg font-semibold"><%= t('QR код') %></h3>
                 <button onclick="closeQrModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
             <div class="flex justify-center">
-                <img id="qr-modal-img" src="" alt="QR код" class="rounded">
+                <img id="qr-modal-img" src="" alt="<%= t('QR код') %>" class="rounded">
             </div>
-            <p class="text-center text-sm text-gray-500 mt-3">Сканируйте QR код приложением</p>
+            <p class="text-center text-sm text-gray-500 mt-3"><%= t('Сканируйте QR код приложением') %></p>
         </div>
     </div>
 
@@ -387,11 +387,11 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
             try {
                 const response = await fetch('/join/' + userId + '/qr-img');
                 const data = await response.json();
-                document.getElementById('qr-modal-title').textContent = 'QR код - ' + data.username;
+                document.getElementById('qr-modal-title').textContent = '<%= t('QR код - {username}') %>'.replace('{username}', data.username);
                 document.getElementById('qr-modal-img').src = data.qrCode;
                 document.getElementById('qr-modal').style.display = 'flex';
             } catch (err) {
-                uiToast('Не удалось загрузить QR-код', 'error');
+                uiToast('<%= t('Не удалось загрузить QR-код') %>', 'error');
             }
         }
 
@@ -415,7 +415,7 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
             const clearError = (el) => { if (el) { el.textContent = ''; el.classList.add('hidden'); } };
             const updateStatus = (el) => {
                 if (!el) return;
-                el.textContent = 'Проверка...';
+                el.textContent = window.appTranslations.checking || 'Checking...';
                 el.className = 'px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-600';
             };
             updateStatus(statusEl);
@@ -430,16 +430,16 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                 const applyResult = (el) => {
                     if (!el) return;
 if (data.status === 'healthy') {
-                         el.textContent = `${Math.round(data.latency_ms)} мс`;
+                         el.textContent = `${Math.round(data.latency_ms)} ${window.appTranslations.ms || 'ms'}`;
                          el.className = 'inline-flex whitespace-nowrap rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800';
                      } else if (data.status === 'degraded') {
-                         el.textContent = data.latency_ms ? `${Math.round(data.latency_ms)} мс · нестабильно` : 'Нестабильно';
+                         el.textContent = data.latency_ms ? `${Math.round(data.latency_ms)} ${window.appTranslations.ms || 'ms'} · ${window.appTranslations.unstable || 'Unstable'}` : window.appTranslations.unstable || 'Unstable';
                          el.className = 'inline-flex whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800';
                      } else if (data.status === 'test_failed') {
-                         el.textContent = 'Тест не пройден';
+                         el.textContent = window.appTranslations.testFailed || 'Test failed';
                          el.className = 'inline-flex whitespace-nowrap rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-800';
                      } else {
-                         el.textContent = data.status === 'unsupported' ? 'Не поддерживается' : 'Недоступен';
+                         el.textContent = data.status === 'unsupported' ? window.appTranslations.unsupported || 'Unsupported' : window.appTranslations.unavailable || 'Unavailable';
                          el.className = 'inline-flex whitespace-nowrap rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800';
                      }
                 };
@@ -455,14 +455,14 @@ if (data.status === 'healthy') {
             } catch (err) {
                 const applyError = (el) => {
                     if (!el) return;
-                    el.textContent = 'Ошибка';
+                    el.textContent = window.appTranslations.error || 'Error';
                     el.className = 'px-2 py-1 text-xs rounded bg-red-100 text-red-800';
                 };
                 applyError(statusEl);
                 applyError(statusMobileEl);
                 [errorEl, errorMobileEl].forEach((el) => {
                     if (!el) return;
-                    el.textContent = 'Не удалось выполнить запрос проверки.';
+                    el.textContent = window.appTranslations.requestFailed || 'Could not run the check request.';
                     el.classList.remove('hidden');
                 });
             }
@@ -470,7 +470,7 @@ if (data.status === 'healthy') {
 
         async function checkAllServers() {
             const btn = document.getElementById('checkAllBtn');
-            uiSetBusy(btn, true, 'Проверка…');
+            uiSetBusy(btn, true, window.appTranslations.check || 'Checking…');
             uiProgress.set(20);
 
             try {
@@ -487,16 +487,16 @@ if (data.status === 'healthy') {
                     const applyResult = (el) => {
                         if (!el) return;
 if (result.status === 'healthy') {
-                             el.textContent = `${Math.round(result.latency_ms)} мс`;
+                             el.textContent = `${Math.round(result.latency_ms)} ${window.appTranslations.ms || 'ms'}`;
                              el.className = 'inline-flex whitespace-nowrap rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800';
                          } else if (result.status === 'degraded') {
-                             el.textContent = result.latency_ms ? `${Math.round(result.latency_ms)} мс · нестабильно` : 'Нестабильно';
+                             el.textContent = result.latency_ms ? `${Math.round(result.latency_ms)} ${window.appTranslations.ms || 'ms'} · ${window.appTranslations.unstable || 'Unstable'}` : window.appTranslations.unstable || 'Unstable';
                              el.className = 'inline-flex whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800';
                          } else if (result.status === 'test_failed') {
-                             el.textContent = 'Тест не пройден';
+                             el.textContent = window.appTranslations.testFailed || 'Test failed';
                              el.className = 'inline-flex whitespace-nowrap rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-800';
                          } else {
-                             el.textContent = result.status === 'unsupported' ? 'Не поддерживается' : 'Недоступен';
+                             el.textContent = result.status === 'unsupported' ? window.appTranslations.unsupported || 'Unsupported' : window.appTranslations.unavailable || 'Unavailable';
                              el.className = 'inline-flex whitespace-nowrap rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800';
                          }
                     };
@@ -513,10 +513,10 @@ if (result.status === 'healthy') {
 
                 uiProgress.done();
                 const failed = data.results.filter(r => r.status !== 'healthy').length;
-                uiToast(`Готово: ${data.results.length} серверов, проблем: ${failed}`, failed > 0 ? 'info' : 'success', 4000);
+                uiToast((window.appTranslations.done || 'Done: {total} servers, issues: {failed}').replace('{total}', data.results.length).replace('{failed}', failed), failed > 0 ? 'info' : 'success', 4000);
             } catch (err) {
                 uiProgress.done();
-                uiToast('Ошибка проверки серверов', 'error');
+                uiToast('<%= t('Ошибка проверки серверов') %>', 'error');
             } finally {
                 uiSetBusy(btn, false);
             }

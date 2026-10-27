@@ -9,16 +9,16 @@
         <section class="relative mb-4 overflow-hidden rounded-2xl bg-slate-900 p-4 text-white shadow-xl md:p-5">
             <div class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true"></div>
             <div class="relative flex flex-wrap items-end justify-between gap-5">
-                <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Аналитика сервиса</p><h2 class="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">Статистика</h2><p class="mt-2 text-sm text-slate-300">Запросы подписок, пользователи и использование трафика.</p></div>
-                <button onclick="clearStatistics()" data-icon="trash" class="min-h-[44px] rounded-lg border border-red-300/40 bg-red-500/10 px-4 py-3 font-semibold text-red-100 hover:bg-red-500/20">Очистить статистику</button>
+                <div><p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300"><%= t('Аналитика сервиса') %></p><h2 class="mt-2 text-2xl font-semibold tracking-tight md:text-3xl"><%= t('Статистика') %></h2><p class="mt-2 text-sm text-slate-300"><%= t('Запросы подписок, пользователи и использование трафика.') %></p></div>
+                <button onclick="clearStatistics()" data-icon="trash" class="min-h-[44px] rounded-lg border border-red-300/40 bg-red-500/10 px-4 py-3 font-semibold text-red-100 hover:bg-red-500/20"><%= t('Очистить статистику') %></button>
             </div>
         </section>
         <div class="stats-card mb-6">
             <div class="flex flex-wrap items-center gap-4 mb-4 pb-4 border-b">
-                <label for="stats-month" class="text-lg font-semibold text-gray-800">Выберите месяц:</label>
+                <label for="stats-month" class="text-lg font-semibold text-gray-800"><%= t('Выберите месяц:') %></label>
                 <form method="GET" action="/admin/stats" class="w-full min-w-0 sm:w-auto">
                     <select id="stats-month" name="month" onchange="this.form.submit()" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value="">Все время</option>
+                        <option value=""><%= t('Все время') %></option>
                         <% if (typeof availableMonths !== 'undefined' && availableMonths.length > 0) { %>
                             <% availableMonths.forEach(function(m) { %>
                                 <option value="<%= m %>" <%= selectedMonth === m ? 'selected' : '' %>>
@@ -29,18 +29,18 @@
                     </select>
                 </form>
                 <% if (selectedMonth) { %>
-                    <a href="/admin/stats" class="text-sm text-gray-500 hover:text-gray-700">Сбросить</a>
+                    <a href="/admin/stats" class="text-sm text-gray-500 hover:text-gray-700"><%= t('Сбросить') %></a>
                 <% } %>
             </div>
-            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Общая статистика</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Общая статистика') %></h2>
             <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
-                <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalRequests %></div><div class="text-sm text-slate-500">Запросов</div></div>
-                <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalUsers %></div><div class="text-sm text-slate-500">Пользователей</div></div>
+                <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalRequests %></div><div class="text-sm text-slate-500"><%= t('Запросов') %></div></div>
+                <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalUsers %></div><div class="text-sm text-slate-500"><%= t('Пользователей') %></div></div>
                 <div class="col-span-2 rounded-lg bg-slate-900 p-4 lg:col-span-1">
                     <div class="flex items-center justify-between gap-4">
                         <div>
                             <div class="text-2xl font-bold text-white"><%= formattedTotalTraffic %></div>
-                            <div class="text-sm text-slate-300">Общий трафик</div>
+                            <div class="text-sm text-slate-300"><%= t('Общий трафик') %></div>
                         </div>
                         <div class="flex flex-col items-end gap-1 text-xs text-slate-300">
                             <span class="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 whitespace-nowrap"><span aria-hidden="true">↓</span> <%= formattedTotalDownload %></span>
@@ -53,20 +53,20 @@
 
         <section class="stats-card mb-6">
             <div class="flex flex-wrap items-end justify-between gap-3 mb-5 pb-4 border-b">
-                <div><p class="text-xs font-semibold uppercase tracking-wider text-blue-600">Контроль использования</p><h2 class="mt-1 text-xl font-semibold text-gray-800">Пользователи, подключения и трафик</h2><p class="mt-1 text-sm text-gray-500">Сводка по назначенным серверам и накопленному трафику каждого пользователя.</p></div>
-                <div class="flex flex-wrap gap-2 text-sm"><span class="rounded-lg bg-blue-50 px-3 py-2 font-semibold text-blue-700"><%= topTrafficUsers.length %> пользователей</span><span class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700"><%= userConnectionTotal %> подключений</span></div>
+                <div><p class="text-xs font-semibold uppercase tracking-wider text-blue-600"><%= t('Контроль использования') %></p><h2 class="mt-1 text-xl font-semibold text-gray-800"><%= t('Пользователи, подключения и трафик') %></h2><p class="mt-1 text-sm text-gray-500"><%= t('Сводка по назначенным серверам и накопленному трафику каждого пользователя.') %></p></div>
+                <div class="flex flex-wrap gap-2 text-sm"><span class="rounded-lg bg-blue-50 px-3 py-2 font-semibold text-blue-700"><%= topTrafficUsers.length %> <%= t('Пользователей') %></span><span class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700"><%= userConnectionTotal %> <%= t('подключений') %></span></div>
             </div>
             <% if (topTrafficUsers.length === 0) { %>
-                <p class="py-6 text-center text-gray-500">Нет данных о пользователях</p>
+                <p class="py-6 text-center text-gray-500"><%= t('Нет данных о пользователях') %></p>
             <% } else { %>
                 <div class="hidden overflow-x-auto lg:block">
                     <table class="stats-table">
-                        <thead><tr><th scope="col">Пользователь</th><th scope="col">Статус</th><th scope="col">Подключения</th><th scope="col">Загрузка</th><th scope="col">Отдача</th><th scope="col">Всего</th><th scope="col">Запросов</th></tr></thead>
+                        <thead><tr><th scope="col"><%= t('Пользователь') %></th><th scope="col"><%= t('Статус') %></th><th scope="col"><%= t('Подключения') %></th><th scope="col"><%= t('Загрузка') %></th><th scope="col"><%= t('Отдача') %></th><th scope="col"><%= t('Всего') %></th><th scope="col"><%= t('Запросов') %></th></tr></thead>
                         <tbody>
                             <% topTrafficUsers.forEach(function(user) { %>
                                 <tr>
-                                    <td class="font-semibold"><%= user.username %><div class="text-xs font-normal text-gray-500"><%= user.last_request ? date(user.last_request) : 'Нет запросов' %></div></td>
-                                    <td><span class="whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold <%= user.total_traffic > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' %>"><%= user.total_traffic > 0 ? 'Активен' : 'Нет трафика' %></span></td>
+                                    <td class="font-semibold"><%= user.username %><div class="text-xs font-normal text-gray-500"><%= user.last_request ? date(user.last_request) : t('Нет запросов') %></div></td>
+                                    <td><span class="whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold <%= user.total_traffic > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' %>"><%= user.total_traffic > 0 ? t('Активен') : t('Нет трафика') %></span></td>
                                     <td class="font-medium"><%= user.connection_count || 0 %></td>
                                     <td class="whitespace-nowrap text-sm text-blue-600"><%= user.formatted_download %></td>
                                     <td class="whitespace-nowrap text-sm text-emerald-600"><%= user.formatted_upload %></td>
@@ -77,20 +77,20 @@
                         </tbody>
                     </table>
                 </div>
-                <ul class="grid min-w-0 gap-3 sm:grid-cols-2 lg:hidden" aria-label="Трафик пользователей">
+                <ul class="grid min-w-0 gap-3 sm:grid-cols-2 lg:hidden" aria-label="<%= t('Трафик') %> пользователей">
                     <% topTrafficUsers.forEach(function(user) { %>
                         <li class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <div class="flex flex-wrap items-start justify-between gap-2">
                                 <h3 class="stats-wrap min-w-0 flex-1 font-semibold"><%= user.username %></h3>
-                                <span class="shrink-0 rounded-full px-2 py-1 text-xs font-semibold <%= user.total_traffic > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' %>"><%= user.total_traffic > 0 ? 'Активен' : 'Нет трафика' %></span>
+                                <span class="shrink-0 rounded-full px-2 py-1 text-xs font-semibold <%= user.total_traffic > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500' %>"><%= user.total_traffic > 0 ? t('Активен') : t('Нет трафика') %></span>
                             </div>
-                            <p class="mt-2 text-xs text-slate-500">Последний запрос: <%= user.last_request ? date(user.last_request) : 'Нет запросов' %></p>
+                            <p class="mt-2 text-xs text-slate-500"><%= t('Последний запрос:') %> <%= user.last_request ? date(user.last_request) : t('Нет запросов') %></p>
                             <dl class="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
-                                <div class="col-span-2 flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-3"><dt class="text-slate-500">Всего трафика</dt><dd class="text-xl font-bold tabular-nums"><%= user.formatted_total %></dd></div>
-                                <div><dt class="text-xs text-slate-500">Загрузка</dt><dd class="mt-1 font-semibold text-blue-600"><%= user.formatted_download %></dd></div>
-                                <div><dt class="text-xs text-slate-500">Отдача</dt><dd class="mt-1 font-semibold text-emerald-600"><%= user.formatted_upload %></dd></div>
-                                <div><dt class="text-xs text-slate-500">Подключения</dt><dd class="mt-1 font-semibold"><%= user.connection_count || 0 %></dd></div>
-                                <div><dt class="text-xs text-slate-500">Запросов</dt><dd class="mt-1 font-semibold"><%= user.request_count || 0 %></dd></div>
+                                <div class="col-span-2 flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-3"><dt class="text-slate-500"><%= t('Всего трафика') %></dt><dd class="text-xl font-bold tabular-nums"><%= user.formatted_total %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('Загрузка') %></dt><dd class="mt-1 font-semibold text-blue-600"><%= user.formatted_download %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('Отдача') %></dt><dd class="mt-1 font-semibold text-emerald-600"><%= user.formatted_upload %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('Подключения') %></dt><dd class="mt-1 font-semibold"><%= user.connection_count || 0 %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('Запросов') %></dt><dd class="mt-1 font-semibold"><%= user.request_count || 0 %></dd></div>
                             </dl>
                         </li>
                     <% }); %>
@@ -99,13 +99,13 @@
         </section>
 
         <section class="stats-card mb-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Подключения 3x-ui по трафику</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Подключения') %> 3x-ui по трафику</h2>
             <% if (threeXuiInbounds.length === 0) { %>
-                <p class="text-gray-500 text-center py-4">Нет данных подключений 3x-ui</p>
+                <p class="text-gray-500 text-center py-4"><%= t('Нет данных подключений 3x-ui') %></p>
             <% } else { %>
                 <div class="hidden overflow-x-auto lg:block">
                     <table class="stats-table">
-                        <thead><tr><th scope="col">#</th><th scope="col">Панель</th><th scope="col">Подключение</th><th scope="col">Тег</th><th scope="col">Протокол</th><th scope="col">Порт</th><th scope="col">Трафик</th></tr></thead>
+                        <thead><tr><th scope="col">#</th><th scope="col"><%= t('Панель') %></th><th scope="col"><%= t('Подключение') %></th><th scope="col"><%= t('Тег') %></th><th scope="col"><%= t('Протокол') %></th><th scope="col"><%= t('Порт') %></th><th scope="col"><%= t('Трафик') %></th></tr></thead>
                         <tbody>
                             <% threeXuiInbounds.forEach(function(inbound, index) { %>
                                 <tr>
@@ -121,7 +121,7 @@
                         </tbody>
                     </table>
                 </div>
-                <ul class="grid min-w-0 gap-3 sm:grid-cols-2 lg:hidden" aria-label="Трафик подключений 3x-ui">
+                <ul class="grid min-w-0 gap-3 sm:grid-cols-2 lg:hidden" aria-label="<%= t('Трафик подключений 3x-ui') %>">
                     <% threeXuiInbounds.forEach(function(inbound, index) { %>
                         <li class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <div class="flex items-start gap-3">
@@ -129,13 +129,13 @@
                                 <h3 class="stats-wrap min-w-0 font-semibold"><%= inbound.remark || inbound.inbound_id %></h3>
                             </div>
                             <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
-                                <div class="col-span-2 min-w-0"><dt class="text-xs text-slate-500">Панель</dt><dd class="stats-wrap mt-1 font-medium"><%= inbound.panel_name %></dd></div>
-                                <div class="col-span-2 min-w-0"><dt class="text-xs text-slate-500">Тег</dt><dd class="stats-wrap mt-1 font-mono text-xs"><%= inbound.tag || '—' %></dd></div>
-                                <div><dt class="text-xs text-slate-500">Протокол</dt><dd class="stats-wrap mt-1 font-medium"><%= inbound.protocol || '—' %></dd></div>
-                                <div><dt class="text-xs text-slate-500">Порт</dt><dd class="mt-1 font-medium"><%= inbound.port || '—' %></dd></div>
-                                <div class="col-span-2 flex flex-wrap items-baseline justify-between gap-2 border-t border-slate-200 pt-3"><dt class="text-slate-500">Всего трафика</dt><dd class="text-xl font-bold tabular-nums"><%= inbound.formatted_total %></dd></div>
-                                <div><dt class="text-xs text-slate-500">Загрузка</dt><dd class="mt-1 font-semibold text-blue-600"><%= inbound.formatted_download %></dd></div>
-                                <div><dt class="text-xs text-slate-500">Отдача</dt><dd class="mt-1 font-semibold text-emerald-600"><%= inbound.formatted_upload %></dd></div>
+                                <div class="col-span-2 min-w-0"><dt class="text-xs text-slate-500"><%= t('Панель') %></dt><dd class="stats-wrap mt-1 font-medium"><%= inbound.panel_name %></dd></div>
+                                <div class="col-span-2 min-w-0"><dt class="text-xs text-slate-500"><%= t('Тег') %></dt><dd class="stats-wrap mt-1 font-mono text-xs"><%= inbound.tag || '—' %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('Протокол') %></dt><dd class="stats-wrap mt-1 font-medium"><%= inbound.protocol || '—' %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('Порт') %></dt><dd class="mt-1 font-medium"><%= inbound.port || '—' %></dd></div>
+                                <div class="col-span-2 flex flex-wrap items-baseline justify-between gap-2 border-t border-slate-200 pt-3"><dt class="text-slate-500"><%= t('Всего трафика') %></dt><dd class="text-xl font-bold tabular-nums"><%= inbound.formatted_total %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('Загрузка') %></dt><dd class="mt-1 font-semibold text-blue-600"><%= inbound.formatted_download %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('Отдача') %></dt><dd class="mt-1 font-semibold text-emerald-600"><%= inbound.formatted_upload %></dd></div>
                             </dl>
                         </li>
                     <% }); %>
@@ -145,13 +145,13 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <section class="stats-card">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Топ пользователей</h2>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Топ пользователей') %></h2>
                 <% if (topUsers.length === 0) { %>
-                    <p class="text-gray-500 text-center py-4">Нет данных</p>
+                    <p class="text-gray-500 text-center py-4"><%= t('Нет данных') %></p>
                 <% } else { %>
                     <div class="hidden overflow-x-auto lg:block">
                         <table class="stats-table">
-                            <thead><tr><th scope="col">#</th><th scope="col">Пользователь</th><th scope="col">Запросов</th><th scope="col">Последний</th></tr></thead>
+                            <thead><tr><th scope="col">#</th><th scope="col"><%= t('Пользователь') %></th><th scope="col"><%= t('Запросов') %></th><th scope="col"><%= t('Последний') %></th></tr></thead>
                             <tbody>
                                 <% topUsers.forEach(function(user, index) { %>
                                     <tr>
@@ -164,16 +164,16 @@
                             </tbody>
                         </table>
                     </div>
-                    <ol class="space-y-3 lg:hidden" aria-label="Пользователи по числу запросов">
+                    <ol class="space-y-3 lg:hidden" aria-label="<%= t('Пользователи по числу запросов') %>">
                         <% topUsers.forEach(function(user, index) { %>
                             <li class="flex min-w-0 items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                                 <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-sm font-semibold text-blue-700"><%= index + 1 %></span>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                                         <span class="stats-wrap min-w-0 flex-1 font-semibold"><%= user.username || 'Удалён' %></span>
-                                        <span class="whitespace-nowrap text-sm text-blue-600"><strong><%= user.request_count %></strong> запросов</span>
+                                        <span class="whitespace-nowrap text-sm text-blue-600"><strong><%= user.request_count %></strong> <%= t('запросов') %></span>
                                     </div>
-                                    <p class="mt-1 text-xs text-slate-500">Последний: <%= user.last_request ? date(user.last_request) : '—' %></p>
+                                    <p class="mt-1 text-xs text-slate-500"><%= t('Последний') %>: <%= user.last_request ? date(user.last_request) : '—' %></p>
                                 </div>
                             </li>
                         <% }); %>
@@ -182,9 +182,9 @@
             </section>
 
             <div class="stats-card">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b">Запросов по дням (30 дней)</h2>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Запросов') %> <%= t('по дням (30 дней)') %></h2>
                 <% if (requestsByDay.length===0) { %>
-                    <p class="text-gray-500 text-center py-4">Нет данных</p>
+                    <p class="text-gray-500 text-center py-4"><%= t('Нет данных') %></p>
                     <% } else { %>
                         <div class="space-y-2 max-h-80 overflow-y-auto">
                             <% requestsByDay.forEach(function(day) { %>
@@ -208,26 +208,26 @@
 
         <section id="requests" class="stats-card mb-4 scroll-mt-6" aria-labelledby="requests-heading">
             <div class="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b pb-4">
-                <h2 id="requests-heading" class="text-lg font-semibold text-gray-800">Последние запросы</h2>
-                <p class="text-xs text-slate-500">По <%= requestPagination.perPage %> на странице</p>
+                <h2 id="requests-heading" class="text-lg font-semibold text-gray-800"><%= t('Последние запросы') %></h2>
+                <p class="text-xs text-slate-500"><%= t('По') %> <%= requestPagination.perPage %> <%= t('на странице') %></p>
             </div>
             <% if (lastRequests.length === 0) { %>
-                <p class="text-gray-500 text-center py-8">Нет запросов подписок</p>
+                <p class="text-gray-500 text-center py-8"><%= t('Нет запросов подписок') %></p>
             <% } else { %>
                 <div class="hidden overflow-x-auto lg:block">
                     <table class="stats-table table-fixed">
-                        <thead><tr><th scope="col" class="w-16">ID</th><th scope="col" class="w-1/5">Пользователь</th><th scope="col" class="w-1/5">Дата и время</th><th scope="col" class="w-1/5">IP адрес</th><th scope="col">User Agent</th></tr></thead>
+                        <thead><tr><th scope="col" class="w-16">ID</th><th scope="col" class="w-1/5"><%= t('Пользователь') %></th><th scope="col" class="w-1/5"><%= t('Дата и время') %></th><th scope="col" class="w-1/5"><%= t('IP адрес') %></th><th scope="col">User Agent</th></tr></thead>
                         <tbody>
                             <% lastRequests.forEach(function(req) { %>
                                 <tr data-request-id="<%= req.id %>">
                                     <td class="text-sm text-slate-500"><%= req.id %></td>
-                                    <td class="font-medium"><%= req.username || 'Неизвестен' %></td>
+                                    <td class="font-medium"><%= req.username || t('Неизвестен') %></td>
                                     <td class="text-sm"><%= date(req.requested_at) %><div class="mt-1 text-xs text-slate-500"><%= formatDate(req.requested_at, { timeStyle: 'short' }) %></div></td>
                                     <td class="font-mono text-xs"><%= req.ip_address || '—' %></td>
                                     <td class="text-sm text-gray-500">
                                         <% if (req.user_agent) { %>
                                             <details class="group">
-                                                <summary class="stats-wrap min-h-[44px] cursor-pointer rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><span class="group-open:hidden"><%= req.user_agent.length > 60 ? req.user_agent.slice(0, 60) + '…' : req.user_agent %></span><span class="hidden group-open:inline">Скрыть User Agent</span></summary>
+                                                <summary class="stats-wrap min-h-[44px] cursor-pointer rounded-lg py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><span class="group-open:hidden"><%= req.user_agent.length > 60 ? req.user_agent.slice(0, 60) + '…' : req.user_agent %></span><span class="hidden group-open:inline"><%= t('Скрыть User Agent') %></span></summary>
                                                 <p class="stats-wrap pb-2"><%= req.user_agent %></p>
                                             </details>
                                         <% } else { %>—<% } %>
@@ -237,16 +237,16 @@
                         </tbody>
                     </table>
                 </div>
-                <ul class="grid min-w-0 gap-3 sm:grid-cols-2 lg:hidden" aria-label="Последние запросы">
+                <ul class="grid min-w-0 gap-3 sm:grid-cols-2 lg:hidden" aria-label="<%= t('Последние запросы') %>">
                     <% lastRequests.forEach(function(req) { %>
                         <li class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4" data-request-id="<%= req.id %>">
                             <div class="flex items-start justify-between gap-3">
-                                <h3 class="stats-wrap min-w-0 font-semibold"><%= req.username || 'Неизвестен' %></h3>
+                                <h3 class="stats-wrap min-w-0 font-semibold"><%= req.username || t('Неизвестен') %></h3>
                                 <span class="shrink-0 text-xs text-slate-500">#<%= req.id %></span>
                             </div>
                             <dl class="mt-3 space-y-2 text-sm">
-                                <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"><dt class="text-xs text-slate-500">Дата и время</dt><dd class="text-xs"><%= date(req.requested_at) %> <%= formatDate(req.requested_at, { timeStyle: 'short' }) %></dd></div>
-                                <div><dt class="text-xs text-slate-500">IP адрес</dt><dd class="stats-wrap mt-1 select-all font-mono text-xs"><%= req.ip_address || '—' %></dd></div>
+                                <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1"><dt class="text-xs text-slate-500"><%= t('Дата и время') %></dt><dd class="text-xs"><%= date(req.requested_at) %> <%= formatDate(req.requested_at, { timeStyle: 'short' }) %></dd></div>
+                                <div><dt class="text-xs text-slate-500"><%= t('IP адрес') %></dt><dd class="stats-wrap mt-1 select-all font-mono text-xs"><%= req.ip_address || '—' %></dd></div>
                             </dl>
                             <% if (req.user_agent) { %>
                                 <details class="mt-3 border-t border-slate-200 pt-1 text-xs text-slate-500">
@@ -258,31 +258,31 @@
                     <% }); %>
                 </ul>
             <% } %>
-            <nav class="mt-4 border-t border-slate-200 pt-4" aria-label="Пагинация запросов" data-pagination="requests">
+            <nav class="mt-4 border-t border-slate-200 pt-4" aria-label="<%= t('Пагинация запросов') %>" data-pagination="requests">
                 <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 sm:text-sm">
-                    <p data-pagination-info="requests" aria-live="polite">Показаны <%= requestPagination.from %>–<%= requestPagination.to %> из <%= requestPagination.total %> запросов</p>
-                    <p>Страница <%= requestPagination.page %> из <%= requestPagination.totalPages %></p>
+                    <p data-pagination-info="requests" aria-live="polite"><%= t('Показаны {from}–{to} из {total} запросов', { from: requestPagination.from, to: requestPagination.to, total: requestPagination.total }) %></p>
+                    <p><%= t('Страница {page} из {totalPages}', { page: requestPagination.page, totalPages: requestPagination.totalPages }) %></p>
                 </div>
                 <% if (requestPagination.totalPages > 1) { %>
                     <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
                         <% if (requestPagination.page > 1) { %>
-                            <a rel="prev" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" href="<%= requestPageUrl(requestPagination.page - 1) %>">Назад</a>
+                            <a rel="prev" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" href="<%= requestPageUrl(requestPagination.page - 1) %>"><%= t('Назад') %></a>
                         <% } else { %>
-                            <span class="inline-flex min-h-[44px] cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Назад</span>
+                            <span class="inline-flex min-h-[44px] cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400" aria-disabled="true"><%= t('Назад') %></span>
                         <% } %>
                         <div class="order-last flex w-full flex-wrap justify-center gap-1 sm:order-none sm:w-auto" data-page-numbers="requests">
                             <% requestPagination.pages.forEach(page => { %>
                                 <% if (typeof page === 'number') { %>
-                                    <a class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 <%= page === requestPagination.page ? 'bg-blue-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50' %>" href="<%= requestPageUrl(page) %>" aria-label="Страница <%= page %>" <%- page === requestPagination.page ? 'aria-current="page"' : '' %>><%= page %></a>
+                                    <a class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 <%= page === requestPagination.page ? 'bg-blue-700 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50' %>" href="<%= requestPageUrl(page) %>" aria-label="<%= t('Страница {page}', { page }) %>" <%- page === requestPagination.page ? 'aria-current="page"' : '' %>><%= page %></a>
                                 <% } else { %>
                                     <span class="inline-flex min-h-[44px] items-center px-1 text-slate-400" aria-hidden="true">…</span>
                                 <% } %>
                             <% }); %>
                         </div>
                         <% if (requestPagination.page < requestPagination.totalPages) { %>
-                            <a rel="next" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" href="<%= requestPageUrl(requestPagination.page + 1) %>">Вперёд</a>
+                            <a rel="next" class="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" href="<%= requestPageUrl(requestPagination.page + 1) %>"><%= t('Вперёд') %></a>
                         <% } else { %>
-                            <span class="inline-flex min-h-[44px] cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400" aria-disabled="true">Вперёд</span>
+                            <span class="inline-flex min-h-[44px] cursor-not-allowed items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-400" aria-disabled="true"><%= t('Вперёд') %></span>
                         <% } %>
                     </div>
                 <% } %>
@@ -310,13 +310,13 @@ title: '<%= t('Очистить статистику') %>',
                 });
                 const data = await response.json();
                 if (data.success) {
-                    uiToast(data.message || 'Статистика очищена', 'success');
+                    uiToast(data.message || '<%= t('Статистика очищена') %>', 'success');
                     setTimeout(() => window.location.reload(), 700);
                 } else {
-                    uiToast('Ошибка: ' + (data.message || ''), 'error');
+                    uiToast('<%= t('Ошибка:') %> ' + (data.message || ''), 'error');
                 }
             } catch (error) {
-                uiToast('Ошибка при очистке статистики', 'error');
+                uiToast('<%= t('Ошибка при очистке статистики') %>', 'error');
             }
         }
     </script>

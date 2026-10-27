@@ -27,7 +27,7 @@
     return remove;
   };
 
-  window.uiConfirm = ({ title = 'Подтвердите действие', message = '', confirmText = 'Подтвердить', cancelText = 'Отмена', danger = false } = {}) =>
+  window.uiConfirm = ({ title = window.appTranslations?.confirmTitle || 'Confirm action', message = '', confirmText = window.appTranslations?.confirmOk || 'Confirm', cancelText = window.appTranslations?.cancel || 'Cancel', danger = false } = {}) =>
     new Promise(resolve => {
       const backdrop = document.createElement('div');
       backdrop.id = 'ui-confirm-backdrop';
@@ -150,9 +150,9 @@
         if (form.dataset.confirmed === 'true') return;
         event.preventDefault();
         const ok = await window.uiConfirm({
-          title: form.dataset.confirmTitle || 'Подтвердите действие',
-          message: form.dataset.confirm || 'Вы уверены?',
-          confirmText: form.dataset.confirmOk || 'Подтвердить',
+title: form.dataset.confirmTitle || window.appTranslations?.confirmTitle || 'Confirm action',
+           message: form.dataset.confirm || window.appTranslations?.confirm || 'Are you sure?',
+          confirmText: form.dataset.confirmOk || window.appTranslations?.confirmOk || 'Confirm',
           danger: form.dataset.confirmDanger === 'true',
         });
         if (ok) {

@@ -19,12 +19,12 @@
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="mb-4">
           <label class="mb-2 block text-sm font-semibold text-slate-700" for="name"><%= t('Название панели') %></label>
-          <input id="name" type="text" name="name" value="<%= values.name || '' %>" required maxlength="120" placeholder="Основная панель" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
+          <input id="name" type="text" name="name" value="<%= values.name || '' %>" required maxlength="120" placeholder="<%= t('Основная панель') %>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
         </div>
 
         <div class="mb-4">
           <label class="mb-2 block text-sm font-semibold text-slate-700" for="base_url"><%= t('URL панели') %></label>
-          <input id="base_url" type="url" name="base_url" value="<%= values.base_url || values.baseUrl || '' %>" required placeholder="https://panel.example.com или https://panel.example.com/secret-path" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
+          <input id="base_url" type="url" name="base_url" value="<%= values.base_url || values.baseUrl || '' %>" required placeholder="<%= t('URL панели, например https://panel.example.com/secret-path') %>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
           <p class="mt-2 text-sm text-slate-500"><%= t('Если в панели настроен секретный base path, включите его в URL. Например: https://panel.example.com/secret.') %></p>
         </div>
 
