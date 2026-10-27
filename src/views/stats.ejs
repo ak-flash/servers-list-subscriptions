@@ -77,7 +77,7 @@
                         </tbody>
                     </table>
                 </div>
-                <ul class="grid min-w-0 gap-3 sm:grid-cols-2 lg:hidden" aria-label="<%= t('Трафик') %> пользователей">
+                <ul class="grid min-w-0 gap-3 sm:grid-cols-2 lg:hidden" aria-label="<%= t('Трафик пользователей') %>">
                     <% topTrafficUsers.forEach(function(user) { %>
                         <li class="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <div class="flex flex-wrap items-start justify-between gap-2">
@@ -99,7 +99,7 @@
         </section>
 
         <section class="stats-card mb-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Подключения') %> 3x-ui по трафику</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Подключения 3x-ui по трафику') %></h2>
             <% if (threeXuiInbounds.length === 0) { %>
                 <p class="text-gray-500 text-center py-4"><%= t('Нет данных подключений 3x-ui') %></p>
             <% } else { %>
@@ -156,7 +156,7 @@
                                 <% topUsers.forEach(function(user, index) { %>
                                     <tr>
                                         <td class="text-gray-500"><%= index + 1 %></td>
-                                        <td class="font-medium"><%= user.username || 'Удалён' %></td>
+                                        <td class="font-medium"><%= user.username || t('Удалён') %></td>
                                         <td><%= user.request_count %></td>
                                         <td class="text-sm text-gray-500"><%= user.last_request ? date(user.last_request) : '—' %></td>
                                     </tr>
@@ -170,7 +170,7 @@
                                 <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-sm font-semibold text-blue-700"><%= index + 1 %></span>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                                        <span class="stats-wrap min-w-0 flex-1 font-semibold"><%= user.username || 'Удалён' %></span>
+                                        <span class="stats-wrap min-w-0 flex-1 font-semibold"><%= user.username || t('Удалён') %></span>
                                         <span class="whitespace-nowrap text-sm text-blue-600"><strong><%= user.request_count %></strong> <%= t('запросов') %></span>
                                     </div>
                                     <p class="mt-1 text-xs text-slate-500"><%= t('Последний') %>: <%= user.last_request ? date(user.last_request) : '—' %></p>
