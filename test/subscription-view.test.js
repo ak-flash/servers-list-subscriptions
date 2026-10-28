@@ -40,9 +40,36 @@ function renderSources({ locale = 'ru', job = null, metrics = {}, sources = [] }
     languageUrl: language => `/admin/subscription-sources?lang=${language}`,
     sources,
     job,
-    metrics: { queued: 540, running: { check: 4, sync: 1 }, oldest_wait_ms: 15120001, ...metrics }
+    metrics: { queued: 540, running: { check: 4, sync: 1 }, progress: { total: 550, completed: 6 }, oldest_wait_ms: 15120001, ...metrics }
   });
 }
+
+test('source summary cards sit between the heading and add-source action', async () => {
+  const sources = Array.from({ length: 3 }, (_, index) => ({
+    id: `source-${index}`, name: `Source ${index}`, masked_url: 'https://example.com',
+    is_active: true, sync_status: 'success', count: 57, healthy: 31, users: 0
+  }));
+  for (const locale of supportedLocales) {
+    const t = createTranslator(locale);
+    const html = await renderSources({ locale, sources });
+    const header = html.match(/<main\b[^>]*>\s*(<section\b[\s\S]*?<\/section>)/)?.[1];
+    assert.ok(header);
+    const summary = header.match(/<dl\b[^>]*>[\s\S]*?<\/dl>/)?.[0];
+    assert.ok(summary);
+    assert.ok(header.indexOf('<dl') > header.indexOf('</h2>'));
+    assert.ok(header.indexOf('href="/admin/subscription-sources/new"') > header.indexOf('</dl>'));
+    assert.match(summary, /grid-cols-3/);
+    const cards = [...summary.matchAll(/<div\b[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/div>/g)];
+    assert.equal(cards.length, 3);
+    const expected = [['Источники', 3], ['Рабочие узлы', 93], ['В каталоге', 171]];
+    for (const [index, [, classes, content]] of cards.entries()) {
+      assert.match(classes, /rounded-xl/);
+      assert.match(classes, /bg-white\/10/);
+      assert.ok(content.includes(t(expected[index][0])));
+      assert.ok(content.includes(`>${expected[index][1]}</dd>`));
+    }
+  }
+});
 
 test('source page combines queue metrics, help and refresh in one localized panel', async () => {
   for (const locale of supportedLocales) {
@@ -62,8 +89,14 @@ test('source page combines queue metrics, help and refresh in one localized pane
     assert.ok(!panel.includes(t('Загружаются')));
     assert.match(panel, />540<\/dd>/);
     assert.match(panel, />4<\/dd>/);
-    assert.match(panel, />253 <span/);
-    assert.ok(panel.includes(`>${t('мин')}</span>`));
+    assert.match(panel, /data-queue-wait>253<\/span>/);
+    assert.ok(panel.includes(`</span> ${t('мин')}</dd>`));
+    assert.match(panel, /data-queue-progress[^>]*max="550" value="6"/);
+    assert.ok(panel.includes(t('Обработано задач: {completed} из {total}', { completed: 6, total: 550 })));
+    assert.match(panel, /data-queue-percent>1%<\/span>/);
+    const queueStats = panel.match(/<dl\b[^>]*>[\s\S]*?<\/dl>/)?.[0];
+    assert.match(queueStats, /flex flex-wrap/);
+    assert.doesNotMatch(queueStats, /bg-white|text-3xl|shadow-sm/);
     assert.match(panel, /class="[^"]*hidden" data-job-details/);
     assert.match(panel, /data-job-message role="status" aria-live="polite" aria-atomic="true"/);
     assert.match(panel, /href="\/admin\/subscription-sources" data-job-refresh/);
@@ -93,20 +126,48 @@ test('source cards have larger actions and hide background actions for disabled 
   }
 });
 
-test('queue panel renders job progress, terminal states, and escaped errors', async () => {
+test('queue progress stays visible without a selected job and handles empty and finished queues', async () => {
+  for (const locale of supportedLocales) {
+    const t = createTranslator(locale);
+    for (const [total, completed, percent] of [[0, 0, 0], [10, 3, 30], [10, 10, 100]]) {
+      const html = await renderSources({ locale, metrics: { progress: { total, completed } } });
+      assert.match(html, new RegExp(`data-queue-progress[^>]*max="${total || 1}" value="${completed}"`));
+      assert.ok(html.includes(`data-queue-percent>${percent}%</span>`));
+      assert.doesNotMatch(html, /class="[^"]*hidden" data-queue-progress/);
+      assert.ok(html.includes(total ? t('Обработано задач: {completed} из {total}', { completed, total }) : t('Очередь пуста')));
+    }
+    const html = await renderSources({ locale });
+    assert.match(html, /"queueProgress":"[^"]*\{completed\}[^\"]*\{total\}[^"]*"/);
+  }
+});
+
+test('queue panel renders job states alongside queue progress and escapes errors', async () => {
   for (const locale of supportedLocales) {
     for (const state of ['queued', 'running', 'completed', 'failed', 'interrupted']) {
       const html = await renderSources({ locale, job: { id: 'job-id', state, total: 10, completed: 3, error: '<script>alert(1)</script>' } });
       assert.match(html, /data-job-id="job-id"/);
       assert.ok(html.includes(statusLabel(state, locale)));
-      assert.match(html, /data-job-progress[^>]*max="10" value="3"/);
+      assert.match(html, /data-queue-progress[^>]*max="550" value="6"/);
+      assert.doesNotMatch(html, /data-job-progress/);
       assert.doesNotMatch(html, /class="[^"]*hidden" data-job-details/);
       assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
       assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
     }
   }
-  const noWork = await renderSources({ job: { id: 'empty-job', state: 'completed', total: 0, completed: 0 } });
-  assert.match(noWork, /class="[^"]*hidden" data-job-progress[^>]*max="1" value="0"/);
+});
+
+test('node catalog job panel preserves individual job progress without queue counters', async () => {
+  const partial = path.join(__dirname, '../src/views/partials/subscription-job.ejs');
+  for (const total of [0, 10]) {
+    const html = await ejs.renderFile(partial, {
+      t: createTranslator('ru'), ...createView('ru'),
+      job: { id: 'job-id', state: total ? 'running' : 'completed', total, completed: total ? 3 : 0 },
+      metrics: {}, refreshUrl: '/admin/subscription-sources/test/nodes'
+    });
+    assert.match(html, new RegExp(`data-job-progress[^>]*max="${total || 1}" value="${total ? 3 : 0}"`));
+    assert.doesNotMatch(html, /data-queue-progress|data-queue-count/);
+    if (!total) assert.match(html, /class="[^"]*hidden" data-job-progress/);
+  }
 });
 
 test('queue panel keeps storage and runner warnings inside the panel', async () => {

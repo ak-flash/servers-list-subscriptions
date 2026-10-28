@@ -24,6 +24,7 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   assert.equal(healthcheck.status, 200);
   assert.equal((await healthcheck.json()).status, 'ok');
   assert.equal((await request('/api/users/u/subscription-preview')).status, 401);
+  assert.equal((await request('/api/background-queue')).status, 401);
   const login = await post('/admin/login', { username: 'test-admin', password: 'test-password' });
   assert.equal(login.status, 302);
   const cookie = login.headers.get('set-cookie').split(';')[0];
@@ -49,6 +50,15 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   assert.ok(listing.includes('Test source'));
   assert.equal(source.sync_status, 'success');
   assert.match(listing, />Обновлён<\/span>/);
+  assert.match(listing, /data-queue-progress[^>]*max="1" value="1"/);
+  const queueResponse = await request('/api/background-queue', { headers: { cookie } });
+  assert.equal(queueResponse.status, 200);
+  assert.equal(queueResponse.headers.get('cache-control'), 'no-store');
+  const queue = await queueResponse.json();
+  assert.equal(queue.queued, 0);
+  assert.deepEqual(queue.progress, { total: 1, completed: 1 });
+  assert.ok(!JSON.stringify(queue).includes('secret-token'));
+  assert.ok(!JSON.stringify(queue).includes('secret-auth'));
   assert.doesNotMatch(listing, /status\.[a-z_]+|unit\.ms/);
   const englishListing = await (await request('/admin/subscription-sources?lang=en', { headers: { cookie } })).text();
   assert.match(englishListing, /<html lang="en">/);

@@ -7,7 +7,7 @@
   <% const totalHealthy = sources.reduce((sum, source) => sum + source.healthy, 0); %>
   <main id="main" class="mx-auto max-w-6xl px-4 py-6 md:py-8">
     <section class="mb-5 rounded-2xl bg-slate-900 p-4 text-white shadow-sm md:p-5">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h2 class="text-xl font-semibold tracking-tight md:text-2xl"><%= t('Источники подписок') %></h2>
@@ -15,13 +15,13 @@
           </div>
           <p class="mt-1.5 text-sm leading-5 text-slate-300"><%= t('Импорт VLESS-подписок и выдача проверенных узлов пользователям.') %></p>
         </div>
+        <dl class="grid min-w-0 grid-cols-3 gap-2 lg:w-[22rem]" aria-label="<%= t('Сводка по источникам') %>">
+          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Источники') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums"><%= sources.length %></dd></div>
+          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Рабочие узлы') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums"><%= totalHealthy %></dd></div>
+          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('В каталоге') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums"><%= totalNodes %></dd></div>
+        </dl>
         <a href="/admin/subscription-sources/new" data-icon="add" class="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"><%= t('Добавить источник') %></a>
       </div>
-      <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-sm sm:grid-cols-3" aria-label="<%= t('Сводка по источникам') %>">
-        <div class="flex flex-wrap items-baseline gap-x-2"><dt class="text-slate-300"><%= t('Источники') %></dt><dd class="text-lg font-semibold tabular-nums"><%= sources.length %></dd></div>
-        <div class="flex flex-wrap items-baseline gap-x-2"><dt class="text-slate-300"><%= t('Рабочие узлы') %></dt><dd class="text-lg font-semibold tabular-nums"><%= totalHealthy %></dd></div>
-        <div class="flex flex-wrap items-baseline gap-x-2"><dt class="text-slate-300"><%= t('В каталоге') %></dt><dd class="text-lg font-semibold tabular-nums"><%= totalNodes %></dd></div>
-      </dl>
     </section>
 
     <div class="mb-6"><%- include('partials/subscription-job', { job, metrics, showQueueMetrics: true, refreshUrl: '/admin/subscription-sources' }) %></div>

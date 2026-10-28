@@ -3,6 +3,14 @@
   const message = region?.querySelector('[data-job-message]');
   const details = region?.querySelector('[data-job-details]');
   const progress = region?.querySelector('[data-job-progress]');
+  const queueProgress = region?.querySelector('[data-queue-progress]');
+  const queueLabel = region?.querySelector('[data-queue-progress-label]');
+  const queuePercent = region?.querySelector('[data-queue-percent]');
+  const queueCount = region?.querySelector('[data-queue-count]');
+  const queueRunning = region?.querySelector('[data-queue-running]');
+  const queueWait = region?.querySelector('[data-queue-wait]');
+  const queueError = region?.querySelector('[data-queue-error]');
+  const queueWarning = region?.querySelector('[data-queue-warning]');
   const token = document.querySelector('meta[name="csrf-token"]')?.content;
   const translations = window.appTranslations || {};
   const labels = { queued: translations.queued || 'Queued', running: translations.running || 'In progress', completed: translations.completed || 'Completed', failed: translations.failed || 'Completed with errors', interrupted: translations.interrupted || 'Interrupted' };
@@ -28,11 +36,66 @@
   }
   let polling = 0;
   let timer;
-  const controller = new AbortController();
+  let queueTimer;
+  let queueFetching = false;
+  let queueSessionExpired = false;
+  let controller = new AbortController();
 
   function show(text) {
     details?.classList.remove('hidden');
     if (message) message.textContent = text;
+  }
+
+  function renderQueue(metrics) {
+    const total = Math.max(0, Number(metrics.progress?.total) || 0);
+    const completed = Math.max(0, Math.min(Number(metrics.progress?.completed) || 0, total));
+    const percent = total ? Math.floor(completed / total * 100) : 0;
+    queueProgress.max = total || 1;
+    queueProgress.value = completed;
+    queueProgress.textContent = `${percent}%`;
+    queuePercent.textContent = `${percent}%`;
+    queueLabel.textContent = total ? (translations.queueProgress || 'Tasks processed: {completed} of {total}')
+      .replace('{completed}', completed).replace('{total}', total) : (translations.queueEmpty || 'Queue is empty');
+    queueCount.textContent = metrics.queued;
+    queueRunning.textContent = metrics.running.check;
+    queueWait.textContent = Math.ceil(metrics.oldest_wait_ms / 60000);
+    const warning = metrics.storage_error || metrics.runner?.error;
+    if (queueWarning) {
+      queueWarning.classList.toggle('hidden', !warning);
+      queueWarning.textContent = warning ? `${warning} ${translations.healthValid || 'The last successful VPN test remains valid until it expires.'}` : '';
+    }
+  }
+
+  async function pollQueue() {
+    if (!queueProgress || queueFetching || queueSessionExpired || controller.signal.aborted) return;
+    clearTimeout(queueTimer);
+    if (document.hidden) return;
+    queueFetching = true;
+    const requestController = controller;
+    let retryDelay = 1500;
+    try {
+      const signal = AbortSignal.any([requestController.signal, AbortSignal.timeout(10000)]);
+      const response = await fetch('/api/background-queue', { signal, cache: 'no-store' });
+      if (requestController.signal.aborted) return;
+      if (response.status === 401) queueSessionExpired = true;
+      if (!response.ok) throw new Error('Queue request failed');
+      const metrics = await response.json();
+      if (requestController.signal.aborted) return;
+      renderQueue(metrics);
+      queueError?.classList.add('hidden');
+    } catch {
+      if (!requestController.signal.aborted && queueError) {
+        queueError.textContent = queueSessionExpired ? (translations.sessionExpired || 'Session expired. Sign in to the admin panel.') :
+          (translations.queueFailed || 'Could not refresh the queue. The displayed data may be outdated.');
+        queueError.classList.remove('hidden');
+      }
+      retryDelay = 5000;
+    } finally {
+      if (requestController === controller) {
+        queueFetching = false;
+        if (!requestController.signal.aborted && !queueSessionExpired && !document.hidden) queueTimer = setTimeout(pollQueue, retryDelay);
+      }
+    }
   }
 
   function updateProgress(job) {
@@ -44,11 +107,12 @@
   }
 
   async function poll(id, generation, targetMessage = message) {
+    const requestController = controller;
     try {
-      const response = await fetch(`/api/background-jobs/${encodeURIComponent(id)}`, { signal: controller.signal });
+      const response = await fetch(`/api/background-jobs/${encodeURIComponent(id)}`, { signal: requestController.signal });
       if (!response.ok) throw new Error(response.status === 401 ? (translations.sessionExpired || 'Session expired. Sign in to the admin panel.') : (translations.jobFailed || 'Could not get the job status. Refresh the page.'));
       const job = await response.json();
-      if (generation !== polling && targetMessage === message) return;
+      if (requestController.signal.aborted || (generation !== polling && targetMessage === message)) return;
       const suffix = job.error || job.runner?.error || '';
       const text = `${labels[job.state] || job.state}: ${job.completed} ${translations.of || 'of'} ${job.total}. ${suffix}`;
       if (targetMessage === message) {
@@ -63,7 +127,7 @@
         show(`${text} ${translations.refresh || 'Refresh results.'}`);
       }
     } catch (error) {
-      if (!controller.signal.aborted) {
+      if (!requestController.signal.aborted) {
         if (targetMessage === message) show(error.message);
         else if (targetMessage) targetMessage.textContent = error.message;
       }
@@ -104,7 +168,9 @@
          const url = new URL(window.location.href);
          url.searchParams.set('job', data.jobId);
          window.history.replaceState(null, '', url);
-         poll(data.jobId, ++polling);
+         if (region) region.dataset.jobId = data.jobId;
+          poll(data.jobId, ++polling);
+          pollQueue();
       } catch (error) {
         if (!controller.signal.aborted) show(error.message);
       } finally {
@@ -119,5 +185,20 @@
     });
   }
   if (region?.dataset.jobId) poll(region.dataset.jobId, ++polling);
-  window.addEventListener('pagehide', () => { clearTimeout(timer); controller.abort(); }, { once: true });
+  if (queueProgress) {
+    pollQueue();
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) clearTimeout(queueTimer);
+      else pollQueue();
+    });
+  }
+  window.addEventListener('pagehide', () => { clearTimeout(timer); clearTimeout(queueTimer); controller.abort(); });
+  window.addEventListener('pageshow', event => {
+    if (!event.persisted) return;
+    controller = new AbortController();
+    queueFetching = false;
+    queueSessionExpired = false;
+    if (region?.dataset.jobId) poll(region.dataset.jobId, ++polling);
+    pollQueue();
+  });
 })();
