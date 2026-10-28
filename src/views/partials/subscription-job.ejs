@@ -13,11 +13,10 @@
     <a href="<%= refreshUrl %>" data-job-refresh data-icon="refresh" class="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><%= t('Обновить результаты') %></a>
   </div>
   <% if (queueSummary) { %>
-    <dl class="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="<%= t('Состояние очереди') %>">
+    <dl class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="<%= t('Состояние очереди') %>">
       <div class="min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm md:p-4"><dt class="text-sm text-slate-600"><%= t('В очереди') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= metrics.queued %></dd></div>
-      <div class="min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm md:p-4"><dt class="text-sm text-slate-600"><%= t('Загружаются') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= metrics.running.sync %></dd></div>
       <div class="min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm md:p-4"><dt class="text-sm text-slate-600"><%= t('Проверяются') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= metrics.running.check %></dd></div>
-      <div class="min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm md:p-4"><dt class="text-sm text-slate-600"><%= t('Максимальное ожидание') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= Math.ceil(metrics.oldest_wait_ms / 60000) %> <span class="text-sm font-medium text-slate-500"><%= t('мин') %></span></dd></div>
+      <div class="col-span-2 min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm sm:col-span-1 md:p-4"><dt class="text-sm text-slate-600"><%= t('Максимальное ожидание') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= Math.ceil(metrics.oldest_wait_ms / 60000) %> <span class="text-sm font-medium text-slate-500"><%= t('мин') %></span></dd></div>
     </dl>
   <% } %>
   <p class="mt-4 text-sm leading-6 text-blue-800"><%= t('Результаты сохраняются после проверки каждого узла.') %></p>

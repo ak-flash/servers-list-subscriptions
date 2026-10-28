@@ -48,15 +48,20 @@ test('source page combines queue metrics, help and refresh in one localized pane
   for (const locale of supportedLocales) {
     const t = createTranslator(locale);
     const html = await renderSources({ locale });
+    const summary = html.match(/<dl\b[^>]*>[\s\S]*?<\/dl>/)?.[0];
+    assert.ok(summary);
+    assert.equal((summary.match(/<dt\b/g) || []).length, 3);
+    assert.ok(!summary.includes(t('Привязки')));
     const panel = html.match(/<section\b[^>]*data-job-region[^>]*>[\s\S]*?<\/section>/)?.[0];
     assert.ok(panel);
     assert.equal((html.match(/data-job-region/g) || []).length, 1);
-    for (const key of ['Фоновая очередь', 'В очереди', 'Загружаются', 'Проверяются', 'Максимальное ожидание', 'Обновить результаты', 'Загрузка и VPN-проверки выполняются в фоне.', 'Результаты сохраняются после проверки каждого узла.']) {
+    for (const key of ['Фоновая очередь', 'В очереди', 'Проверяются', 'Максимальное ожидание', 'Обновить результаты', 'Загрузка и VPN-проверки выполняются в фоне.', 'Результаты сохраняются после проверки каждого узла.']) {
       assert.ok(panel.includes(t(key)), `${locale} is missing ${key}`);
     }
+    assert.equal((panel.match(/<dt\b/g) || []).length, 3);
+    assert.ok(!panel.includes(t('Загружаются')));
     assert.match(panel, />540<\/dd>/);
     assert.match(panel, />4<\/dd>/);
-    assert.match(panel, />1<\/dd>/);
     assert.match(panel, />253 <span/);
     assert.ok(panel.includes(`>${t('мин')}</span>`));
     assert.match(panel, /class="[^"]*hidden" data-job-details/);
@@ -65,6 +70,26 @@ test('source page combines queue metrics, help and refresh in one localized pane
     assert.ok(html.includes(t('Добавьте первый источник')));
     assert.doesNotMatch(html, /status\.[a-z_]+|unit\.ms/);
     if (locale === 'en') assert.doesNotMatch(panel, /[А-Яа-яЁё]/);
+  }
+});
+
+test('source cards have larger actions and hide background actions for disabled sources', async () => {
+  for (const locale of supportedLocales) {
+    for (const active of [true, false]) {
+      const source = { id: 'test-source', name: 'Test source', masked_url: 'https://example.com', is_active: active, sync_status: 'success', count: 12, healthy: 8, users: 2 };
+      const html = await renderSources({ locale, sources: [source] });
+      const card = html.match(/<article\b[^>]*>[\s\S]*?<\/article>/)?.[0];
+      assert.ok(card);
+      const actions = [...card.matchAll(/<(?:a|button)\b[^>]*class="([^"]*min-h-\[48px\][^"]*)"[^>]*>/g)];
+      assert.equal(actions.length, active ? 4 : 2);
+      for (const [, classes] of actions) {
+        assert.match(classes, /\btext-base\b/);
+        assert.match(classes, /\bpx-4 py-3\b/);
+      }
+      assert.equal((card.match(/data-background-action/g) || []).length, active ? 2 : 0);
+      assert.ok(card.includes(createTranslator(locale)('Открыть узлы')));
+      assert.ok(card.includes(createTranslator(locale)('Настроить')));
+    }
   }
 });
 
