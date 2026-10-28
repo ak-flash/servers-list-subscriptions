@@ -47,6 +47,17 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   assert.ok(!listing.includes('secret-token'));
   assert.ok(!listing.includes('secret-auth'));
   assert.ok(listing.includes('Test source'));
+  assert.equal(source.sync_status, 'success');
+  assert.match(listing, />Обновлён<\/span>/);
+  assert.doesNotMatch(listing, /status\.[a-z_]+|unit\.ms/);
+  const englishListing = await (await request('/admin/subscription-sources?lang=en', { headers: { cookie } })).text();
+  assert.match(englishListing, /<html lang="en">/);
+  assert.match(englishListing, />Updated<\/span>/);
+  assert.match(englishListing, /Background queue/);
+  assert.match(englishListing, /Longest wait/);
+  assert.doesNotMatch(englishListing, /status\.[a-z_]+|unit\.ms/);
+  const cookieListing = await (await request('/admin/subscription-sources', { headers: { cookie: `${cookie}; locale=en` } })).text();
+  assert.match(cookieListing, />Updated<\/span>/);
   const nodesPage = await (await request(`/admin/subscription-sources/${source.id}/nodes`, { headers: { cookie } })).text();
   assert.ok(nodesPage.includes('Каталог узлов'));
   assert.ok(nodesPage.includes('one.example.com'));

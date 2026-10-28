@@ -1,7 +1,31 @@
-<div class="rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-950 shadow-sm" data-job-region data-job-id="<%= job ? job.id : '' %>" role="status" aria-live="polite">
-  <p data-job-message><% if (job) { %><%= statusLabel(job.state) %>: <%= job.completed %> <%= t('из') %> <%= job.total %>. <%= job.error || '' %><% } else { %><%= t('Загрузка и VPN-проверки выполняются в фоне. Результаты сохраняются после проверки каждого узла.') %><% } %></p>
-  <a href="<%= refreshUrl %>" data-job-refresh class="mt-3 inline-flex min-h-[44px] items-center rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><%= t('Обновить результаты') %></a>
-</div>
-<% if (metrics.storage_error || metrics.runner?.error) { %>
-  <p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950 shadow-sm"><%= metrics.storage_error || metrics.runner.error %> <%= t('Последний успешный VPN-тест действует до истечения срока актуальности.') %></p>
-<% } %>
+<% const queueSummary = typeof showQueueMetrics !== 'undefined' && showQueueMetrics; %>
+<section class="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-950 shadow-sm md:p-6" data-job-region data-job-id="<%= job ? job.id : '' %>" aria-labelledby="background-queue-title">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div class="flex min-w-0 items-start gap-3">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm" aria-hidden="true">
+        <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h6M4 18h6"/><circle cx="17" cy="15" r="5"/><path d="M17 12v3l2 1"/></svg>
+      </div>
+      <div class="min-w-0">
+        <h2 id="background-queue-title" class="text-xl font-semibold tracking-tight"><%= t('Фоновая очередь') %></h2>
+        <p class="mt-1 text-sm leading-6 text-blue-800"><%= t('Загрузка и VPN-проверки выполняются в фоне.') %></p>
+      </div>
+    </div>
+    <a href="<%= refreshUrl %>" data-job-refresh data-icon="refresh" class="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><%= t('Обновить результаты') %></a>
+  </div>
+  <% if (queueSummary) { %>
+    <dl class="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="<%= t('Состояние очереди') %>">
+      <div class="min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm md:p-4"><dt class="text-sm text-slate-600"><%= t('В очереди') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= metrics.queued %></dd></div>
+      <div class="min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm md:p-4"><dt class="text-sm text-slate-600"><%= t('Загружаются') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= metrics.running.sync %></dd></div>
+      <div class="min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm md:p-4"><dt class="text-sm text-slate-600"><%= t('Проверяются') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= metrics.running.check %></dd></div>
+      <div class="min-w-0 rounded-xl border border-blue-200 bg-white p-3 shadow-sm md:p-4"><dt class="text-sm text-slate-600"><%= t('Максимальное ожидание') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums text-slate-900 md:text-3xl"><%= Math.ceil(metrics.oldest_wait_ms / 60000) %> <span class="text-sm font-medium text-slate-500"><%= t('мин') %></span></dd></div>
+    </dl>
+  <% } %>
+  <p class="mt-4 text-sm leading-6 text-blue-800"><%= t('Результаты сохраняются после проверки каждого узла.') %></p>
+  <div class="mt-4 border-t border-blue-200 pt-4 <%= job ? '' : 'hidden' %>" data-job-details>
+    <p class="break-words text-sm font-medium" data-job-message role="status" aria-live="polite" aria-atomic="true"><% if (job) { %><%= statusLabel(job.state) %>: <%= job.completed %> <%= t('из') %> <%= job.total %>. <%= job.error || '' %><% } %></p>
+    <progress class="mt-3 h-2 w-full accent-blue-600 <%= job && job.total > 0 ? '' : 'hidden' %>" data-job-progress aria-label="<%= t('Прогресс задачи') %>" max="<%= job && job.total > 0 ? job.total : 1 %>" value="<%= job ? Math.min(job.completed, job.total) : 0 %>"></progress>
+  </div>
+  <% if (metrics.storage_error || metrics.runner?.error) { %>
+    <p class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" role="alert"><%= metrics.storage_error || metrics.runner.error %> <%= t('Последний успешный VPN-тест действует до истечения срока актуальности.') %></p>
+  <% } %>
+</section>

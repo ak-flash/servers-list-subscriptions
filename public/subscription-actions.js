@@ -1,6 +1,8 @@
 (() => {
   const region = document.querySelector('[data-job-region]');
   const message = region?.querySelector('[data-job-message]');
+  const details = region?.querySelector('[data-job-details]');
+  const progress = region?.querySelector('[data-job-progress]');
   const token = document.querySelector('meta[name="csrf-token"]')?.content;
   const translations = window.appTranslations || {};
   const labels = { queued: translations.queued || 'Queued', running: translations.running || 'In progress', completed: translations.completed || 'Completed', failed: translations.failed || 'Completed with errors', interrupted: translations.interrupted || 'Interrupted' };
@@ -29,7 +31,16 @@
   const controller = new AbortController();
 
   function show(text) {
+    details?.classList.remove('hidden');
     if (message) message.textContent = text;
+  }
+
+  function updateProgress(job) {
+    if (!progress) return;
+    const total = Number(job.total) || 0;
+    progress.classList.toggle('hidden', total <= 0);
+    progress.max = Math.max(total, 1);
+    progress.value = Math.max(0, Math.min(Number(job.completed) || 0, total));
   }
 
   async function poll(id, generation, targetMessage = message) {
@@ -40,7 +51,10 @@
       if (generation !== polling && targetMessage === message) return;
       const suffix = job.error || job.runner?.error || '';
       const text = `${labels[job.state] || job.state}: ${job.completed} ${translations.of || 'of'} ${job.total}. ${suffix}`;
-      if (targetMessage) targetMessage.textContent = text;
+      if (targetMessage === message) {
+        show(text);
+        updateProgress(job);
+      } else if (targetMessage) targetMessage.textContent = text;
       if (['queued', 'running'].includes(job.state)) {
         const next = () => poll(id, generation, targetMessage);
         if (targetMessage === message) timer = setTimeout(next, 1500);
@@ -49,7 +63,10 @@
         show(`${text} ${translations.refresh || 'Refresh results.'}`);
       }
     } catch (error) {
-      if (!controller.signal.aborted && targetMessage) targetMessage.textContent = error.message;
+      if (!controller.signal.aborted) {
+        if (targetMessage === message) show(error.message);
+        else if (targetMessage) targetMessage.textContent = error.message;
+      }
     }
   }
 
@@ -64,6 +81,7 @@
          form.querySelector('[data-check-spinner]')?.classList.remove('hidden');
          form.querySelector('[data-check-spinner]')?.classList.add('flex');
        }
+       progress?.classList.add('hidden');
        show(translations.sending || 'Sending request…');
       try {
         const response = await fetch(form.action, { method: 'POST', headers: { 'x-csrf-token': token },
