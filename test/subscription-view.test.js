@@ -122,6 +122,9 @@ test('source cards have larger actions and hide background actions for disabled 
       assert.equal((card.match(/data-background-action/g) || []).length, active ? 2 : 0);
       assert.ok(card.includes(createTranslator(locale)('Открыть узлы')));
       assert.ok(card.includes(createTranslator(locale)('Настроить')));
+      assert.match(card, /class="[^"]*\bh-full\b[^"]*\bflex-col\b[^"]*"/);
+      assert.match(card, /<div class="flex items-center gap-2">\s*<span class="h-2\.5 w-2\.5 rounded-full/);
+      assert.match(card, /<div class="flex-1" aria-hidden="true"><\/div>\s*<div class="mt-5 grid[^"]*border-t/);
     }
   }
 });
