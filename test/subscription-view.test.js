@@ -58,6 +58,8 @@ test('source summary cards sit between the heading and add-source action', async
     assert.ok(summary);
     assert.ok(header.indexOf('<dl') > header.indexOf('</h2>'));
     assert.ok(header.indexOf('href="/admin/subscription-sources/new"') > header.indexOf('</dl>'));
+    assert.match(header, new RegExp(`>${t('Добавить')}</a>`));
+    assert.ok(!header.includes(t('Добавить источник')));
     assert.match(summary, /grid-cols-3/);
     const cards = [...summary.matchAll(/<div\b[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/div>/g)];
     assert.equal(cards.length, 3);
@@ -85,6 +87,7 @@ test('source page combines queue metrics, help and refresh in one localized pane
     for (const key of ['Фоновая очередь', 'В очереди', 'Проверяются', 'Максимальное ожидание', 'Обновить результаты', 'Загрузка и VPN-проверки выполняются в фоне.', 'Результаты сохраняются после проверки каждого узла.']) {
       assert.ok(panel.includes(t(key)), `${locale} is missing ${key}`);
     }
+    assert.match(panel, /<div class="flex min-w-0 items-center gap-3">/);
     assert.equal((panel.match(/<dt\b/g) || []).length, 3);
     assert.ok(!panel.includes(t('Загружаются')));
     assert.match(panel, />540<\/dd>/);
@@ -124,7 +127,7 @@ test('source cards have larger actions and hide background actions for disabled 
       assert.ok(card.includes(createTranslator(locale)('Настроить')));
       assert.match(card, /class="[^"]*\bh-full\b[^"]*\bflex-col\b[^"]*"/);
       assert.match(card, /<div class="flex items-center gap-2">\s*<span class="h-2\.5 w-2\.5 rounded-full/);
-      assert.match(card, /<div class="flex-1" aria-hidden="true"><\/div>\s*<div class="mt-5 grid[^"]*border-t/);
+      assert.match(card, /<div class="flex-1" aria-hidden="true"><\/div>\s*<div class="mt-4 grid[^"]*border-t[^"]*pt-3/);
     }
   }
 });
