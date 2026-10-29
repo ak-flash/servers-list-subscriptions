@@ -90,7 +90,7 @@
         if (!response.ok) throw new Error(data.error || '<%= t('Ошибка проверки') %>');
         if (data.status === 'healthy') {
           out.className = 'mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700';
-          out.textContent = `<%= t('Прокси работает. Задержка: {latency} мс') %>`.replace('{latency}', Math.round(data.latencyMs));
+          out.textContent = `<%= t('Прокси работает. Задержка: {latency} мс', { latency: '{latency}' }) %>`.replace('{latency}', Math.round(data.latencyMs));
         } else {
           out.className = 'mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700';
           out.textContent = `<%= t('Прокси недоступен: {code}') %>`.replace('{code}', data.errorCode || 'unknown');
