@@ -93,8 +93,22 @@ function buildHttpProxyOutbound(proxy) {
 function buildXrayConfig(node, address, port, credentials, certificateAuthority, httpProxy = null) {
   if (node.protocol === 'hysteria2') {
     if (node.insecure || node.obfs || node.obfsPassword) throw new SubscriptionError('unsupported');
-    const streamSettings = { network: 'hysteria', security: 'tls', tlsSettings: { serverName: node.sni }, hysteriaSettings: { auth: node.password } };
+    const tlsSettings = { serverName: node.sni };
+    if (node.alpn?.length) tlsSettings.alpn = node.alpn;
+    const streamSettings = { network: 'hysteria', security: 'tls', tlsSettings, hysteriaSettings: { auth: node.password } };
     const outbounds = [{ tag: 'probe-vpn', protocol: 'hysteria', settings: { version: 2, address, port: node.port }, streamSettings }];
+    if (httpProxy) {
+      const proxyOutbound = buildHttpProxyOutbound(httpProxy);
+      streamSettings.sockopt = { dialerProxy: proxyOutbound.tag };
+      outbounds.push(proxyOutbound);
+    }
+    return { log: { loglevel: 'none' }, inbounds: [{ tag: 'probe-in', listen: '127.0.0.1', port, protocol: 'socks', settings: { auth: 'password', accounts: [{ user: credentials.user, pass: credentials.password }], udp: false } }], outbounds, routing: { rules: [{ type: 'field', inboundTag: ['probe-in'], outboundTag: 'probe-vpn' }] } };
+  }
+  if (node.protocol === 'trojan') {
+    const streamSettings = { network: node.network, security: node.security, tlsSettings: { serverName: node.sni } };
+    if (node.alpn?.length) streamSettings.tlsSettings.alpn = node.alpn;
+    if (node.fingerprint) streamSettings.tlsSettings.fingerprint = node.fingerprint;
+    const outbounds = [{ tag: 'probe-vpn', protocol: 'trojan', settings: { servers: [{ address, port: node.port, password: node.password }] }, streamSettings }];
     if (httpProxy) {
       const proxyOutbound = buildHttpProxyOutbound(httpProxy);
       streamSettings.sockopt = { dialerProxy: proxyOutbound.tag };

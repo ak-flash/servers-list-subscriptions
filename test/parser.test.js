@@ -5,6 +5,17 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { buildXrayConfig } = require('../src/utils/xrayConfigBuilder');
 const { UUID, link } = require('./fixtures');
 
+test('Trojan TCP TLS subscription links are parsed', () => {
+  const raw = 'Trojan://UAKWGor-h0woFsxKSWK92HptcM0g2k2h@176.114.95.242:443/?type=tcp&security=tls&sni=us-1.1984.love&fp=android#%F0%9F%87%BA%F0%9F%87%B8%20United%20States%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].protocol, 'trojan');
+  assert.equal(parsed.nodes[0].config.password, 'UAKWGor-h0woFsxKSWK92HptcM0g2k2h');
+  const built = buildXrayConfig(parsed.nodes[0].config, '176.114.95.242', 12000, { user: 'test', password: 'test' });
+  assert.equal(built.outbounds[0].protocol, 'trojan');
+  assert.equal(built.outbounds[0].streamSettings.tlsSettings.serverName, 'us-1.1984.love');
+});
+
 test('VMess TCP TLS subscription links are parsed', () => {
   const raw = 'vmess://eyJ2IjoiMiIsInBzIjoi8J+Ht/Cfh7ogUnVzc2lhIHwgWypDSURSXSBZQSIsImFkZCI6IjE1OC4xNjAuMTgwLjE2NSIsInBvcnQiOiIyNDIxMiIsImlkIjoiYzU4YzEyMDUtYjMwOC00MTZmLTg1MDMtYzA0NTU3YWJmOTNkIiwiYWlkIjoiMCIsInNjeSI6ImF1dG8iLCJuZXQiOiJ0Y3AiLCJ0eXBlIjoibm9uZSIsInRscyI6InRscyIsImFscG4iOiJoMixodHRwLzEuMSIsImhvc3QiOiIiLCJwYXRoIjoiIiwic25pIjoiIiwiZnAiOiIifQ==';
   const parsed = parseSubscription(raw);
@@ -22,6 +33,15 @@ test('VMess raw network is normalized to TCP', () => {
   assert.equal(parsed.report.supported, 1);
   assert.equal(parsed.nodes[0].config.network, 'tcp');
   assert.equal(parsed.nodes[0].name, '🇷🇺 Russia | [*CIDR] YA');
+});
+
+test('Hysteria2 supports ALPN', () => {
+  const raw = 'hysteria2://e7291b0e-e02f-4475-b1db-2785e60302f9@82.202.157.79:4443?sni=ru.nextdump.friedshrimp.xyz&alpn=h3#%F0%9F%87%AB%F0%9F%87%AE%20Finland%20%7C%20%F0%9F%8C%90%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.deepEqual(parsed.nodes[0].config.alpn, ['h3']);
+  const built = buildXrayConfig(parsed.nodes[0].config, '82.202.157.79', 12000, { user: 'test', password: 'test' });
+  assert.deepEqual(built.outbounds[0].streamSettings.tlsSettings.alpn, ['h3']);
 });
 
 test('Hysteria2 subscription links are parsed', () => {
@@ -107,6 +127,14 @@ test('unsupported connection parameters are retained and never silently discarde
   for (const raw of [link().replace(UUID, ''), link().replace(':443', ':70000'), link() + '%XX', link().replace('#', '&sni=a&sni=b#')]) {
     assert.throws(() => parseVless(raw), { code: 'invalid_link' });
   }
+});
+
+test('VLESS WebSocket TLS ignores the echfq compatibility parameter', () => {
+  const raw = 'Vless://ddc27ad2-631e-4431-b380-0045547acef4@82.202.157.123:5002?flow=&type=ws&host=br1.centermass.net&path=media.playback.v1.SessionGateway&security=tls&sni=br1.centermass.net&alpn=http%2F1.1&allowInsecure=0&echfq=none&fp=edge#%F0%9F%87%AC%F0%9F%87%A7%20United%20Kingdom%20%5B%2ACIDR%5D';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.deepEqual(parsed.config.extra, {});
+  assert.equal(parsed.config.ws.path, '/media.playback.v1.SessionGateway');
 });
 
 test('VLESS WebSocket TLS accepts insecure as an allowInsecure alias', () => {

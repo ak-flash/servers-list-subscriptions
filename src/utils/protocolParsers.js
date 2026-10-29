@@ -5,7 +5,7 @@ const { domainToASCII } = require('url');
 const { SubscriptionError } = require('./subscriptionErrors');
 
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
-const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headers', 'headerType', 'allowInsecure', 'insecure', 'extra', 'mode', 'serviceName', 'authority', 'fm', 'x_padding_bytes', 'packetEncoding']);
+const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headers', 'headerType', 'allowInsecure', 'echfq', 'insecure', 'extra', 'mode', 'serviceName', 'authority', 'fm', 'x_padding_bytes', 'packetEncoding']);
 const METADATA_PARAMS = new Set(['telegram']);
 const REALITY_PARAMS = new Set(['pbk', 'sid', 'spx', 'pqv']);
 const FINGERPRINTS = new Set(['', 'chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'random', 'randomized']);
@@ -103,13 +103,15 @@ function parseHysteria2(raw) {
   const host = normalizeHost(url.hostname);
   const port = Number(url.port);
   const sni = url.searchParams.get('sni') || host;
+  const alpn = (url.searchParams.get('alpn') || '').split(',').filter(Boolean);
+  if (alpn.some(value => value.length > 255 || /[\r\n]/.test(value))) throw new SubscriptionError('invalid_link');
   if (!Number.isInteger(port) || port < 1 || port > 65535 || name.length > 256 || /[\u0000-\u001f\u007f]/u.test(name)) {
     throw new SubscriptionError('invalid_link');
   }
   if (!sni || /[\r\n]/.test(sni)) throw new SubscriptionError('invalid_link');
-  const config = { schema_version: 1, protocol: 'hysteria2', host, port, password: decodeURIComponent(url.username), sni,
+  const config = { schema_version: 1, protocol: 'hysteria2', host, port, password: decodeURIComponent(url.username), sni, alpn,
     insecure: ['1', 'true'].includes(url.searchParams.get('insecure') || ''), obfs: url.searchParams.get('obfs') || '', obfsPassword: url.searchParams.get('obfs-password') || '' };
-  const supported = !config.obfs && ![...url.searchParams.keys()].some(key => !['sni', 'insecure', 'obfs', 'obfs-password'].includes(key));
+  const supported = !config.obfs && ![...url.searchParams.keys()].some(key => !['sni', 'alpn', 'insecure', 'obfs', 'obfs-password'].includes(key));
   return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : new SubscriptionError('hysteria_unsupported').code };
 }
 
@@ -143,6 +145,38 @@ function parseVmess(raw) {
   }
   const config = { schema_version: 1, protocol: 'vmess', host, port, uuid, security: security || 'none', network, sni: String(data.sni || host), alpn, fingerprint: String(data.fp || ''), hostHeader: String(data.host || ''), path: path || '/', alterId: Number.parseInt(data.aid, 10) || 0, scy: String(data.scy || 'auto') };
   return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: 'supported', error: null };
+}
+
+function parseTrojan(raw) {
+  if (typeof raw !== 'string' || raw.length > 16384 || /[\s\u0000-\u001f\u007f]/u.test(raw)) throw new SubscriptionError('invalid_link');
+  let url;
+  let name;
+  let password;
+  try {
+    if (/%(?![a-f\d]{2})/i.test(raw)) throw new Error();
+    url = new URL(raw);
+    name = decodeURIComponent(url.hash.slice(1));
+    password = decodeURIComponent(url.username);
+    decodeURIComponent(url.search.replace(/\+/g, ' '));
+  } catch {
+    throw new SubscriptionError('invalid_link');
+  }
+  if (url.protocol !== 'trojan:' || !password || url.password || !url.port || !['', '/'].includes(url.pathname)) throw new SubscriptionError('invalid_link');
+  const host = normalizeHost(url.hostname);
+  const port = Number(url.port);
+  const params = Object.create(null);
+  for (const [key, value] of url.searchParams) {
+    if (Object.hasOwn(params, key) || value.length > 4096 || /[\u0000-\u001f\u007f]/u.test(value)) throw new SubscriptionError('invalid_link');
+    params[key] = value;
+  }
+  const network = params.type || 'tcp';
+  const security = params.security || 'tls';
+  const sni = params.sni ? normalizeHost(params.sni) : host;
+  const alpn = params.alpn ? params.alpn.split(',') : [];
+  const fingerprintValue = params.fp || '';
+  const config = { schema_version: 1, protocol: 'trojan', host, port, password, network, security, sni, alpn, fingerprint: fingerprintValue };
+  const supported = network === 'tcp' && security === 'tls' && ['type', 'security', 'sni', 'alpn', 'fp'].every(key => !Object.hasOwn(params, key) || true) && Object.keys(params).every(key => ['type', 'security', 'sni', 'alpn', 'fp'].includes(key)) && Number.isInteger(port) && port >= 1 && port <= 65535 && name.length <= 256 && !/[\u0000-\u001f\u007f]/u.test(name) && !alpn.some(value => !value || value.length > 255) && FINGERPRINTS.has(fingerprintValue);
+  return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : 'Эта конфигурация не поддерживается проверяющим адаптером.' };
 }
 
 function parseVless(raw) {
@@ -290,4 +324,4 @@ function effectiveFingerprint(link) {
   return fingerprint({ raw: link.split('#')[0] });
 }
 
-module.exports = { parseVless, parseHysteria2, parseVmess, serializeVless, fingerprint, effectiveFingerprint, normalizeHost, canonicalJson, vlessCapability, UUID };
+module.exports = { parseVless, parseHysteria2, parseVmess, parseTrojan, serializeVless, fingerprint, effectiveFingerprint, normalizeHost, canonicalJson, vlessCapability, UUID };

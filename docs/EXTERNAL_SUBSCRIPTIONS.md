@@ -19,6 +19,8 @@
 | Конфигурация | Автоматический импорт и VPN-проверка |
 | --- | --- |
 | VLESS TCP / RAW + TLS, `encryption=none` | Да |
+| Hysteria2 с SNI и ALPN | Да: `sni`, `alpn` |
+| Trojan TCP + TLS | Да: `sni`, `fp` |
 | VLESS WebSocket + TLS | Да: `host`, `path`, JSON-параметр `headers` |
 | VLESS TCP / RAW + Reality | Да: `pbk`, `sid`, SNI, fingerprint, `spx`, опциональный `pqv`; `packetEncoding=none` нормализуется в стандартное значение |
 | VLESS XHTTP + TLS или Reality | Да: `host`, `path`, `mode`; `extra=null` и поддерживаемые JSON-параметры допускаются |
