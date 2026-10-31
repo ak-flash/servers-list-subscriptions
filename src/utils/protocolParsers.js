@@ -5,7 +5,7 @@ const { domainToASCII } = require('url');
 const { SubscriptionError } = require('./subscriptionErrors');
 
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
-const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headers', 'headerType', 'allowInsecure', 'echfq', 'insecure', 'extra', 'mode', 'serviceName', 'authority', 'fm', 'x_padding_bytes', 'packetEncoding']);
+const KNOWN_PARAMS = new Set(['encryption', 'type', 'security', 'sni', 'alpn', 'fp', 'flow', 'host', 'path', 'headers', 'headerType', 'allowInsecure', 'echfq', 'echf', 'insecure', 'extra', 'mode', 'serviceName', 'authority', 'fm', 'x_padding_bytes', 'packetEncoding']);
 const METADATA_PARAMS = new Set(['telegram']);
 const REALITY_PARAMS = new Set(['pbk', 'sid', 'spx', 'pqv']);
 const FINGERPRINTS = new Set(['', 'chrome', 'firefox', 'safari', 'ios', 'android', 'edge', '360', 'qq', 'random', 'randomized']);
@@ -111,7 +111,7 @@ function parseHysteria2(raw) {
   if (!sni || /[\r\n]/.test(sni)) throw new SubscriptionError('invalid_link');
   const config = { schema_version: 1, protocol: 'hysteria2', host, port, password: decodeURIComponent(url.username), sni, alpn,
     insecure: ['1', 'true'].includes(url.searchParams.get('insecure') || ''), obfs: url.searchParams.get('obfs') || '', obfsPassword: url.searchParams.get('obfs-password') || '' };
-  const supported = !config.obfs && ![...url.searchParams.keys()].some(key => !['sni', 'alpn', 'insecure', 'obfs', 'obfs-password'].includes(key));
+  const supported = !config.obfs && ![...url.searchParams.keys()].some(key => !['sni', 'alpn', 'security', 'insecure', 'obfs', 'obfs-password'].includes(key));
   return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : new SubscriptionError('hysteria_unsupported').code };
 }
 
@@ -174,8 +174,9 @@ function parseTrojan(raw) {
   const sni = params.sni ? normalizeHost(params.sni) : host;
   const alpn = params.alpn ? params.alpn.split(',') : [];
   const fingerprintValue = params.fp || '';
-  const config = { schema_version: 1, protocol: 'trojan', host, port, password, network, security, sni, alpn, fingerprint: fingerprintValue };
-  const supported = network === 'tcp' && security === 'tls' && ['type', 'security', 'sni', 'alpn', 'fp'].every(key => !Object.hasOwn(params, key) || true) && Object.keys(params).every(key => ['type', 'security', 'sni', 'alpn', 'fp'].includes(key)) && Number.isInteger(port) && port >= 1 && port <= 65535 && name.length <= 256 && !/[\u0000-\u001f\u007f]/u.test(name) && !alpn.some(value => !value || value.length > 255) && FINGERPRINTS.has(fingerprintValue);
+  const insecure = ['1', 'true'].includes(params.insecure || '');
+  const config = { schema_version: 1, protocol: 'trojan', host, port, password, network, security, sni, alpn, fingerprint: fingerprintValue, insecure };
+  const supported = network === 'tcp' && security === 'tls' && Object.keys(params).every(key => ['type', 'security', 'sni', 'alpn', 'insecure', 'fp'].includes(key)) && Number.isInteger(port) && port >= 1 && port <= 65535 && name.length <= 256 && !/[\u0000-\u001f\u007f]/u.test(name) && !alpn.some(value => !value || value.length > 255) && FINGERPRINTS.has(fingerprintValue);
   return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : 'Эта конфигурация не поддерживается проверяющим адаптером.' };
 }
 
