@@ -5,6 +5,14 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { buildXrayConfig } = require('../src/utils/xrayConfigBuilder');
 const { UUID, link } = require('./fixtures');
 
+test('Trojan accepts matching insecure and allowInsecure aliases', () => {
+  const raw = 'Trojan://happybirthdaydaniel@de-bots4.h1cloud.net:25267?security=tls&sni=de-bots4.h1cloud.net&insecure=1&allowInsecure=1&type=tcp&fp=safari#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].config.insecure, true);
+  assert.throws(() => parseSubscription(raw.replace('allowInsecure=1', 'allowInsecure=0')), { code: 'unsupported_format' });
+});
+
 test('Trojan TCP TLS supports insecure and SNI with a path', () => {
   const raw = 'Trojan://happybirthdaydaniel@de-bots4.h1cloud.net:25267?security=tls&sni=t.me%2FFuckTheWall&alpn=http%2F1.1&insecure=1&type=tcp&fp=edge#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%5B%2ACIDR%5D';
   const parsed = parseSubscription(raw);
@@ -43,6 +51,23 @@ test('VMess raw network is normalized to TCP', () => {
   assert.equal(parsed.report.supported, 1);
   assert.equal(parsed.nodes[0].config.network, 'tcp');
   assert.equal(parsed.nodes[0].name, '🇷🇺 Russia | [*CIDR] YA');
+});
+
+test('Hysteria2 concatenated links separated by spaces are parsed', () => {
+  const first = 'hysteria2://39b9f02c-a53d-0001-a535-8e779923d48b@87.242.119.253:443?sni=hvtlr-ru-47sb.fade.mom&fp=firefox&alpn=h3#%F0%9F%8C%90%20Anycast-IP%20%7C%20%F0%9F%87%B5%F0%9F%87%B1%20%5B%2ACIDR%5D';
+  const second = 'hysteria2://39b9f02c-a53d-0001-a535-8e779923d48b@87.242.119.253:443?sni=hvtlr-ru-47sb.fade.mom&fp=firefox#%F0%9F%8C%90%20Anycast-IP%20%7C%20%F0%9F%87%B5%F0%9F%87%B1%20%F0%9F%87%B7%F0%9F%87%BA%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(`${first} ${second}`);
+  assert.equal(parsed.report.total, 2);
+  assert.equal(parsed.report.supported, 2);
+});
+
+test('Hysteria2 supports TLS fingerprint', () => {
+  const raw = 'hysteria2://39b9f02c-a53d-0001-a535-8e779923d48b@87.242.119.253:443?sni=hvtlr-ru-47sb.fade.mom&fp=firefox&alpn=h3#%F0%9F%8C%90%20Anycast-IP%20%7C%20%F0%9F%87%B5%F0%9F%87%B1%20%5B%2ACIDR%5D';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].config.fingerprint, 'firefox');
+  const built = buildXrayConfig(parsed.nodes[0].config, '87.242.119.253', 12000, { user: 'test', password: 'test' });
+  assert.equal(built.outbounds[0].streamSettings.tlsSettings.fingerprint, 'firefox');
 });
 
 test('Hysteria2 supports insecure and security parameters', () => {

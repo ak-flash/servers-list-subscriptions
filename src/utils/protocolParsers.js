@@ -109,9 +109,10 @@ function parseHysteria2(raw) {
     throw new SubscriptionError('invalid_link');
   }
   if (!sni || /[\r\n]/.test(sni)) throw new SubscriptionError('invalid_link');
-  const config = { schema_version: 1, protocol: 'hysteria2', host, port, password: decodeURIComponent(url.username), sni, alpn,
+  const fingerprintValue = url.searchParams.get('fp') || '';
+  const config = { schema_version: 1, protocol: 'hysteria2', host, port, password: decodeURIComponent(url.username), sni, alpn, fingerprint: fingerprintValue,
     insecure: ['1', 'true'].includes(url.searchParams.get('insecure') || ''), obfs: url.searchParams.get('obfs') || '', obfsPassword: url.searchParams.get('obfs-password') || '' };
-  const supported = !config.obfs && ![...url.searchParams.keys()].some(key => !['sni', 'alpn', 'security', 'insecure', 'obfs', 'obfs-password'].includes(key));
+  const supported = !config.obfs && ![...url.searchParams.keys()].some(key => !['sni', 'alpn', 'security', 'fp', 'insecure', 'obfs', 'obfs-password'].includes(key));
   return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : new SubscriptionError('hysteria_unsupported').code };
 }
 
@@ -174,9 +175,13 @@ function parseTrojan(raw) {
   const sni = params.sni ? normalizeHost(params.sni) : host;
   const alpn = params.alpn ? params.alpn.split(',') : [];
   const fingerprintValue = params.fp || '';
-  const insecure = ['1', 'true'].includes(params.insecure || '');
+  const insecureValues = [params.insecure, params.allowInsecure].filter(value => value !== undefined);
+  if (insecureValues.some(value => !['0', '1', 'true', 'false'].includes(value))) throw new SubscriptionError('invalid_link');
+  const insecureFlags = insecureValues.map(value => ['1', 'true'].includes(value));
+  if (insecureFlags.length === 2 && insecureFlags[0] !== insecureFlags[1]) throw new SubscriptionError('invalid_link');
+  const insecure = insecureFlags[0] === true;
   const config = { schema_version: 1, protocol: 'trojan', host, port, password, network, security, sni, alpn, fingerprint: fingerprintValue, insecure };
-  const supported = network === 'tcp' && security === 'tls' && Object.keys(params).every(key => ['type', 'security', 'sni', 'alpn', 'insecure', 'fp'].includes(key)) && Number.isInteger(port) && port >= 1 && port <= 65535 && name.length <= 256 && !/[\u0000-\u001f\u007f]/u.test(name) && !alpn.some(value => !value || value.length > 255) && FINGERPRINTS.has(fingerprintValue);
+  const supported = network === 'tcp' && security === 'tls' && Object.keys(params).every(key => ['type', 'security', 'sni', 'alpn', 'insecure', 'allowInsecure', 'fp'].includes(key)) && Number.isInteger(port) && port >= 1 && port <= 65535 && name.length <= 256 && !/[\u0000-\u001f\u007f]/u.test(name) && !alpn.some(value => !value || value.length > 255) && FINGERPRINTS.has(fingerprintValue);
   return { config, name: name || `${host}:${port}`, fingerprint: fingerprint(config), capability: supported ? 'supported' : 'unsupported', error: supported ? null : 'Эта конфигурация не поддерживается проверяющим адаптером.' };
 }
 

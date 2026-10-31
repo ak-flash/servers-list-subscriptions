@@ -94,6 +94,7 @@ function buildXrayConfig(node, address, port, credentials, certificateAuthority,
   if (node.protocol === 'hysteria2') {
     if (node.obfs || node.obfsPassword) throw new SubscriptionError('unsupported');
     const tlsSettings = { serverName: node.sni, ...(node.insecure ? { allowInsecure: true } : {}) };
+    if (node.fingerprint) tlsSettings.fingerprint = node.fingerprint;
     if (node.alpn?.length) tlsSettings.alpn = node.alpn;
     const streamSettings = { network: 'hysteria', security: 'tls', tlsSettings, hysteriaSettings: { auth: node.password } };
     const outbounds = [{ tag: 'probe-vpn', protocol: 'hysteria', settings: { version: 2, address, port: node.port }, streamSettings }];

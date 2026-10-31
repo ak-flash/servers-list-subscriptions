@@ -44,6 +44,9 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
     throw new SubscriptionError('unsupported_format');
   }
   text = text.replace(/^\uFEFF/, '').trim();
+  // Some providers concatenate URI records with a space instead of a newline.
+  // Split only at a new protocol scheme so encoded/name spaces remain untouched.
+  text = text.replace(/\s+(?=(?:vless|vmess|trojan|hysteria2):\/\/)/gi, '\n');
   if (!text) throw new SubscriptionError('empty_source');
   let format = 'plain';
   if (!/(?:^|\n)\s*[a-z][a-z\d+.-]*:\/\//i.test(text)) {
