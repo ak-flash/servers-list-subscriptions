@@ -45,6 +45,13 @@ test('VMess TCP TLS subscription links are parsed', () => {
   assert.equal(built.outbounds[0].streamSettings.tlsSettings.serverName, '158.160.180.165');
 });
 
+test('VMess accepts query parameters after the Base64 payload', () => {
+  const raw = 'Vmess://eyJhZGQiOiIxNTguMTYwLjE4MC4xNjUiLCJpZCI6ImM1OGMxMjA1LWIzMDgtNDE2Zi04NTAzLWMwNDU1N2FiZjkzZCIsInBvcnQiOiIyNDIxMiIsInNjeSI6ImF1dG8iLCJ2IjoiMiIsIm5ldCI6InJhdyIsInR5cGUiOiJub25lIiwidGxzIjoidGxzIiwiYWxwbiI6ImgyLGh0dHAvMS4xIiwiZnAiOiIiLCJzbmkiOiIxNTguMTYwLjE4MC4xNjUiLCJwcyI6IvCfh7fwn4e6IFJ1c3NpYSB8IFsqQ0lEUl0gWUEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsInBhdGgiOiIifQ?fp=ios';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.report.supported, 1);
+  assert.equal(parsed.nodes[0].config.fingerprint, 'ios');
+});
+
 test('VMess raw network is normalized to TCP', () => {
   const raw = 'vmess://eyJhZGQiOiIxNTguMTYwLjE4MC4xNjUiLCJpZCI6ImM1OGMxMjA1LWIzMDgtNDE2Zi04NTAzLWMwNDU1N2FiZjkzZCIsInBvcnQiOiIyNDIxMiIsInNjeSI6ImF1dG8iLCJ2IjoiMiIsIm5ldCI6InJhdyIsInR5cGUiOiJub25lIiwidGxzIjoidGxzIiwiYWxwbiI6ImgyLGh0dHAvMS4xIiwiZnAiOiIiLCJzbmkiOiIiLCJwcyI6IvCfh7fwn4e6IFJ1c3NpYSB8IFsqQ0lEUl0gWUEiLCJhaWQiOiIwIiwiaG9zdCI6IiIsInBhdGgiOiIifQ==';
   const parsed = parseSubscription(raw);
@@ -108,6 +115,13 @@ test('VLESS WebSocket normalizes a path without a leading slash', () => {
   const parsed = parseSubscription(raw);
   assert.equal(parsed.report.supported, 1);
   assert.equal(parsed.nodes[0].config.ws.path, '/media.playback.v1.SessionGateway');
+});
+
+test('VLESS XHTTP normalizes a path without a leading slash', () => {
+  const raw = 'Vless://ee78c844-83b6-4508-b1f9-b3f00c8e0556@nl3.undeadcorporation.art:8443?type=xhttp&security=reality&pbk=qlE96V8EuBoDsWz4DaeGYx5XEUbOcs-o0aK-Z9U4cC8&sid=fd0ccc8b9788b8aa&sni=twitch.tv&path=playlist%2FCsUIQriaBfjX4A6X98tTXhYX5sniC6o3h0TzTb8mbwdh33qjN8K3q1kT99ZbCEg32&mode=auto&extra=%7B%22xmux%22%3A%7B%22cMaxReuseTimes%22%3A0%2C%22maxConcurrency%22%3A%2216-32%22%2C%22maxConnections%22%3A0%2C%22hKeepAlivePeriod%22%3A0%2C%22hMaxRequestTimes%22%3A%22600-900%22%2C%22hMaxReusableSecs%22%3A%221800-3000%22%7D%2C%22noGRPCHeader%22%3Afalse%2C%22xPaddingBytes%22%3A%22100-1000%22%2C%22scMaxEachPostBytes%22%3A1000000%2C%22scMinPostsIntervalMs%22%3A30%2C%22scStreamUpServerSecs%22%3A%2220-80%22%7D&fp=chrome#test';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.equal(parsed.config.xhttp.path, '/playlist/CsUIQriaBfjX4A6X98tTXhYX5sniC6o3h0TzTb8mbwdh33qjN8K3q1kT99ZbCEg32');
 });
 
 test('VLESS XHTTP accepts downloadSettings', () => {
@@ -324,6 +338,13 @@ test('VLESS gRPC with Reality preserves serviceName and multi mode', () => {
   const emptyServiceName = parseVless('vless://1bb2af63-4472-44ed-9c70-8f316258b68b@62.152.58.90:443?encryption=none&fp=random&mode=gun&pbk=JBKJlzuJH1YzDHAoz28wEKbzWTGpDpKjgtSq0oT0a0k&security=reality&sid=27e53bbcab7593d7&sni=360.yandex.ru&type=grpc#Poland');
   assert.equal(emptyServiceName.capability, 'supported');
   assert.deepEqual(emptyServiceName.config.grpc, { serviceName: '', mode: 'gun' });
+});
+
+test('VLESS ignores an empty FinalMask object', () => {
+  const raw = 'Vless://47e215c1-6648-455d-97f7-4f758d910f05@rus19.roscomsosal.de:443?flow=xtls-rprx-vision&encryption=none&security=tls&sni=rus19.roscomsosal.de&type=tcp&headerType=none&fm=%7B%7D&fp=qq#%F0%9F%87%B7%F0%9F%87%BA%20Russia%20%7C%20%5B%2ACIDR%5D';
+  const parsed = parseVless(raw);
+  assert.equal(parsed.capability, 'supported');
+  assert.equal(parsed.config.finalmask, null);
 });
 
 test('VLESS gRPC Reality with TCP fragment FinalMask is preserved and accepted by Xray', () => {
