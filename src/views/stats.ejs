@@ -18,7 +18,6 @@
                 <label for="stats-month" class="text-lg font-semibold text-gray-800"><%= t('Выберите месяц:') %></label>
                 <form method="GET" action="/admin/stats" class="w-full min-w-0 sm:w-auto">
                     <select id="stats-month" name="month" onchange="this.form.submit()" class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                        <option value=""><%= t('Все время') %></option>
                         <% if (typeof availableMonths !== 'undefined' && availableMonths.length > 0) { %>
                             <% availableMonths.forEach(function(m) { %>
                                 <option value="<%= m %>" <%= selectedMonth === m ? 'selected' : '' %>>
@@ -32,7 +31,7 @@
                     <a href="/admin/stats" class="text-sm text-gray-500 hover:text-gray-700"><%= t('Сбросить') %></a>
                 <% } %>
             </div>
-            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Общая статистика') %></h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Общая статистика') %> <span class="text-sm font-normal text-gray-500">— <%= formatDate(selectedMonth + '-01', { year: 'numeric', month: 'long' }) %></span></h2>
             <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
                 <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalRequests %></div><div class="text-sm text-slate-500"><%= t('Запросов') %></div></div>
                 <div class="rounded-lg bg-slate-50 p-4"><div class="text-2xl font-bold text-slate-900"><%= totalUsers %></div><div class="text-sm text-slate-500"><%= t('Пользователей') %></div></div>
@@ -53,7 +52,7 @@
 
         <section class="stats-card mb-6">
             <div class="flex flex-wrap items-end justify-between gap-3 mb-5 pb-4 border-b">
-                <div><p class="text-xs font-semibold uppercase tracking-wider text-blue-600"><%= t('Контроль использования') %></p><h2 class="mt-1 text-xl font-semibold text-gray-800"><%= t('Пользователи, подключения и трафик') %></h2><p class="mt-1 text-sm text-gray-500"><%= t('Сводка по назначенным серверам и накопленному трафику каждого пользователя.') %></p></div>
+                <div><p class="text-xs font-semibold uppercase tracking-wider text-blue-600"><%= t('Контроль использования') %></p><h2 class="mt-1 text-xl font-semibold text-gray-800"><%= t('Пользователи, подключения и трафик') %> <span class="text-sm font-normal text-gray-500">— <%= formatDate(selectedMonth + '-01', { year: 'numeric', month: 'long' }) %></span></h2><p class="mt-1 text-sm text-gray-500"><%= t('Сводка по назначенным серверам и накопленному трафику каждого пользователя.') %></p></div>
                 <div class="flex flex-wrap gap-2 text-sm"><span class="rounded-lg bg-blue-50 px-3 py-2 font-semibold text-blue-700"><%= topTrafficUsers.length %> <%= t('Пользователей') %></span><span class="rounded-lg bg-slate-100 px-3 py-2 font-semibold text-slate-700"><%= userConnectionTotal %> <%= t('подключений') %></span></div>
             </div>
             <% if (topTrafficUsers.length === 0) { %>
@@ -99,7 +98,7 @@
         </section>
 
         <section class="stats-card mb-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Подключения 3x-ui по трафику') %></h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-4 border-b"><%= t('Подключения 3x-ui по трафику') %> <span class="text-sm font-normal text-gray-500">— <%= formatDate(selectedMonth + '-01', { year: 'numeric', month: 'long' }) %></span></h2>
             <% if (threeXuiInbounds.length === 0) { %>
                 <p class="text-gray-500 text-center py-4"><%= t('Нет данных подключений 3x-ui') %></p>
             <% } else { %>
