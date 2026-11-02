@@ -514,7 +514,10 @@ if (result.status === 'healthy') {
 
                 uiProgress.done();
                 const failed = data.results.filter(r => r.status !== 'healthy').length;
-                uiToast((window.appTranslations.done || 'Done: {total} servers, issues: {failed}').replace('{total}', data.results.length).replace('{failed}', failed), failed > 0 ? 'info' : 'success', 4000);
+                const message = failed > 0
+                    ? (window.appTranslations.done || 'Done: {total} servers, issues: {failed}').replace('{total}', data.results.length).replace('{failed}', failed)
+                    : `${window.appTranslations.completed || 'Готово'}: ${data.results.length} серверов`;
+                uiToast(message, failed > 0 ? 'info' : 'success', 4000);
             } catch (err) {
                 uiProgress.done();
                 uiToast('<%= t('Ошибка проверки серверов') %>', 'error');
