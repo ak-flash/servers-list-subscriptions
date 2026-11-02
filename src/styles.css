@@ -82,6 +82,39 @@
   }
 }
 
+.subscription-progress {
+  --progress-track: rgb(219 234 254);
+  --progress-fill: rgb(37 99 235);
+  width: 100%;
+  height: 0.5rem;
+  appearance: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 9999px;
+  background-color: var(--progress-track);
+  color: var(--progress-fill);
+}
+
+.subscription-progress::-webkit-progress-bar {
+  border-radius: 9999px;
+  background-color: var(--progress-track);
+}
+
+.subscription-progress::-webkit-progress-value {
+  border-radius: 9999px;
+  background-color: var(--progress-fill);
+}
+
+.subscription-progress::-moz-progress-bar {
+  border-radius: 9999px;
+  background-color: var(--progress-fill);
+}
+
+.dark .subscription-progress {
+  --progress-track: rgb(30 58 138);
+  --progress-fill: rgb(96 165 250);
+}
+
 @layer base {
   :root {
     color-scheme: light;

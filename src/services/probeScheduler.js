@@ -12,6 +12,7 @@ class ProbeScheduler {
     this.checker = checker;
     this.sync = sync;
     this.tasks = new Map();
+    this.queueProgress = { total: 0, completed: 0 };
     this.running = new Set();
     this.results = [];
     this.counts = { sync: 0, check: 0 };
@@ -47,13 +48,20 @@ class ProbeScheduler {
     if (this.tasks.size + additional > this.config.maxQueued) throw new SubscriptionError('queue_full', undefined, 429);
   }
 
+  addTask(task) {
+    // Track unique tasks until the queue drains, not overlapping background jobs.
+    if (!this.tasks.size) this.queueProgress = { total: 0, completed: 0 };
+    this.tasks.set(task.key, task);
+    this.queueProgress.total++;
+  }
+
   enqueueSync(sourceId, reason = 'manual') {
     const source = sources.getSource(sourceId);
     if (!source || !source.is_active) throw new SubscriptionError('validation', 'Источник не найден или отключён.', 409);
     const key = `sync:${sourceId}:${source.revision}`;
     this.ensureCapacity(this.tasks.has(key) ? 0 : 1);
     const job = this.createJob('sync', key, sourceId, null, reason, 1);
-    if (!job.existing) this.tasks.set(key, {
+    if (!job.existing) this.addTask({
       key, kind: 'sync', sourceId, revision: source.revision, jobIds: new Set([job.id]),
       state: 'queued', queuedAt: Date.now(), priority: 0, controller: new AbortController()
     });
@@ -126,7 +134,7 @@ class ProbeScheduler {
         if (!task) {
           task = { key: taskKey, kind: 'check', sourceId: node.source_id, node, jobIds: new Set(), state: 'queued',
             queuedAt: now, priority, assigned: !!assigned, controller: new AbortController() };
-          this.tasks.set(taskKey, task);
+          this.addTask(task);
         }
         task.jobIds.add(job.id);
       }
@@ -219,7 +227,9 @@ class ProbeScheduler {
           }
         }
       });
-      for (const { task } of batch) this.tasks.delete(task.key);
+      for (const { task } of batch) {
+        if (this.tasks.delete(task.key)) this.queueProgress.completed++;
+      }
       this.pump();
     } catch {
       this.results.unshift(...batch);
@@ -286,6 +296,7 @@ class ProbeScheduler {
     const queued = [...this.tasks.values()].filter(task => task.state === 'queued');
     return {
       queued: queued.length, running: { ...this.counts },
+      progress: { ...this.queueProgress },
       oldest_wait_ms: queued.length ? Date.now() - Math.min(...queued.map(task => task.queuedAt)) : 0,
       runner: this.checker.status, storage_error: this.storageError
     };

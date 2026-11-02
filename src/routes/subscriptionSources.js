@@ -140,6 +140,9 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
     const node = sources.setNodeEnabled(req.params.id, ['1', 1, true].includes(req.body.is_enabled));
     res.json({ id: node.id, is_enabled: node.is_enabled });
   }));
+  router.get('/api/background-queue', ...auth, (req, res) => {
+    res.json(scheduler.metrics());
+  });
   router.get('/api/background-jobs/:id', ...auth, (req, res) => {
     const job = scheduler.job(req.params.id);
     if (!job) return res.status(404).json({ error: req.t('Задача не найдена.') });

@@ -552,7 +552,8 @@ function formatBytes(bytes) {
 }
 
 app.get('/admin/stats', requireAuth, (req, res) => {
-    const selectedMonth = typeof req.query.month === 'string' && req.query.month.length === 7 && /^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.month) ? req.query.month : null;
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const selectedMonth = typeof req.query.month === 'string' && req.query.month.length === 7 && /^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.month) ? req.query.month : currentMonth;
 
     const totalUsers = dbGet('SELECT COUNT(*) as count FROM users')?.count || 0;
     const activeUsers = dbGet('SELECT COUNT(*) as count FROM users WHERE is_active = 1')?.count || 0;
@@ -677,6 +678,7 @@ app.get('/admin/stats', requireAuth, (req, res) => {
     `);
 
     const availableMonths = [...new Set([
+        currentMonth,
         ...dbAll(`SELECT DISTINCT strftime('%Y-%m', recorded_at) as month FROM server_traffic WHERE recorded_at IS NOT NULL`).map(row => row.month),
         ...dbAll('SELECT DISTINCT month FROM threexui_inbound_monthly_traffic').map(row => row.month),
         ...dbAll(`SELECT DISTINCT strftime('%Y-%m', requested_at) as month FROM subscription_requests WHERE requested_at IS NOT NULL`).map(row => row.month)

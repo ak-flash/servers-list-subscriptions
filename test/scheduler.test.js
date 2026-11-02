@@ -28,7 +28,9 @@ test('bounded queue shares node checks, persists progress and ignores a result f
   const job = scheduler.enqueueCheck({ sourceId: source.id });
   assert.equal(scheduler.enqueueCheck({ sourceId: source.id }).id, job.id);
   const single = scheduler.enqueueCheck({ nodeId: getNodes(source.id)[0].id });
+  assert.deepEqual(scheduler.metrics().progress, { total: 6, completed: 0 });
   await scheduler.idle();
+  assert.deepEqual(scheduler.metrics().progress, { total: 6, completed: 6 });
   assert.equal(calls, 6);
   assert.equal(maximum, 2);
   assert.equal(scheduler.job(job.id).completed, 6);
@@ -40,6 +42,39 @@ test('bounded queue shares node checks, persists progress and ignores a result f
   sources.setNodeEnabled(node.id, true);
   assert.equal(recordResult(node, 'old', successful, settings), false);
   assert.equal(eligibility(getNode(node.id), settings), 'unknown');
+  scheduler.enqueueCheck({ nodeId: node.id });
+  assert.deepEqual(scheduler.metrics().progress, { total: 1, completed: 0 });
+  await scheduler.idle();
+  assert.deepEqual(scheduler.metrics().progress, { total: 1, completed: 1 });
+});
+
+test('queue progress includes new tasks during a cycle and advances only after results are saved', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  const settings = config();
+  const scheduler = new ProbeScheduler(settings, { checker: { status: { available: false }, stop: async () => {} } });
+  t.after(async () => { await scheduler.stop(); db.closeDb(); });
+  assert.deepEqual(scheduler.metrics().progress, { total: 0, completed: 0 });
+  const source = sources.createSource({ name: 'Test', url: 'https://example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription([link('one.example.com'), link('two.example.com')].join('\n')));
+  scheduler.enqueueCheck({ sourceId: source.id });
+  const first = [...scheduler.tasks.values()][0];
+  scheduler.complete(first, { status: 'cancelled', errorCode: 'cancelled' });
+  assert.deepEqual(scheduler.metrics().progress, { total: 2, completed: 0 });
+  scheduler.flush();
+  assert.deepEqual(scheduler.metrics().progress, { total: 2, completed: 1 });
+  // A new job rechecks the processed node while sharing the still-queued node.
+  scheduler.enqueueCheck({ sourceId: source.id, reason: 'scheduled' });
+  assert.deepEqual(scheduler.metrics().progress, { total: 3, completed: 1 });
+  for (const task of scheduler.tasks.values()) scheduler.complete(task, { status: 'runner_error', errorCode: 'runner_error' });
+  const transaction = t.mock.method(db, 'transaction', () => { throw new Error('Storage unavailable'); });
+  scheduler.flush();
+  assert.deepEqual(scheduler.metrics().progress, { total: 3, completed: 1 });
+  assert.ok(scheduler.metrics().storage_error);
+  transaction.mock.restore();
+  scheduler.storageError = null;
+  scheduler.flush();
+  assert.deepEqual(scheduler.metrics().progress, { total: 3, completed: 3 });
+  assert.equal(scheduler.tasks.size, 0);
 });
 
 test('runner errors do not refresh TTL or overwrite a previous success; later completed failures exclude the node', async t => {
@@ -85,7 +120,9 @@ test('300-node catalog has bounded concurrency and history; shutdown interrupts 
   pruneHistory();
   assert.equal(db.get('SELECT count(*) AS n FROM subscription_node_checks').n, 900);
   const cancelled = scheduler.enqueueCheck({ sourceId: source.id });
+  assert.deepEqual(scheduler.metrics().progress, { total: 300, completed: 0 });
   await scheduler.stop();
+  assert.deepEqual(scheduler.metrics().progress, { total: 300, completed: 300 });
   assert.equal(scheduler.job(cancelled.id).completed, 300);
   assert.ok(scheduler.job(cancelled.id).failed > 0);
   assert.equal(scheduler.tasks.size, 0);
