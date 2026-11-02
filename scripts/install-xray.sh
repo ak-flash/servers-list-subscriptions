@@ -2,7 +2,13 @@
 set -euo pipefail
 
 # Install only the client binary. No VPN service, TUN device or public inbound is created.
-version='26.10.21'
+project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+env_file="$project_root/.env"
+version="$(awk -F= '$1 == "XRAY_VERSION" { print $2; exit }' "$env_file")"
+if [ -z "$version" ]; then
+  printf 'XRAY_VERSION is missing in %s\n' "$env_file" >&2
+  exit 1
+fi
 case "$(uname -m)" in
   x86_64|amd64)
     asset='Xray-linux-64.zip'
