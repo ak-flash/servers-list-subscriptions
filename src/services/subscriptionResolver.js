@@ -1,21 +1,16 @@
 const db = require('../db/database');
 const health = require('./subscriptionHealth');
 const { effectiveLink } = require('../utils/linkBuilder');
-const { effectiveFingerprint } = require('../utils/protocolParsers');
 const { loadConfig } = require('../config/subscriptions');
 
 function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()) {
   const user = db.get('SELECT id, username, is_active FROM users WHERE id = ? AND is_active = 1', [userId]);
   if (!user) return { user: null, servers: [], sources: [], resolved_at: now };
   const servers = [];
-  const seen = new Set();
-  const manualSeen = new Set();
+  const seenSubscriptionIps = new Set();
   for (const manual of db.getUserServersWithUuid(userId).sort((a, b) => a.id.localeCompare(b.id))) {
     const server = { ...manual, credential_mode: 'user_override', origin: 'manual' };
     server.link = effectiveLink(server);
-    const key = effectiveFingerprint(server.link);
-    if (manualSeen.has(key)) continue;
-    manualSeen.add(key);
     servers.push(server);
   }
   const bindings = db.all(`SELECT us.*, s.name, s.is_active AS source_active FROM user_subscription_sources us
@@ -48,12 +43,12 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
         proxy_status: node.proxy_status, proxy_latency_ms: node.proxy_latency_ms, proxy_checked_at: node.proxy_checked_at };
-      const key = effectiveFingerprint(server.link);
-      if (seen.has(key)) { exclude('duplicate'); continue; }
+      const key = String(node.host || '').trim().toLowerCase();
+      if (seenSubscriptionIps.has(key)) { exclude('duplicate'); continue; }
       const limit = binding.node_limit;
       if (Number.isFinite(limit) && limit > 0 && selectedCount.used >= limit) { exclude('quota'); continue; }
       report.available++;
-      seen.add(key);
+      seenSubscriptionIps.add(key);
       selectedCount.used++;
       servers.push(server);
       report.selected.push({ id: node.id, name: node.name, host: node.host, port: node.port, latency_ms: node.latency_ms,

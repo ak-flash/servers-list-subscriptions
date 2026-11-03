@@ -123,6 +123,7 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
 });
 
 test('HTTP statistics: request pagination, month filters, validation and escaping', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-15T12:00:00Z') });
   await db.initDb({ filePath: ':memory:' });
   const username = '<script>stats-user</script>';
   const ipAddress = '"><svg/onload=alert(1)>';
