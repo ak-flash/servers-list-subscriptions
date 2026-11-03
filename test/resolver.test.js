@@ -27,7 +27,7 @@ test('resolver: with an extra HTTP proxy, proxy-healthy nodes come first, direct
   for (const node of health.getNodes(source.id)) {
     health.markStarted(node, node.id, now - 200);
     health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
-      latencyMs: directLatency[node.host], httpStatus: 204, attempts: [], proxy: proxy[node.host] }, settings, null, now - 100);
+      latencyMs: directLatency[node.host], checkedAddress: node.host, httpStatus: 204, attempts: [], proxy: proxy[node.host] }, settings, null, now - 100);
   }
   db.run("UPDATE subscription_node_health SET proxy_checked_at = ? WHERE node_id = (SELECT id FROM subscription_nodes WHERE host = 'd.example.com')", [now - settings.healthyTtlMs - 1]);
   saveAssignments('u', { sources: [source.id] });
@@ -35,6 +35,25 @@ test('resolver: with an extra HTTP proxy, proxy-healthy nodes come first, direct
   assert.deepEqual(result.servers.map(server => server.host), ['b.example.com', 'd.example.com', 'a.example.com', 'c.example.com']);
   assert.equal(result.sources[0].excluded.stale, undefined);
   assert.equal(result.sources[0].excluded.proxy_unavailable, undefined);
+});
+
+test('resolver: deduplicates subscription nodes by checked IP, not hostname', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config();
+  const now = Date.now();
+  db.run("INSERT INTO users (id, username) VALUES ('u', 'User')");
+  const source = sources.createSource({ name: 'IPs', url: 'https://ips.example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription([link('one.example.com'), link('two.example.com'), link('three.example.com')].join('\n')));
+  for (const [index, node] of health.getNodes(source.id).entries()) {
+    health.markStarted(node, node.id, now - 200);
+    health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
+      latencyMs: 50 + index * 10, checkedAddress: node.host === 'two.example.com' ? '8.8.8.8' : node.host === 'three.example.com' ? '1.1.1.1' : '8.8.8.8', httpStatus: 204, attempts: [] }, settings, null, now - 100);
+  }
+  saveAssignments('u', { sources: [source.id], source_limits: { [source.id]: '3' } });
+  const result = resolveUserSubscription('u', now, settings);
+  assert.deepEqual(result.servers.map(server => server.host), ['one.example.com', 'three.example.com']);
+  assert.equal(result.sources[0].excluded.duplicate, 1);
 });
 
 test('resolver: original credentials, manual overrides, dedupe/refill, priority, freshness and user isolation', async t => {
@@ -51,7 +70,7 @@ test('resolver: original credentials, manual overrides, dedupe/refill, priority,
     for (const [index, node] of health.getNodes(source.id).sort((a, b) => a.host.localeCompare(b.host)).entries()) {
       health.markStarted(node, node.id, now - 200);
       health.recordResult(node, node.id, { status: 'healthy', successCount: index === 0 ? 2 : 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
-        latencyMs: index === 0 ? 300 : 100 + index * 100, httpStatus: 204, attempts: [] }, settings, null, now - 100);
+        latencyMs: index === 0 ? 300 : 100 + index * 100, checkedAddress: node.host, httpStatus: 204, attempts: [] }, settings, null, now - 100);
     }
   }
   const input = { sources: [first.id, second.id], source_limits: { [first.id]: '2', [second.id]: '2' }, priorities: { [first.id]: '0', [second.id]: '1' } };

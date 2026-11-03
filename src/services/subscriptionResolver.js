@@ -41,9 +41,10 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     for (const node of pool) {
       const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
-        last_checked_at: node.last_checked_at, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
+        last_checked_at: node.last_checked_at, checked_address: node.checked_address, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
         proxy_status: node.proxy_status, proxy_latency_ms: node.proxy_latency_ms, proxy_checked_at: node.proxy_checked_at };
-      const key = String(node.host || '').trim().toLowerCase();
+      const key = String(node.checked_address || '').trim().toLowerCase();
+      if (!key) { exclude('unknown_address'); continue; }
       if (seenSubscriptionIps.has(key)) { exclude('duplicate'); continue; }
       const limit = binding.node_limit;
       if (Number.isFinite(limit) && limit > 0 && selectedCount.used >= limit) { exclude('quota'); continue; }

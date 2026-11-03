@@ -2,7 +2,7 @@ const db = require('../db/database');
 
 const NODE_SELECT = `SELECT n.*, s.revision AS source_revision, s.is_active AS source_active, s.name AS source_name,
   h.status, h.generation AS health_generation, h.config_fingerprint, h.probe_profile_version, h.probe_location,
-  h.last_attempt_at, h.last_checked_at, h.last_success_at, h.latency_ms, h.test_target_id, h.target_priority,
+  h.last_attempt_at, h.last_checked_at, h.last_success_at, h.checked_address, h.latency_ms, h.test_target_id, h.target_priority,
   h.successful_attempts, h.total_attempts, h.http_status, h.error_code, h.error_message,
   h.runner_error_code, h.runner_error_message, h.pending_cycle_id,
   h.proxy_status, h.proxy_latency_ms, h.proxy_http_status, h.proxy_error_code, h.proxy_checked_at
@@ -68,11 +68,11 @@ function recordResult(node, cycleId, result, config, jobId = null, now = Date.no
         [result.errorCode, result.errorMessage, node.id]);
     } else {
       db.run(`UPDATE subscription_node_health SET status = ?, config_fingerprint = ?, generation = ?,
-        probe_profile_version = ?, probe_location = ?, cycle_id = ?, pending_cycle_id = NULL, last_checked_at = ?,
+        probe_profile_version = ?, probe_location = ?, checked_address = ?, cycle_id = ?, pending_cycle_id = NULL, last_checked_at = ?,
         last_success_at = CASE WHEN ? = 'healthy' THEN ? ELSE last_success_at END, latency_ms = ?, test_target_id = ?,
         target_priority = ?, http_status = ?, successful_attempts = ?, total_attempts = ?, error_code = ?, error_message = ?,
         runner_error_code = NULL, runner_error_message = NULL WHERE node_id = ?`,
-      [result.status, node.fingerprint, node.generation, config.profileVersion, config.probeLocation, cycleId, now,
+      [result.status, node.fingerprint, node.generation, config.profileVersion, config.probeLocation, result.checkedAddress || node.host || null, cycleId, now,
         result.status, now, result.latencyMs ?? null, result.targetId || null, result.targetPriority ?? null,
         result.httpStatus ?? null, result.successCount || 0, result.attemptCount || 0, result.errorCode || null, result.errorMessage || null, node.id]);
     }

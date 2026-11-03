@@ -366,7 +366,7 @@ class VpnChecker {
         const proxySignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
         proxy = await this.runProxyCycle(parsed, address, proxySignal);
       }
-      return { ...result, proxy, startupMs, durationMs: performance.now() - started };
+      return { ...result, checkedAddress: address.address, proxy, startupMs, durationMs: performance.now() - started };
     } catch (error) {
       const actual = combined.aborted ? combined.reason : error;
       const safe = safeError(actual);

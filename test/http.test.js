@@ -123,7 +123,8 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
 });
 
 test('HTTP statistics: request pagination, month filters, validation and escaping', async t => {
-  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-15T12:00:00Z') });
+  const currentMonth = '2026-03';
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(`${currentMonth}-15T12:00:00Z`) });
   await db.initDb({ filePath: ':memory:' });
   const username = '<script>stats-user</script>';
   const ipAddress = '"><svg/onload=alert(1)>';
@@ -138,7 +139,6 @@ test('HTTP statistics: request pagination, month filters, validation and escapin
     db.run("INSERT INTO subscription_requests (id, user_id, requested_at) VALUES (101, 'stats-user', '2026-02-28 23:59:59'), (102, 'stats-user', '2026-04-01 00:00:00')");
   });
   const monthIds = [2, ...Array.from({ length: 23 }, (_, index) => 25 - index), 1];
-  const allIds = [102, ...monthIds, 101];
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -160,7 +160,7 @@ test('HTTP statistics: request pagination, month filters, validation and escapin
     const nav = /<nav\b[^>]*\bdata-pagination=["']requests["'][^>]*>[\s\S]*?<\/nav>/.exec(html)?.[0];
     return [...(nav || '').matchAll(/\bhref=["']([^"']+)["']/g)].map(match => new URL(match[1].replace(/&amp;/g, '&'), base));
   };
-  const assertMonthOptions = (result, months, selectedMonth = null) => {
+  const assertMonthOptions = (result, months, selectedMonth = currentMonth) => {
     assert.deepEqual(result.availableMonths, months);
     assert.equal(result.selectedMonth, selectedMonth);
     const select = /<select\b[^>]*\bid=["']stats-month["'][^>]*>[\s\S]*?<\/select>/.exec(result.html)?.[0];
@@ -168,27 +168,24 @@ test('HTTP statistics: request pagination, month filters, validation and escapin
     assert.match(select, /\bname=["']month["']/);
     const options = [...select.matchAll(/<option\b([^>]*)>([\s\S]*?)<\/option>/g)].map(match => ({
       value: /\bvalue=["']([^"']*)["']/.exec(match[1])?.[1],
-      selected: /(?:^|\s)selected(?:\s|=|$)/.test(match[1]),
-      text: match[2].trim()
+      selected: /(?:^|\s)selected(?:\s|=|$)/.test(match[1])
     }));
-    assert.deepEqual(options.map(option => option.value), ['', ...months]);
-    assert.equal(options[0].text, 'Все время');
+    assert.deepEqual(options.map(option => option.value), months);
     const selected = options.filter(option => option.selected).map(option => option.value);
-    if (selectedMonth) assert.deepEqual(selected, [selectedMonth]);
-    else assert.ok(selected.length === 0 || (selected.length === 1 && selected[0] === ''));
+    assert.deepEqual(selected, [selectedMonth]);
   };
   const assertUrl = (url, page, month) => {
     const target = new URL(url, base);
     assert.equal(target.origin, base);
     assert.equal(target.pathname, '/admin/stats');
     assert.equal(target.hash, '#requests');
-    assert.deepEqual(target.searchParams.getAll('month'), month ? [month] : []);
+    assert.deepEqual(target.searchParams.getAll('month'), [month]);
     const queryPages = target.searchParams.getAll('requestPage');
     assert.ok(queryPages.length === 1 || (page === 1 && queryPages.length === 0));
     assert.equal(queryPages[0] || '1', String(page));
     assert.ok([...target.searchParams.keys()].every(key => key === 'month' || key === 'requestPage'));
   };
-  const assertPage = (result, expectedIds, page, total, pages, month = null) => {
+  const assertPage = (result, expectedIds, page, total, pages, month = currentMonth) => {
     const totalPages = Math.max(1, Math.ceil(total / 10));
     const from = total ? (page - 1) * 10 + 1 : 0;
     const to = Math.min(page * 10, total);
@@ -228,17 +225,17 @@ test('HTTP statistics: request pagination, month filters, validation and escapin
     assert.equal(render.mock.callCount(), renderCount);
   });
 
-  await t.test('three disjoint pages use timestamp then descending ID order', async () => {
+  await t.test('current month defaults to three disjoint pages in timestamp then descending ID order', async () => {
     const seen = [];
     for (let page = 1; page <= 3; page++) {
       const result = await statsPage(page === 1 ? '/admin/stats' : `/admin/stats?requestPage=${page}`);
-      assertPage(result, allIds.slice((page - 1) * 10, page * 10), page, 27, [1, 2, 3]);
+      assertPage(result, monthIds.slice((page - 1) * 10, page * 10), page, 25, [1, 2, 3]);
       seen.push(...result.lastRequests.map(row => row.id));
     }
-    assert.deepEqual(seen, allIds);
-    assert.equal(new Set(seen).size, 27);
-    assertPage(await statsPage('/admin/stats?requestPage=2'), allIds.slice(10, 20), 2, 27, [1, 2, 3]);
-    assertPage(await statsPage('/admin/stats?requestPage=1'), allIds.slice(0, 10), 1, 27, [1, 2, 3]);
+    assert.deepEqual(seen, monthIds);
+    assert.equal(new Set(seen).size, 25);
+    assertPage(await statsPage('/admin/stats?requestPage=2'), monthIds.slice(10, 20), 2, 25, [1, 2, 3]);
+    assertPage(await statsPage('/admin/stats?requestPage=1'), monthIds.slice(0, 10), 1, 25, [1, 2, 3]);
   });
 
   await t.test('month filtering includes its boundaries and pagination links preserve the filter', async () => {
@@ -271,10 +268,10 @@ test('HTTP statistics: request pagination, month filters, validation and escapin
 
   await t.test('valid out-of-range integers clamp to the last page', async () => {
     for (const page of ['4', '99999', String(Number.MAX_SAFE_INTEGER)]) {
-      assertPage(await statsPage(`/admin/stats?requestPage=${page}`), allIds.slice(20), 3, 27, [1, 2, 3]);
+      assertPage(await statsPage(`/admin/stats?requestPage=${page}`), monthIds.slice(20), 3, 25, [1, 2, 3]);
       assertPage(await statsPage(`/admin/stats?month=2026-03&requestPage=${page}`), monthIds.slice(20), 3, 25, [1, 2, 3], '2026-03');
     }
-    assertPage(await statsPage('/admin/stats?requestPage=0002'), allIds.slice(10, 20), 2, 27, [1, 2, 3]);
+    assertPage(await statsPage('/admin/stats?requestPage=0002'), monthIds.slice(10, 20), 2, 25, [1, 2, 3]);
   });
 
   await t.test('malformed, repeated and unsafe page inputs default to the first page', async () => {
@@ -285,14 +282,14 @@ test('HTTP statistics: request pagination, month filters, validation and escapin
       assertPage(await statsPage(`/admin/stats?${query}`), monthIds.slice(0, 10), 1, 25, [1, 2, 3], '2026-03');
     }
     for (const query of ['requestPage=2&requestPage=3', 'requestPage=2&requestPage=2', 'requestPage[]=2', 'requestPage[0]=2', 'requestPage[value]=2']) {
-      assertPage(await statsPage(`/admin/stats?${query}`), allIds.slice(0, 10), 1, 27, [1, 2, 3]);
+      assertPage(await statsPage(`/admin/stats?${query}`), monthIds.slice(0, 10), 1, 25, [1, 2, 3]);
     }
     assert.equal(db.get('SELECT COUNT(*) AS count FROM subscription_requests').count, 27);
   });
 
-  await t.test('invalid or repeated months are not reflected into pagination URLs', async () => {
-    for (const query of ['month=%3Cscript%3Ealert(1)%3C%2Fscript%3E', 'month=2026-03&month=2026-03', 'month[]=2026-03', 'month=2026-00', 'month=2026-13', 'month=2026-03%0A']) {
-      assertPage(await statsPage(`/admin/stats?${query}&requestPage=2`), allIds.slice(10, 20), 2, 27, [1, 2, 3]);
+  await t.test('invalid, empty or repeated months fall back to the current month in pagination URLs', async () => {
+    for (const query of ['month=', 'month=%3Cscript%3Ealert(1)%3C%2Fscript%3E', 'month=2026-03&month=2026-03', 'month=2026-02&month=2026-04', 'month[]=2026-03', 'month=2026-00', 'month=2026-13', 'month=2026-03%0A']) {
+      assertPage(await statsPage(`/admin/stats?${query}&requestPage=2`), monthIds.slice(10, 20), 2, 25, [1, 2, 3]);
     }
   });
 
@@ -346,6 +343,7 @@ test('HTTP statistics: request pagination, month filters, validation and escapin
     for (const query of ['', '?requestPage=99999', '?requestPage=NaN']) {
       const result = await statsPage(`/admin/stats${query}`);
       assertPage(result, [], 1, 0, [1]);
+      assertMonthOptions(result, [currentMonth]);
       assert.match(result.html, /Нет запросов подписок/);
     }
   });
