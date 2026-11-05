@@ -221,6 +221,17 @@ test('VLESS WebSocket TLS accepts insecure as an allowInsecure alias', () => {
   assert.throws(() => parseVless(raw.replace('insecure=0', 'insecure=yes')), { code: 'invalid_link' });
 });
 
+test('VLESS TLS probe preserves the source certificate verification setting', () => {
+  for (const alias of ['allowInsecure', 'insecure']) {
+    const parsed = parseVless(link('vpn.example.com', `&${alias}=1`));
+    assert.equal(parsed.config.allowInsecure, true);
+    const built = buildXrayConfig(parsed.config, '198.51.100.10', 12000, { user: 'test', password: 'test' });
+    assert.equal(built.outbounds[0].streamSettings.tlsSettings.allowInsecure, true);
+  }
+  const built = buildXrayConfig(parseVless(link()).config, '198.51.100.10', 12000, { user: 'test', password: 'test' });
+  assert.notEqual(built.outbounds[0].streamSettings.tlsSettings.allowInsecure, true);
+});
+
 test('VLESS WebSocket accepts JSON headers', () => {
   const raw = 'vless://5204fa5d-73ef-4f77-937c-a2379efc8b5c@lk.floweroom.vip:443?encryption=none&security=tls&sni=lk.floweroom.vip&alpn=http%2F1.1&type=ws&host=lk.floweroom.vip&path=%2Fcart%2Fsync%2Fg-jSjxyhq24P&headers=%7B%0A++%22Host%22%3A+%22lk.floweroom.vip%22%0A%7D&fp=edge#%F0%9F%8C%90%20Anycast-IP%20%7C%20%F0%9F%87%A7%F0%9F%87%AA%20%F0%9F%87%B3%F0%9F%87%B1%20%7C%20%5B%2ACIDR%5D';
   const parsed = parseVless(raw);

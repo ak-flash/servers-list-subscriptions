@@ -90,18 +90,16 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   router.get('/admin/subscription-sources/:id/nodes', ...auth, (req, res) => {
     const source = sources.getSource(req.params.id);
     if (!source) return res.status(404).send(req.t('Источник не найден'));
-    const all = health.getNodes(source.id).map(node => health.safeNode(node, currentConfig()));
+    const config = currentConfig();
+    const now = Date.now();
+    const all = health.rankNodes(health.getNodes(source.id), config, now)
+      .map(node => health.safeNode(node, config, now));
     const filter = typeof req.query.status === 'string' ? req.query.status : '';
     const isCapabilityFilter = ['unsupported', 'invalid'].includes(filter);
-     const nodes = all.filter(node => {
-       const matches = !filter || (isCapabilityFilter ? node.capability_status === filter : node.effective_status === filter);
-       return (node.is_present || req.query.removed === '1' || isCapabilityFilter) && matches;
-     })
-      .sort((a, b) => {
-        const aLatency = Number.isFinite(a.latency_ms) && a.latency_ms >= 0 ? a.latency_ms : Number.POSITIVE_INFINITY;
-        const bLatency = Number.isFinite(b.latency_ms) && b.latency_ms >= 0 ? b.latency_ms : Number.POSITIVE_INFINITY;
-        return aLatency - bLatency || String(a.name).localeCompare(String(b.name), 'ru') || String(a.id).localeCompare(String(b.id));
-      });
+    const nodes = all.filter(node => {
+      const matches = !filter || (isCapabilityFilter ? node.capability_status === filter : node.effective_status === filter);
+      return (node.is_present || req.query.removed === '1' || isCapabilityFilter) && matches;
+    });
     const pages = Math.max(1, Math.ceil(nodes.length / 50));
     const page = Math.max(1, Math.min(pages, Number.parseInt(req.query.page, 10) || 1));
     res.render('subscription-source-nodes', {
@@ -109,7 +107,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       healthy: all.filter(node => node.effective_status === 'healthy').length, page, pages, filter,
       showRemoved: req.query.removed === '1', job: currentJob(req), metrics: scheduler.metrics(),
       report: source.report_json ? JSON.parse(source.report_json) : null,
-      proxyConfigured: !!currentConfig().httpProxy
+      proxyConfigured: !!config.httpProxy, proxyMode: config.httpProxyMode
     });
   });
 

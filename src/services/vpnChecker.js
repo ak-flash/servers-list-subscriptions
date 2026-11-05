@@ -11,6 +11,7 @@ const { SocksProxyAgent } = require('socks-proxy-agent');
 const { buildXrayConfig } = require('../utils/xrayConfigBuilder');
 const { resolvePublicHost, abortable } = require('../utils/safeHttp');
 const { SubscriptionError, safeError, messages } = require('../utils/subscriptionErrors');
+const { snapshotProbeConfig } = require('../config/subscriptions');
 
 const exec = promisify(execFile);
 
@@ -88,10 +89,10 @@ async function evaluateTargets(config, request, signal) {
     const results = [];
     for (let i = 1; i <= config.attempts; i++) {
       signal?.throwIfAborted();
-      const result = await request(target, i);
+      const result = await abortable(Promise.resolve().then(() => request(target, i)), signal);
+      signal?.throwIfAborted();
       results.push(result);
       attempts.push({ ...result, targetId: target.id, attempt: i });
-      if (result.outcome === 'success') break;
     }
     const successes = results.filter(result => result.outcome === 'success');
     targets.push({ target, results, successes });
@@ -99,13 +100,13 @@ async function evaluateTargets(config, request, signal) {
   }
   const selected = [...targets].sort((a, b) => b.successes.length - a.successes.length || a.target.priority - b.target.priority)[0];
   const successCount = selected.successes.length;
-  const status = successCount >= 1 ? 'healthy' :
-    attempts.some(a => ['unexpected_http_status', 'unexpected_body'].includes(a.errorCode)) ? 'test_failed' : 'offline';
+  const status = successCount >= config.minSuccess ? 'healthy' : successCount > 0 ? 'degraded' :
+    selected.results.some(result => ['unexpected_http_status', 'unexpected_body'].includes(result.errorCode)) ? 'test_failed' : 'offline';
   const last = selected.successes.at(-1) || selected.results.at(-1);
   const failure = status === 'healthy' ? null : selected.results.find(result => result.outcome !== 'success');
   return {
     status, attempts, targetId: selected.target.id, targetPriority: selected.target.priority,
-    successCount, attemptCount: config.attempts,
+    successCount, attemptCount: selected.results.length,
     latencyMs: successCount ? median(selected.successes.map(result => result.latencyMs)) : null,
     httpStatus: last.httpStatus ?? null, errorCode: failure?.errorCode || null,
     errorMessage: failure ? messages[failure.errorCode] || messages.connection_error : null
@@ -212,8 +213,7 @@ class VpnChecker {
 
   // Additional probe cycle: the connection to the VPN node is dialed through the configured HTTP proxy.
   // Failures here never affect the node's main health verdict; they are stored alongside as proxy_* fields.
-  async runProxyCycle(parsed, address, parentSignal) {
-    const config = this.config;
+  async runProxyCycle(parsed, address, parentSignal, config = snapshotProbeConfig(this.config)) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), config.deadlineMs);
     const combined = parentSignal ? AbortSignal.any([controller.signal, parentSignal]) : controller.signal;
@@ -269,11 +269,11 @@ class VpnChecker {
     }
   }
 
-  async verifyBinary() {
-    const { xrayPath, xrayVersion, xraySha256, tempDir } = this.config;
+  async verifyBinary(config = this.config) {
+    const { xrayPath, xrayVersion, xraySha256, tempDir } = config;
     try {
       const stat = await fs.promises.stat(xrayPath);
-      const signature = `${stat.size}:${stat.mtimeMs}:${xraySha256}:${xrayVersion}`;
+      const signature = `${xrayPath}:${stat.size}:${stat.mtimeMs}:${xraySha256}:${xrayVersion}`;
       if (signature === this.verified) return;
       if (xraySha256) {
         const digest = crypto.createHash('sha256');
@@ -302,8 +302,8 @@ class VpnChecker {
     }
   }
 
-  async check(node, { signal } = {}) {
-    const config = this.config;
+  async check(node, { signal, config: requestedConfig = this.config } = {}) {
+    const config = snapshotProbeConfig(requestedConfig);
     const controller = new AbortController();
     const combined = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
     const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), config.deadlineMs);
@@ -314,7 +314,7 @@ class VpnChecker {
     const token = crypto.randomUUID();
     this.active.set(token, { controller, children: [] });
     try {
-      await abortable(this.verifyBinary(), combined);
+      await abortable(this.verifyBinary(config), combined);
       const parsed = JSON.parse(node.normalized_config_json);
       const address = await this.resolveHost(parsed.host, { signal: combined });
       await fs.promises.mkdir(config.tempDir, { recursive: true, mode: 0o700 });
@@ -364,7 +364,7 @@ class VpnChecker {
         // additional proxy cycle gets its own full budget and cannot misclassify the node.
         clearTimeout(timer);
         const proxySignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
-        proxy = await this.runProxyCycle(parsed, address, proxySignal);
+        proxy = await this.runProxyCycle(parsed, address, proxySignal, config);
       }
       return { ...result, checkedAddress: address.address, proxy, startupMs, durationMs: performance.now() - started };
     } catch (error) {

@@ -5,6 +5,7 @@ const sources = require('./subscriptionSources');
 const health = require('./subscriptionHealth');
 const { VpnChecker } = require('./vpnChecker');
 const { SubscriptionError, safeError } = require('../utils/subscriptionErrors');
+const { snapshotProbeConfig } = require('../config/subscriptions');
 
 class ProbeScheduler {
   constructor(config, { checker = new VpnChecker(config), sync = sources.syncSource } = {}) {
@@ -69,8 +70,19 @@ class ProbeScheduler {
     return this.job(job.id);
   }
 
-  nodeKey(node) {
-    return `check:${node.id}:${node.generation}:${node.source_revision}:${this.config.profileVersion}`;
+  nodeKey(node, config = this.config) {
+    return `check:${node.id}:${node.generation}:${node.source_revision}:${config.profileVersion}`;
+  }
+
+  recordCheckResult(node, cycleId, result, config, jobId = null) {
+    return db.transaction(() => {
+      const applied = health.recordResult(node, cycleId, result, config, jobId);
+      if (applied && config.profileVersion !== this.config.profileVersion) {
+        // Retain the actual profile on late results and promptly retry under the new one.
+        db.run('UPDATE subscription_nodes SET next_check_at = 0 WHERE id = ?', [node.id]);
+      }
+      return applied;
+    });
   }
 
   async checkNodeNow(nodeId) {
@@ -80,17 +92,18 @@ class ProbeScheduler {
     if (!node || !node.source_active || !node.is_enabled || !node.is_present || node.capability_status !== 'supported') {
       throw new SubscriptionError('validation', 'Узел недоступен для проверки: он отключён, удалён или не поддерживается.', 409);
     }
+    const config = snapshotProbeConfig(this.config);
     const cycleId = crypto.randomUUID();
     const now = Date.now();
     health.markStarted(node, cycleId, now);
     let result;
     try {
-      result = await this.checker.check(node);
+      result = await this.checker.check(node, { config });
     } catch (error) {
       const safe = safeError(error, 'runner_error');
       result = { status: ['superseded', 'cancelled'].includes(safe.code) ? 'cancelled' : 'runner_error', errorCode: safe.code, errorMessage: safe.message };
     }
-    if (!health.recordResult(node, cycleId, result, this.config, null, Date.now())) {
+    if (!this.recordCheckResult(node, cycleId, result, config)) {
       throw new SubscriptionError('superseded', 'Настройки узла изменились. Повторите проверку.', 409);
     }
     return result;
@@ -106,19 +119,20 @@ class ProbeScheduler {
   }
 
   enqueueCheck({ sourceId, nodeId, reason = 'manual', dueOnly = false } = {}) {
+    const config = snapshotProbeConfig(this.config);
     let nodes = nodeId ? [health.getNode(nodeId)].filter(Boolean) : health.getNodes(sourceId);
     nodes = nodes.filter(node => node.source_active && node.is_enabled && node.is_present && node.capability_status === 'supported');
     if (nodeId && !nodes.length) throw new SubscriptionError('validation', 'Узел недоступен для проверки: он отключён, удалён или не поддерживается.', 409);
     if (!nodeId && !sources.getSource(sourceId)?.is_active) throw new SubscriptionError('validation', 'Источник не найден или отключён.', 409);
     const now = Date.now();
     if (dueOnly) {
-      nodes = nodes.filter(node => !this.tasks.has(this.nodeKey(node)) &&
-        (node.next_check_at <= now || (node.last_checked_at && node.last_attempt_at <= node.last_checked_at && node.probe_profile_version !== this.config.profileVersion)));
+      nodes = nodes.filter(node => !this.tasks.has(this.nodeKey(node, config)) &&
+        (node.next_check_at <= now || (node.last_checked_at && node.last_attempt_at <= node.last_checked_at && node.probe_profile_version !== config.profileVersion)));
        if (!nodes.length) return null;
     }
-    this.ensureCapacity(nodes.filter(node => !this.tasks.has(this.nodeKey(node))).length);
+    this.ensureCapacity(nodes.filter(node => !this.tasks.has(this.nodeKey(node, config))).length);
     sourceId = sourceId || nodes[0]?.source_id;
-    const signature = crypto.createHash('sha256').update(nodes.map(node => this.nodeKey(node)).sort().join('|')).digest('hex');
+    const signature = crypto.createHash('sha256').update(nodes.map(node => this.nodeKey(node, config)).sort().join('|')).digest('hex');
     const key = `${nodeId ? 'node' : 'source'}:${nodeId || sourceId}:${reason}:${signature}`;
     let job;
     db.transaction(() => {
@@ -126,13 +140,13 @@ class ProbeScheduler {
     });
     if (!job.existing) {
       for (const node of nodes) {
-        const taskKey = this.nodeKey(node);
+        const taskKey = this.nodeKey(node, config);
         let task = this.tasks.get(taskKey);
         const assigned = db.get(`SELECT 1 FROM user_subscription_sources us JOIN users u ON u.id = us.user_id
           WHERE us.source_id = ? AND us.is_active = 1 AND u.is_active = 1 LIMIT 1`, [node.source_id]);
         const priority = !node.last_checked_at || node.generation !== node.health_generation ? 0 : assigned ? 1 : 2;
         if (!task) {
-          task = { key: taskKey, kind: 'check', sourceId: node.source_id, node, jobIds: new Set(), state: 'queued',
+          task = { key: taskKey, kind: 'check', sourceId: node.source_id, node, config, jobIds: new Set(), state: 'queued',
             queuedAt: now, priority, assigned: !!assigned, controller: new AbortController() };
           this.addTask(task);
         }
@@ -163,6 +177,9 @@ class ProbeScheduler {
           if (task.kind === 'check') {
             const current = health.getNode(task.node.id);
             if (!current || this.nodeKey(current) !== task.key || !current.source_active || !current.is_present || !current.is_enabled) {
+              if (current && this.nodeKey(current, task.config) === task.key && task.config.profileVersion !== this.config.profileVersion) {
+                db.run('UPDATE subscription_nodes SET next_check_at = 0 WHERE id = ?', [current.id]);
+              }
               this.complete(task, { status: 'cancelled', errorCode: 'superseded' });
               continue;
             }
@@ -175,7 +192,7 @@ class ProbeScheduler {
           this.counts[task.kind]++;
           for (const jobId of task.jobIds) db.run("UPDATE background_jobs SET state = 'running', started_at = COALESCE(started_at, ?) WHERE id = ?", [now, jobId]);
           const promise = Promise.resolve().then(() => task.kind === 'check' ?
-            this.checker.check(task.node, { signal: task.controller.signal }) :
+            this.checker.check(task.node, { signal: task.controller.signal, config: task.config }) :
             this.sync(task.sourceId, this.config, { signal: task.controller.signal }))
             .then(result => this.complete(task, result))
             .catch(error => {
@@ -216,7 +233,7 @@ class ProbeScheduler {
       db.transaction(() => {
         for (const { task, result } of batch) {
           let applied = true;
-          if (task.kind === 'check' && task.cycleId) applied = health.recordResult(task.node, task.cycleId, result, this.config, [...task.jobIds][0]);
+          if (task.kind === 'check' && task.cycleId) applied = this.recordCheckResult(task.node, task.cycleId, result, task.config, [...task.jobIds][0]);
           const failed = !applied || ['runner_error', 'cancelled'].includes(result.status);
           for (const jobId of task.jobIds) {
             db.run(`UPDATE background_jobs SET completed = completed + 1, failed = failed + ?, error = COALESCE(?, error), result_json = ? WHERE id = ?`,

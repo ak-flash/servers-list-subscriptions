@@ -1,5 +1,4 @@
-const crypto = require('crypto');
-const { parseHttpProxy } = require('../config/subscriptions');
+const { parseHttpProxy, probeProfileVersion, snapshotProbeConfig } = require('../config/subscriptions');
 const db = require('../db/database');
 
 const KEY_PROXY = 'probe_http_proxy';
@@ -112,19 +111,19 @@ function applySettingsToConfig(config) {
   next.sourceTimeoutMs = next.sourceTimeoutSeconds * 1000;
   next.readyTimeoutMs = next.readyTimeoutSeconds * 1000;
   next.attemptTimeoutMs = next.attemptTimeoutSeconds * 1000;
-  next.deadlineMs = next.attemptTimeoutMs * next.attempts + next.readyTimeoutMs;
+  // Keep an explicitly configured full-cycle deadline. Without one, budget every
+  // attempt on every fallback target, plus readiness, within the supported cap.
+  next.deadlineMs = config.deadlineMs ?? Math.min(180000, Math.max(5000,
+    next.readyTimeoutMs + next.attemptTimeoutMs * next.attempts * next.targets.length));
   next.concurrency = next.probeConcurrency;
-  return Object.freeze(next);
+  next.profileVersion = probeProfileVersion(next);
+  return snapshotProbeConfig(next);
 }
 
 function applyProxyToConfig(config, { proxy, mode }) {
   const next = { ...config, httpProxy: proxy, httpProxyMode: mode };
-  next.profileVersion = crypto.createHash('sha256').update(JSON.stringify({
-    adapter: 2, version: config.xrayVersion, targets: config.targets, location: config.probeLocation,
-    attempts: config.attempts, minSuccess: config.minSuccess, timeout: config.attemptTimeoutMs,
-    proxy: proxy ? `${mode}:${proxy.protocol}://${proxy.address}:${proxy.port}` : ''
-  })).digest('hex');
-  return Object.freeze(next);
+  next.profileVersion = probeProfileVersion(next);
+  return snapshotProbeConfig(next);
 }
 
 function proxyUrlForDisplay(proxy) {

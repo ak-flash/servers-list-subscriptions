@@ -9,7 +9,7 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { buildFullSubscription, publicServer } = require('../src/utils/linkBuilder');
 const { link, config, UUID } = require('./fixtures');
 
-test('resolver: with an extra HTTP proxy, proxy-healthy nodes come first, direct-only nodes fill the rest by latency', async t => {
+test('resolver: with an extra HTTP proxy, only fresh proxy-healthy nodes come first, direct-only nodes fill the rest', async t => {
   await db.initDb({ filePath: ':memory:' });
   t.after(db.closeDb);
   const settings = config({ httpProxy: { protocol: 'http', address: '127.0.0.1', port: 3128, user: '', pass: '' }, httpProxyMode: 'extra' });
@@ -32,7 +32,7 @@ test('resolver: with an extra HTTP proxy, proxy-healthy nodes come first, direct
   db.run("UPDATE subscription_node_health SET proxy_checked_at = ? WHERE node_id = (SELECT id FROM subscription_nodes WHERE host = 'd.example.com')", [now - settings.healthyTtlMs - 1]);
   saveAssignments('u', { sources: [source.id] });
   const result = resolveUserSubscription('u', now, settings);
-  assert.deepEqual(result.servers.map(server => server.host), ['b.example.com', 'd.example.com', 'a.example.com', 'c.example.com']);
+  assert.deepEqual(result.servers.map(server => server.host), ['b.example.com', 'a.example.com', 'c.example.com', 'd.example.com']);
   assert.equal(result.sources[0].excluded.stale, undefined);
   assert.equal(result.sources[0].excluded.proxy_unavailable, undefined);
 });
@@ -45,10 +45,11 @@ test('resolver: deduplicates subscription nodes by checked IP, not hostname', as
   db.run("INSERT INTO users (id, username) VALUES ('u', 'User')");
   const source = sources.createSource({ name: 'IPs', url: 'https://ips.example.com', is_active: true }, settings);
   sources.applySnapshot(source, parseSubscription([link('one.example.com'), link('two.example.com'), link('three.example.com')].join('\n')));
-  for (const [index, node] of health.getNodes(source.id).entries()) {
+  const latencies = { 'one.example.com': 50, 'two.example.com': 60, 'three.example.com': 70 };
+  for (const node of health.getNodes(source.id)) {
     health.markStarted(node, node.id, now - 200);
     health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
-      latencyMs: 50 + index * 10, checkedAddress: node.host === 'two.example.com' ? '8.8.8.8' : node.host === 'three.example.com' ? '1.1.1.1' : '8.8.8.8', httpStatus: 204, attempts: [] }, settings, null, now - 100);
+      latencyMs: latencies[node.host], checkedAddress: node.host === 'three.example.com' ? '1.1.1.1' : '8.8.8.8', httpStatus: 204, attempts: [] }, settings, null, now - 100);
   }
   saveAssignments('u', { sources: [source.id], source_limits: { [source.id]: '3' } });
   const result = resolveUserSubscription('u', now, settings);

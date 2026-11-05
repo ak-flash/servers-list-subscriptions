@@ -176,6 +176,27 @@ test('node catalog job panel preserves individual job progress without queue cou
   }
 });
 
+test('node catalog explains ranking and proxy mode without claiming direct availability from proxy-only tests', async () => {
+  const source = { id: 'source-id', name: 'Source', masked_url: 'https://example.com', is_active: 1,
+    sync_status: 'success', last_success_at: Date.now(), metadata_json: null };
+  for (const locale of supportedLocales) {
+    const t = createTranslator(locale);
+    for (const proxyMode of ['extra', 'only']) {
+      const html = await ejs.renderFile(path.join(__dirname, '../src/views/subscription-source-nodes.ejs'), {
+        locale, t, ...createView(locale), appName: 'Subscriptions', csrfToken: 'token', languageUrl: () => '#',
+        source, healthy: 1, report: null, proxyConfigured: true, proxyMode,
+        job: null, metrics: {}, nodes: [], filter: '', showRemoved: false, page: 1, pages: 1, total: 0
+      });
+      assert.ok(html.includes(t('Сначала показаны узлы, подходящие для выдачи, в порядке отбора. Итоговый состав зависит от лимита, порога задержки и других назначений пользователя.')));
+      const message = proxyMode === 'only'
+        ? 'Проверки выполняются через HTTP-прокси. Это не подтверждает прямую доступность узла с устройства пользователя.'
+        : 'Свежая успешная проверка через HTTP-прокси даёт узлу приоритет. Остальные узлы отбираются по прямой VPN-проверке.';
+      assert.ok(html.includes(t(message)));
+      assert.ok(!html.includes('В подписку попадают узлы, успешно прошедшие проверку и напрямую, и через HTTP-прокси'));
+    }
+  }
+});
+
 test('queue panel keeps storage and runner warnings inside the panel', async () => {
   for (const metrics of [{ storage_error: 'Storage unavailable' }, { runner: { error: 'Runner unavailable' } }]) {
     const html = await renderSources({ metrics });

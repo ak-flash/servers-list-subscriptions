@@ -19,6 +19,7 @@ function getNodes(sourceId) {
 
 function proxyEligibility(node, config, now = Date.now()) {
   if (!config.httpProxy || config.httpProxyMode !== 'extra') return 'not_required';
+  if (node.generation !== node.health_generation || node.fingerprint !== node.config_fingerprint || node.probe_profile_version !== config.profileVersion) return 'proxy_unknown';
   if (node.proxy_status !== 'healthy') return node.proxy_status || 'proxy_unknown';
   if (!Number.isFinite(node.proxy_latency_ms) || node.proxy_latency_ms < 0) return 'proxy_unknown';
   if (!node.proxy_checked_at || now < node.proxy_checked_at || now - node.proxy_checked_at >= config.healthyTtlMs) return 'proxy_stale';
@@ -32,10 +33,52 @@ function eligibility(node, config, now = Date.now()) {
   if (!node.is_enabled) return 'disabled';
   if (node.generation !== node.health_generation || node.fingerprint !== node.config_fingerprint || node.probe_profile_version !== config.profileVersion) return 'unknown';
   if (node.status !== 'healthy') return node.status || 'unknown';
-  if (!Number.isFinite(node.latency_ms) || node.latency_ms < 0 || node.successful_attempts < config.minSuccess || node.total_attempts !== config.attempts) return 'unknown';
+  if (!Number.isFinite(node.latency_ms) || node.latency_ms < 0 || !Number.isInteger(node.successful_attempts) ||
+      node.successful_attempts < config.minSuccess || node.successful_attempts > node.total_attempts || node.total_attempts !== config.attempts) return 'unknown';
   if (!node.last_checked_at || now < node.last_checked_at || now - node.last_checked_at >= config.healthyTtlMs) return 'stale';
+  if (!String(node.checked_address || '').trim()) return 'unknown_address';
   return 'healthy';
 } 
+
+function compareNodes(a, b, config, now = Date.now()) {
+  const aHealthy = eligibility(a, config, now) === 'healthy';
+  const bHealthy = eligibility(b, config, now) === 'healthy';
+  if (aHealthy !== bHealthy) return aHealthy ? -1 : 1;
+  if (aHealthy) {
+    const aProxy = proxyEligibility(a, config, now) === 'proxy_ok';
+    const bProxy = proxyEligibility(b, config, now) === 'proxy_ok';
+    if (aProxy !== bProxy) return aProxy ? -1 : 1;
+    // Reliability comes before latency: a single fast request is not a stable connection.
+    const quality = b.successful_attempts / b.total_attempts - a.successful_attempts / a.total_attempts ||
+      (a.target_priority ?? Number.MAX_SAFE_INTEGER) - (b.target_priority ?? Number.MAX_SAFE_INTEGER) ||
+      (aProxy ? a.proxy_latency_ms - b.proxy_latency_ms : a.latency_ms - b.latency_ms);
+    if (quality) return quality;
+    const identity = String(a.fingerprint || '').localeCompare(String(b.fingerprint || ''));
+    if (identity) return identity;
+  }
+  // Old latency values must not promote unavailable nodes in the catalog.
+  return String(a.name || '').localeCompare(String(b.name || ''), 'ru') || String(a.id).localeCompare(String(b.id));
+}
+
+function checkedAddressKey(node) {
+  return String(node.checked_address || '').trim().toLowerCase();
+}
+
+function rankNodes(nodes, config, now = Date.now()) {
+  const preferred = [];
+  const remaining = [];
+  const addresses = new Set();
+  for (const node of [...nodes].sort((a, b) => compareNodes(a, b, config, now))) {
+    const key = checkedAddressKey(node);
+    if (eligibility(node, config, now) === 'healthy' && !addresses.has(key)) {
+      addresses.add(key);
+      preferred.push(node);
+    } else remaining.push(node);
+  }
+  // Keep duplicates visible in the catalog, but after the unique candidates a user can receive.
+  const deliverable = new Set(preferred.map(node => node.id));
+  return [...preferred, ...remaining].map(node => ({ ...node, delivery_candidate: deliverable.has(node.id) }));
+}
 
 function safeNode(node, config, now = Date.now()) {
   const { normalized_config_json, fingerprint, config_fingerprint, pending_cycle_id, ...safe } = node;
@@ -59,9 +102,10 @@ function recordResult(node, cycleId, result, config, jobId = null, now = Date.no
     for (const attempt of result.attempts || []) {
       db.run(`INSERT INTO subscription_node_checks (job_id, cycle_id, node_id, config_fingerprint, generation,
         probe_profile_version, test_target_id, attempt, outcome, latency_ms, http_status, error_code, checked_at, via)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'direct')`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [jobId, cycleId, node.id, node.fingerprint, node.generation, config.profileVersion, attempt.targetId || null,
-        attempt.attempt ?? null, attempt.outcome, attempt.latencyMs ?? null, attempt.httpStatus ?? null, attempt.errorCode || null, now]);
+        attempt.attempt ?? null, attempt.outcome, attempt.latencyMs ?? null, attempt.httpStatus ?? null, attempt.errorCode || null, now,
+        config.httpProxy && config.httpProxyMode === 'only' ? 'proxy' : 'direct']);
     }
     if (result.status === 'runner_error' || result.status === 'cancelled') {
       db.run(`UPDATE subscription_node_health SET pending_cycle_id = NULL, runner_error_code = ?, runner_error_message = ? WHERE node_id = ?`,
@@ -112,4 +156,4 @@ function pruneHistory(now = Date.now()) {
   });
 }
 
-module.exports = { NODE_SELECT, getNode, getNodes, safeNode, eligibility, proxyEligibility, markStarted, recordResult, pruneHistory };
+module.exports = { NODE_SELECT, getNode, getNodes, safeNode, eligibility, proxyEligibility, compareNodes, checkedAddressKey, rankNodes, markStarted, recordResult, pruneHistory };

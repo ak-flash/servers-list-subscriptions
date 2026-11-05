@@ -78,6 +78,13 @@ test('proxy probe results are stored alongside direct measurements', async t => 
     config, null, now + 1000);
   const after = health.getNode('n');
   assert.equal(after.proxy_status, 'healthy');
+
+  const proxyOnly = { ...config, httpProxyMode: 'only', httpProxy: { protocol: 'http', address: 'proxy.example.com', port: 3128 } };
+  health.markStarted(node, 'cycle-only', now + 2000);
+  health.recordResult(node, 'cycle-only', { status: 'healthy', latencyMs: 260, attempts: direct, successCount: 1, attemptCount: 1 },
+    proxyOnly, null, now + 2000);
+  assert.deepEqual(db.all("SELECT via FROM subscription_node_checks WHERE cycle_id = 'cycle-only'"), [{ via: 'proxy' }]);
+  assert.equal(health.getNode('n').proxy_status, null);
 });
 
 test('backup retention removes backups older than the configured count', async t => {

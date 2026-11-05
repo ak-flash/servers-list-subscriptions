@@ -1,14 +1,50 @@
 const { parseVless } = require('./protocolParsers');
 
+function readVmessLink(link) {
+    const separator = link.slice(8).search(/[?#]/);
+    const end = separator < 0 ? link.length : separator + 8;
+    const payload = link.slice(8, end);
+    const json = Buffer.from(payload, 'base64').toString('utf8');
+    const config = JSON.parse(json);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Invalid VMess payload');
+    return { config, json, payload, suffix: link.slice(end) };
+}
+
+function renameVmessJson(json, name) {
+    // The JSON was validated by readVmessLink. Replace only top-level ps values:
+    // parse/stringify of the entire object would round large numbers in provider fields.
+    const changes = [];
+    let depth = 0, key = null, expectKey = true, valueStart = null, previousEnd = 0, hasKeys = false;
+    for (const token of json.matchAll(/"(?:\\.|[^"\\])*"|[{}\[\],:]|[^\s{}\[\],:]+/g)) {
+        const value = token[0];
+        if (depth === 1) {
+            if (value === ',' || value === '}') {
+                if (key === 'ps' && valueStart !== null) changes.push([valueStart, previousEnd]);
+                key = null; expectKey = true; valueStart = null;
+            } else if (expectKey) {
+                key = JSON.parse(value); expectKey = false; hasKeys = true;
+            } else if (value !== ':' && valueStart === null) valueStart = token.index;
+        }
+        if (value === '{' || value === '[') depth++;
+        if (value === '}' || value === ']') depth--;
+        previousEnd = token.index + value.length;
+    }
+    const replacement = JSON.stringify(name);
+    for (const [start, end] of changes.reverse()) json = json.slice(0, start) + replacement + json.slice(end);
+    if (changes.length) return json;
+    const start = json.indexOf('{') + 1;
+    return json.slice(0, start) + `"ps":${replacement}${hasKeys ? ',' : ''}` + json.slice(start);
+}
+
 function extractNameFromLink(link) {
     link = link.trim();
 
-    if (link.startsWith('vmess://')) {
-        try { return JSON.parse(Buffer.from(link.slice(8).split('#')[0], 'base64').toString('utf8')).ps || ''; }
+    if (/^vmess:\/\//i.test(link)) {
+        try { return readVmessLink(link).config.ps || ''; }
         catch { /* Keep legacy fragment names readable. */ }
     }
 
-    if (link.startsWith('vless://') || link.startsWith('vmess://') || link.startsWith('trojan://') || link.startsWith('ss://')) {
+    if (/^(vless|vmess|trojan|hysteria2|ss):\/\//i.test(link)) {
         const hashIndex = link.indexOf('#');
         if (hashIndex !== -1 && hashIndex < link.length - 1) {
             try { return decodeURIComponent(link.slice(hashIndex + 1)); }
@@ -23,12 +59,12 @@ function extractHostPortFromLink(link) {
     link = link.trim();
 
     try {
-        if (link.startsWith('vless://') || link.startsWith('trojan://')) {
+        if (/^(vless|trojan|hysteria2):\/\//i.test(link)) {
             const url = new URL(link);
             return { host: url.hostname.replace(/^\[|\]$/g, ''), port: Number(url.port) || null, protocol: url.protocol.slice(0, -1) };
         }
-        if (link.startsWith('vmess://')) {
-            const config = JSON.parse(Buffer.from(link.slice(8).split('#')[0], 'base64').toString('utf8'));
+        if (/^vmess:\/\//i.test(link)) {
+            const config = readVmessLink(link).config;
             return { host: config.add || '', port: Number(config.port) || null, protocol: 'vmess' };
         }
     } catch { return { host: '', port: null, protocol: '' }; }
@@ -50,11 +86,18 @@ function extractHostPortFromLink(link) {
 function updateLinkRemark(link, newName) {
     if (!link) return '';
 
-    if (link.startsWith('vmess://')) {
+    if (/^vmess:\/\//i.test(link)) {
         try {
-            const config = JSON.parse(Buffer.from(link.slice(8).split('#')[0], 'base64').toString('utf8'));
-            config.ps = newName;
-            return 'vmess://' + Buffer.from(JSON.stringify(config)).toString('base64');
+            const { config, json, payload, suffix } = readVmessLink(link);
+            const hashIndex = suffix.indexOf('#');
+            const updatedSuffix = hashIndex < 0 ? suffix : suffix.slice(0, hashIndex + 1) + encodeURIComponent(newName);
+            if (config.ps === newName && updatedSuffix === suffix) return link;
+            const encoding = /[-_]/.test(payload) ? 'base64url' : 'base64';
+            let encoded = Buffer.from(renameVmessJson(json, newName)).toString(encoding);
+            if (!payload.endsWith('=')) encoded = encoded.replace(/=+$/, '');
+            // VMess providers may put connection options after the Base64 payload.
+            // Keep those bytes, the URI scheme and every non-name payload field intact.
+            return link.slice(0, 8) + encoded + updatedSuffix;
         } catch { /* Fall through for legacy URI-style manual links. */ }
     }
 
@@ -136,7 +179,7 @@ function publicServer(server) {
             Object.assign(result, { uuid: config.uuid, network: config.network, tls: config.security, sni: config.sni,
                 path: config.ws?.path || '', config });
         } else if (info.protocol === 'vmess') {
-            const config = JSON.parse(Buffer.from(link.slice(8).split('#')[0], 'base64').toString('utf8'));
+            const config = readVmessLink(link).config;
             Object.assign(result, { uuid: config.id, network: config.net, tls: config.tls, sni: config.sni, path: config.path, config });
         } else if (info.protocol === 'trojan') {
             const url = new URL(link);

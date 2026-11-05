@@ -17,7 +17,7 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     JOIN subscription_sources s ON s.id = us.source_id WHERE us.user_id = ? ORDER BY us.priority, us.source_id`, [userId]);
   const diagnostics = [];
   for (const binding of bindings) {
-    const report = { source_id: binding.source_id, name: binding.name, requested: null, available: 0, selected: [], excluded: {} };
+    const report = { source_id: binding.source_id, name: binding.name, requested: binding.node_limit, available: 0, selected: [], excluded: {} };
     const exclude = reason => { report.excluded[reason] = (report.excluded[reason] || 0) + 1; };
     if (!binding.is_active || !binding.source_active) {
       exclude('source_disabled');
@@ -30,25 +30,21 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
       if (binding.max_latency_ms && node.latency_ms > binding.max_latency_ms) { exclude('latency'); return false; }
       return true;
     });
-    const proxyRequired = config.httpProxy && config.httpProxyMode === 'extra';
-    const proxyHealthy = node => node.proxy_status === 'healthy' && Number.isFinite(node.proxy_latency_ms);
-    const bySuccess = (a, b) => (b.successful_attempts / b.total_attempts) - (a.successful_attempts / a.total_attempts) ||
-      a.target_priority - b.target_priority || a.fingerprint.localeCompare(b.fingerprint);
-    const preferred = proxyRequired ? candidates.filter(proxyHealthy).sort((a, b) => a.proxy_latency_ms - b.proxy_latency_ms || bySuccess(a, b)) : candidates;
-    const fallback = proxyRequired ? candidates.filter(node => !proxyHealthy(node)).sort((a, b) => a.latency_ms - b.latency_ms || bySuccess(a, b)) : [];
-    const pool = proxyRequired ? [...preferred, ...fallback] : preferred.sort((a, b) => a.latency_ms - b.latency_ms || bySuccess(a, b));
+    const pool = health.rankNodes(candidates, config, now);
+    const sourceIps = new Set();
     const selectedCount = { used: 0 };
     for (const node of pool) {
       const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, checked_address: node.checked_address, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
         proxy_status: node.proxy_status, proxy_latency_ms: node.proxy_latency_ms, proxy_checked_at: node.proxy_checked_at };
-      const key = String(node.checked_address || '').trim().toLowerCase();
+      const key = health.checkedAddressKey(node);
       if (!key) { exclude('unknown_address'); continue; }
-      if (seenSubscriptionIps.has(key)) { exclude('duplicate'); continue; }
+      if (seenSubscriptionIps.has(key) || sourceIps.has(key)) { exclude('duplicate'); continue; }
+      sourceIps.add(key);
+      report.available++;
       const limit = binding.node_limit;
       if (Number.isFinite(limit) && limit > 0 && selectedCount.used >= limit) { exclude('quota'); continue; }
-      report.available++;
       seenSubscriptionIps.add(key);
       selectedCount.used++;
       servers.push(server);

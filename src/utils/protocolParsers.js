@@ -125,7 +125,7 @@ function parseVmess(raw) {
     if (!match) throw new Error();
     const separator = match[1].search(/[?#]/);
     const encoded = separator < 0 ? match[1] : match[1].slice(0, separator);
-    const suffix = separator < 0 ? '' : match[1].slice(separator + 1);
+    const suffix = separator < 0 || match[1][separator] !== '?' ? '' : match[1].slice(separator + 1).split('#')[0];
     suffixParams = new URLSearchParams(suffix);
     data = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.from(encoded, 'base64')));
   } catch {

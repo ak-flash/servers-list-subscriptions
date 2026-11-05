@@ -2,6 +2,29 @@ const path = require('path');
 const crypto = require('crypto');
 const { normalizeHost } = require('../utils/protocolParsers');
 
+const PROBE_POLICY_VERSION = 3;
+
+function probeProfileVersion(config) {
+  const proxy = config.httpProxy;
+  return crypto.createHash('sha256').update(JSON.stringify({
+    policy: PROBE_POLICY_VERSION, adapter: 2, version: config.xrayVersion, checksum: config.xraySha256 || '',
+    targets: config.targets, location: config.probeLocation,
+    attempts: config.attempts, minSuccess: config.minSuccess,
+    readyTimeoutMs: config.readyTimeoutMs, attemptTimeoutMs: config.attemptTimeoutMs, deadlineMs: config.deadlineMs,
+    proxyMode: config.httpProxyMode || 'extra',
+    // Credentials affect connectivity, but only their contribution to this digest is persisted with checks.
+    proxy: proxy ? { protocol: proxy.protocol, address: proxy.address, port: proxy.port, user: proxy.user || '', pass: proxy.pass || '' } : null
+  })).digest('hex');
+}
+
+function snapshotProbeConfig(config) {
+  return Object.freeze({
+    ...config,
+    targets: Object.freeze(config.targets.map(target => Object.freeze({ ...target }))),
+    httpProxy: config.httpProxy ? Object.freeze({ ...config.httpProxy }) : null
+  });
+}
+
 function integer(env, key, fallback, min, max) {
   const raw = env[key];
   if (raw === undefined || raw === '') return fallback;
@@ -74,8 +97,8 @@ function loadConfig(env = process.env) {
     historyDays: integer(env, 'PROBE_HISTORY_DAYS', 7, 1, 30),
     maxHistoryRows: integer(env, 'PROBE_HISTORY_MAX_ROWS', 50000, 100, 200000),
     profileUpdateHours: integer(env, 'PROFILE_UPDATE_INTERVAL_HOURS', 1, 1, 168),
-    attempts: 2,
-    minSuccess: 1
+    attempts: 3,
+    minSuccess: 2
   };
   const proxyMode = env.PROBE_HTTP_PROXY_MODE === undefined || env.PROBE_HTTP_PROXY_MODE === '' ? 'extra' : env.PROBE_HTTP_PROXY_MODE;
   if (!['extra', 'only'].includes(proxyMode)) throw new Error('PROBE_HTTP_PROXY_MODE: допустимо extra или only');
@@ -85,12 +108,8 @@ function loadConfig(env = process.env) {
   if (!/^\d+\.\d+\.\d+$/.test(config.xrayVersion)) throw new Error('XRAY_VERSION: ожидается версия вида 26.3.27');
   if (config.xraySha256 && !/^[a-f\d]{64}$/i.test(config.xraySha256)) throw new Error('XRAY_SHA256: ожидается SHA-256 бинарника');
   config.healthyTtlMs = config.checkIntervalMs + 900000;
-  config.profileVersion = crypto.createHash('sha256').update(JSON.stringify({
-    adapter: 2, version: config.xrayVersion, targets, location: config.probeLocation,
-    attempts: config.attempts, minSuccess: config.minSuccess, timeout: config.attemptTimeoutMs,
-    proxy: config.httpProxy ? `${config.httpProxyMode}:${config.httpProxy.protocol}://${config.httpProxy.address}:${config.httpProxy.port}` : ''
-  })).digest('hex');
-  return Object.freeze(config);
+  config.profileVersion = probeProfileVersion(config);
+  return snapshotProbeConfig(config);
 }
 
-module.exports = { loadConfig, integer, parseHttpProxy };
+module.exports = { loadConfig, integer, parseHttpProxy, probeProfileVersion, snapshotProbeConfig, PROBE_POLICY_VERSION };

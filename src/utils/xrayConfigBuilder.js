@@ -143,6 +143,7 @@ function buildXrayConfig(node, address, port, credentials, certificateAuthority,
   const streamSettings = { network: node.network, security: node.security };
   if (node.security === 'tls') {
     const tlsSettings = { serverName: node.sni };
+    if (node.allowInsecure) tlsSettings.allowInsecure = true;
     if (certificateAuthority) {
       tlsSettings.disableSystemRoot = true;
       tlsSettings.certificates = [{ usage: 'verify', certificate: certificateAuthority.toString().trim().split(/\r?\n/) }];
