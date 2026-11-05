@@ -27,7 +27,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       const candidate = present.filter(node => health.deliveryState(node, config) === 'fresh');
       return { ...sources.publicSource(source), count: present.length,
         healthy: healthy.length, candidate: candidate.length,
-        selected: null, users: db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n };
+        selected: null };
     });
   }
 

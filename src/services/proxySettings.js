@@ -41,7 +41,7 @@ function loadSettings(config = {}) {
   const settingRows = db.all(`SELECT key, value FROM app_state WHERE key IN (${EDITABLE_SETTINGS.map(() => '?').join(',')})`, EDITABLE_SETTINGS.map(([, key]) => key));
   const storedValues = new Map(settingRows.map(row => [row.key, Number(row.value)]));
   const proxy = parseStoredProxy(proxyRow);
-  const mode = ['extra', 'only'].includes(modeRow?.value) ? modeRow.value : undefined;
+  const mode = ['disabled', 'extra', 'only'].includes(modeRow?.value) ? modeRow.value : undefined;
   const checkIntervalSeconds = checkIntervalRow ? parseSeconds(checkIntervalRow.value, config.checkIntervalMs / 1000, 300, 86400, 'Интервал VPN-проверки') : undefined;
   const defaults = {
     sourceTimeoutSeconds: config.sourceTimeoutMs === undefined ? undefined : config.sourceTimeoutMs / 1000,
@@ -64,7 +64,7 @@ function loadSettings(config = {}) {
 function saveSettings(values, config = {}) {
   const { proxyUrl, mode, checkIntervalSeconds } = values;
   const proxy = parseHttpProxy(proxyUrl || '');
-  const proxyMode = ['extra', 'only'].includes(mode) ? mode : 'extra';
+  const proxyMode = ['disabled', 'extra', 'only'].includes(mode) ? mode : 'extra';
   const checkSeconds = parseSeconds(checkIntervalSeconds ?? config.checkIntervalMs / 1000 ?? 300, 300, 300, 86400, 'Интервал VPN-проверки');
   const parsed = {};
   const defaults = {

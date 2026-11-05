@@ -119,7 +119,7 @@ function loadConfig(env = process.env) {
     minSuccess: 2
   };
   const proxyMode = env.PROBE_HTTP_PROXY_MODE === undefined || env.PROBE_HTTP_PROXY_MODE === '' ? 'extra' : env.PROBE_HTTP_PROXY_MODE;
-  if (!['extra', 'only'].includes(proxyMode)) throw new Error('PROBE_HTTP_PROXY_MODE: допустимо extra или only');
+  if (!['disabled', 'extra', 'only'].includes(proxyMode)) throw new Error('PROBE_HTTP_PROXY_MODE: допустимо disabled, extra или only');
   if (!Number.isFinite(config.sourceMinRetainRatio) || config.sourceMinRetainRatio < 0 || config.sourceMinRetainRatio > 1) throw new Error('SOURCE_MIN_RETAIN_RATIO: допустимо 0–1');
   if (!config.httpProxy && proxyMode === 'only') throw new Error('PROBE_HTTP_PROXY_MODE=only требует заданный PROBE_HTTP_PROXY');
   config.httpProxyMode = proxyMode;

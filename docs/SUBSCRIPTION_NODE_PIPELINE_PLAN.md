@@ -121,7 +121,7 @@
 - [x] Использовать `config.maxHistoryRows` с точной границей: при сохранении текущего условия `id < threshold` требуется `OFFSET maxHistoryRows - 1`. `pruneHistory(now, config)` теперь получает лимиты из scheduler.
 - [x] Сохранять одновременно возрастной и количественный предел истории direct/proxy. Свежие строки тоже могут удаляться при превышении row cap.
 - [x] `pruneHistory()` выполняет hourly/periodic cleanup транзакционно; `maxHistoryRows` — предел после очистки. Возвращаются `before/after/deleted` для наблюдения фактического объёма; размер export/save проверяется отдельным operational benchmark.
-- [x] History retention remains configuration-driven and is intentionally not exposed as an editable UI setting; the UI does not promise unsupported history controls.
+- [x] History retention remains configuration-driven and is intentionally not exposed as an editable UI setting; the UI does not promise unsupported history controls. Probe concurrency is now an editable 1–64 setting with immediate scheduler application.
 
 **Тесты.**
 - [x] `maxHistoryRows=100`: добавлен тест row cap; возрастная граница и отдельные direct/proxy границы требуют расширения теста.

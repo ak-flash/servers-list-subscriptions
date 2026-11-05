@@ -32,7 +32,12 @@
           <p class="mt-1 text-xs text-gray-500"><%= t('Минимум 300 секунд (5 минут): чаще запускать проверки нельзя. Например, 3600 — не чаще одного раза в час.') %></p>
         </div>
 
-        <p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-gray-600"><%= t('Таймауты, параллельность, размер очереди и другие параметры проверки настраиваются только через переменные окружения и требуют перезапуска сервиса.') %></p>
+        <p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-gray-600"><%= t('Параллельность и размер очереди применяются сразу после сохранения. Таймауты и интервал источников требуют перезапуска сервиса.') %></p>
+        <div>
+          <label class="block text-sm font-medium mb-1" for="probeConcurrency"><%= t('Параллельные VPN-проверки') %></label>
+          <input id="probeConcurrency" name="probeConcurrency" type="number" min="1" max="64" step="1" value="<%= probeConcurrency %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+          <p class="mt-1 text-xs text-gray-500"><%= t('Количество узлов, проверяемых одновременно.') %></p>
+        </div>
         <div>
           <label class="block text-sm font-medium mb-1" for="proxyUrl"><%= t('URL прокси') %></label>
           <input id="proxyUrl" name="proxyUrl" type="text" value="<%= proxyUrl %>" placeholder="http://user:pass@host:port" class="w-full rounded-lg border border-slate-300 px-3 py-2">
@@ -41,6 +46,7 @@
         <div>
           <label class="block text-sm font-medium mb-1" for="proxyMode"><%= t('Режим проверки') %></label>
           <select id="proxyMode" name="proxyMode" class="w-full rounded-lg border border-slate-300 px-3 py-2">
+            <option value="disabled" <%= proxyMode === 'disabled' ? 'selected' : '' %>><%= t('Без прокси (выкл.)') %></option>
             <option value="extra" <%= proxyMode === 'extra' ? 'selected' : '' %>><%= t('Дополнительно (extra)') %></option>
             <option value="only" <%= proxyMode === 'only' ? 'selected' : '' %>><%= t('Только через прокси (only)') %></option>
           </select>
