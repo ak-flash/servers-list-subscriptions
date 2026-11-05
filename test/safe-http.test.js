@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const http = require('http');
 const zlib = require('zlib');
 const { once } = require('events');
-const { isPublicAddress, validateSourceUrl, resolvePublicHost, downloadSource } = require('../src/utils/safeHttp');
+const { isPublicAddress, validateSourceUrl, resolvePublicAddresses, resolvePublicHost, downloadSource } = require('../src/utils/safeHttp');
 const { link, config } = require('./fixtures');
 
 test('configuration validates public domains', () => {
@@ -36,6 +36,12 @@ test('SSRF: private/metadata/mapped addresses, unusual numeric IPs and mixed DNS
   assert.equal(isPublicAddress('8.8.8.8'), true);
   for (const url of ['http://2130706433', 'http://0x7f000001', 'file:///x', 'https://user:pass@example.com', 'http://[::ffff:127.0.0.1]']) assert.throws(() => validateSourceUrl(url));
   await assert.rejects(resolvePublicHost('dns.example.com', { lookup: async () => [{ address: '8.8.8.8', family: 4 }, { address: '127.0.0.1', family: 4 }] }), { code: 'blocked_address' });
+  await assert.rejects(resolvePublicAddresses('dns.example.com', { lookup: async () => [{ address: '::ffff:10.0.0.1', family: 6 }] }), { code: 'blocked_address' });
+  await assert.rejects(resolvePublicAddresses('dns.example.com', { lookup: async () => [], signal: new AbortController().signal }), { code: 'dns_error' });
+  const cancelled = new AbortController(); cancelled.abort(new Error('cancelled'));
+  await assert.rejects(resolvePublicAddresses('dns.example.com', { lookup: async () => new Promise(() => {}), signal: cancelled.signal }));
+  const addresses = await resolvePublicAddresses('dns.example.com', { lookup: async () => [{ address: '2001:4860:4860::8888', family: 6 }, { address: '8.8.8.8', family: 4 }] });
+  assert.deepEqual(addresses.map(entry => entry.address), ['8.8.8.8', '2001:4860:4860::8888']);
 });
 
 test('bounded HTTP loader, gzip, redirect protection, conditional headers and absolute timeout', async t => {

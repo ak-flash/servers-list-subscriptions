@@ -42,7 +42,7 @@ function loadSettings(config = {}) {
   const storedValues = new Map(settingRows.map(row => [row.key, Number(row.value)]));
   const proxy = parseStoredProxy(proxyRow);
   const mode = ['extra', 'only'].includes(modeRow?.value) ? modeRow.value : undefined;
-  const checkIntervalSeconds = checkIntervalRow ? parseSeconds(checkIntervalRow.value, config.checkIntervalMs / 1000, 30, 86400, 'Интервал VPN-проверки') : undefined;
+  const checkIntervalSeconds = checkIntervalRow ? parseSeconds(checkIntervalRow.value, config.checkIntervalMs / 1000, 300, 86400, 'Интервал VPN-проверки') : undefined;
   const defaults = {
     sourceTimeoutSeconds: config.sourceTimeoutMs === undefined ? undefined : config.sourceTimeoutMs / 1000,
     readyTimeoutSeconds: config.readyTimeoutMs === undefined ? undefined : config.readyTimeoutMs / 1000,
@@ -65,7 +65,7 @@ function saveSettings(values, config = {}) {
   const { proxyUrl, mode, checkIntervalSeconds } = values;
   const proxy = parseHttpProxy(proxyUrl || '');
   const proxyMode = ['extra', 'only'].includes(mode) ? mode : 'extra';
-  const checkSeconds = parseSeconds(checkIntervalSeconds ?? config.checkIntervalMs / 1000 ?? 300, 300, 30, 86400, 'Интервал VPN-проверки');
+  const checkSeconds = parseSeconds(checkIntervalSeconds ?? config.checkIntervalMs / 1000 ?? 300, 300, 300, 86400, 'Интервал VPN-проверки');
   const parsed = {};
   const defaults = {
     sourceTimeoutSeconds: config.sourceTimeoutMs / 1000,
@@ -77,6 +77,12 @@ function saveSettings(values, config = {}) {
   };
   for (const [property, , min, max, label] of EDITABLE_SETTINGS) parsed[property] = parseInteger(values[property] ?? defaults[property], min, max, label);
   if (!proxy && proxyMode === 'only') throw new Error('PROBE_HTTP_PROXY_MODE=only требует заданный PROBE_HTTP_PROXY');
+  // Validate the complete candidate before any durable write. Legacy explicit
+  // deadlines are retained as hard limits, not expanded to the estimated plan.
+  require('../utils/probeBudget').probeBudget({ ...config,
+    readyTimeoutMs: parsed.readyTimeoutSeconds * 1000,
+    attemptTimeoutMs: parsed.attemptTimeoutSeconds * 1000,
+    httpProxy: proxy, httpProxyMode: proxyMode });
   db.transaction(() => {
     db.run('INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', [KEY_PROXY, proxy ? JSON.stringify(proxy) : '']);
     db.run('INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', [KEY_MODE, proxyMode]);
@@ -99,6 +105,7 @@ function applySettingsToConfig(config) {
   const next = { ...config };
   if (stored.checkIntervalSeconds !== undefined) next.checkIntervalMs = stored.checkIntervalSeconds * 1000;
   next.healthyTtlMs = next.checkIntervalMs + HEALTHY_TTL_BUFFER_MS;
+  next.hardExpiryMs = next.healthyTtlMs * 2;
   for (const [property] of EDITABLE_SETTINGS) {
     if (stored[property] !== undefined) next[property] = stored[property];
   }
@@ -111,10 +118,8 @@ function applySettingsToConfig(config) {
   next.sourceTimeoutMs = next.sourceTimeoutSeconds * 1000;
   next.readyTimeoutMs = next.readyTimeoutSeconds * 1000;
   next.attemptTimeoutMs = next.attemptTimeoutSeconds * 1000;
-  // Keep an explicitly configured full-cycle deadline. Without one, budget every
-  // attempt on every fallback target, plus readiness, within the supported cap.
-  next.deadlineMs = config.deadlineMs ?? Math.min(180000, Math.max(5000,
-    next.readyTimeoutMs + next.attemptTimeoutMs * next.attempts * next.targets.length));
+  next.deadlineMs = require('../utils/probeBudget').probeBudget(next).deadlineMs;
+  next.deadlineMode = config.deadlineMode || (config.deadlineMs == null ? 'auto' : 'explicit');
   next.concurrency = next.probeConcurrency;
   next.profileVersion = probeProfileVersion(next);
   return snapshotProbeConfig(next);

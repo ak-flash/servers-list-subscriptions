@@ -14,6 +14,7 @@ const health = require('../src/services/subscriptionHealth');
 const { saveAssignments } = require('../src/services/subscriptionAssignments');
 const { resolveUserSubscription } = require('../src/services/subscriptionResolver');
 const { parseSubscription } = require('../src/utils/subscriptionParser');
+const { buildXrayConfig } = require('../src/utils/xrayConfigBuilder');
 const { config, link } = require('./fixtures');
 
 function attempt(success, latencyMs = 10, errorCode = 'probe_timeout') {
@@ -160,6 +161,20 @@ test('production config flows from a complete probe through stored health into t
   assert.equal(resolveUserSubscription('u', now + 2, settings).servers.length, 0);
 });
 
+test('target evaluation exposes duration without mixing target attempt counts', async () => {
+  const settings = snapshotProbeConfig(loadConfig({}));
+  const result = await evaluateTargets(settings, async () => ({ outcome: 'success', latencyMs: 5, httpStatus: 204 }));
+  assert.equal(result.attemptCount, settings.attempts);
+  assert.ok(result.durationMs >= 0);
+  assert.equal(result.attempts.length, settings.attempts);
+});
+
+test('checker keeps one absolute deadline across direct and extra proxy cycles', async t => {
+  const settings = snapshotProbeConfig({ ...loadConfig({}), deadlineMs: 20, readyTimeoutMs: 1, attemptTimeoutMs: 1,
+    httpProxy: { protocol: 'http', address: 'proxy.example.com', port: 3128, user: '', pass: '' }, httpProxyMode: 'extra' });
+  assert.equal(settings.deadlineMs, 20);
+});
+
 test('checker passes its immutable start config to binary verification and the additional proxy cycle', async t => {
   // Stub local process/HTTPS I/O, so this race needs neither Xray nor a network listener.
   t.mock.method(fs.promises, 'mkdir', async () => {});
@@ -196,11 +211,12 @@ test('checker passes its immutable start config to binary verification and the a
     return child;
   });
   t.mock.method(process, 'kill', pid => { children.find(child => child.pid === Math.abs(pid)).kill(); });
+  let failingChild = null;
   t.mock.method(https, 'get', (_url, _options, receive) => {
     const req = new EventEmitter();
     queueMicrotask(() => {
       const res = new EventEmitter();
-      res.statusCode = 204;
+      res.statusCode = children.at(-1) === failingChild ? 503 : 204;
       receive(res);
       res.emit('end');
     });
@@ -254,6 +270,76 @@ test('checker passes its immutable start config to binary verification and the a
   const chained = written.at(-1).config.outbounds.find(outbound => outbound.tag === 'probe-http-proxy');
   assert.deepEqual(chained.settings.servers[0].users, [{ user: 'old-user', pass: 'old-pass' }]);
   assert.equal(children[1].exitCode, 0);
+  assert.equal(proxyResult.checkedAddress, '8.8.8.8');
+
+  // Exercise the actual address loop: HTTPS fails for every target on the
+  // first child. The next process must be configured with the other IP.
+  const before = written.length;
+  const originalSpawn = childProcess.spawn;
+  t.mock.method(childProcess, 'spawn', (...args) => {
+    const child = originalSpawn(...args);
+    if (!failingChild) failingChild = child;
+    return child;
+  });
+  delete require.cache[checkerPath];
+  const { VpnChecker: AddressChecker } = require(checkerPath);
+  const addressChecker = new AddressChecker(config({ httpProxy: null }), {
+    resolveAddresses: async () => [{ address: '8.8.8.8', family: 4 }, { address: '1.1.1.1', family: 4 }]
+  });
+  addressChecker.verifyBinary = async () => {};
+  const switched = await addressChecker.check({ normalized_config_json: JSON.stringify(parsed.config) });
+  assert.equal(switched.status, 'healthy');
+  assert.equal(switched.checkedAddress, '1.1.1.1');
+  assert.equal(switched.attemptCount, 3);
+  const configs = written.slice(before).map(entry => JSON.stringify(entry.config.outbounds));
+  assert.equal(configs.length, 2);
+  assert.ok(configs[0].includes('8.8.8.8'));
+  assert.ok(!configs[0].includes('1.1.1.1'));
+  assert.ok(configs[1].includes('1.1.1.1'));
+  assert.ok(children.every(child => child.exitCode === 0));
+  assert.equal(addressChecker.active.size, 0);
+});
+
+test('address matrix preserves outbound provenance for no-proxy, only and extra', () => {
+  const parsed = parseSubscription(link('node.example.com')).nodes[0].config;
+  const credentials = { user: 'u', password: 'p' };
+  const proxy = { protocol: 'http', address: 'proxy.example.com', port: 3128, user: '', pass: '' };
+  for (const [mode, chained] of [['none', null], ['only', proxy], ['extra', null]]) {
+    const config = buildXrayConfig(parsed, '203.0.113.10', 12345, credentials, null, chained);
+    assert.equal(config.outbounds[0].settings.vnext[0].address, '203.0.113.10');
+    assert.equal(config.routing.rules[0].outboundTag, 'probe-vpn');
+    if (mode === 'only') assert.equal(config.outbounds[0].streamSettings.sockopt.dialerProxy, 'probe-http-proxy');
+    if (mode !== 'only') assert.equal(config.outbounds[0].streamSettings.sockopt, undefined);
+  }
+});
+
+test('verification failure invalidates cache and recovery restores runner status', async () => {
+  const checker = new VpnChecker(config({ xrayPath: '/missing/xray' }));
+  await assert.rejects(checker.verifyBinary(), { code: 'xray_missing' });
+  assert.equal(checker.verified, null);
+  assert.equal(checker.status.available, false);
+  checker.config.xrayPath = process.execPath;
+  checker.config.xrayVersion = process.version.replace(/^v/, '').split('.').slice(0, 3).join('.');
+  checker.config.xraySha256 = '';
+  checker.config.tempDir = '/tmp/opencode';
+  checker.config = { ...checker.config, xrayPath: '/tmp/opencode/xray-26.10.21/xray', xrayVersion: '26.10.21' };
+  await checker.verifyBinary();
+  assert.equal(checker.status.available, true);
+});
+
+test('diagnostic hook receives redacted bounded startup output', async () => {
+  let observed = '';
+  const checker = new VpnChecker(config(), { diagnostic: text => { observed += text; } });
+  const child = { startupOutput: 'uuid=00000000-0000-4000-8000-000000000000 password=secret ' + 'x'.repeat(1000) };
+  const detail = require('../src/services/vpnChecker').__testStartupDetail;
+  if (detail) {
+    const safe = detail(child.startupOutput);
+    assert.ok(safe.length <= 240);
+    assert.ok(!safe.includes('secret'));
+    assert.ok(!safe.includes('00000000-0000-4000-8000-000000000000'));
+    assert.ok(!detail(child.startupOutput + ' vmess://secret-payload config={"password":"secret"}'));
+  }
+  assert.equal(checker.active.size, 0);
 });
 
 test('checker abort keeps cancellation semantics and removes its active run', async () => {

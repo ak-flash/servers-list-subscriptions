@@ -3,7 +3,7 @@ const statusKeys = {
   offline: 'status.offline', degraded: 'status.degraded',
   test_failed: 'status.test_failed', stale: 'status.stale', unsupported: 'status.unsupported', invalid: 'status.invalid',
   disabled: 'status.disabled', source_disabled: 'status.source_disabled', removed: 'status.removed', latency: 'status.latency',
-  duplicate: 'status.duplicate', queued: 'status.queued', running: 'status.running', completed: 'status.completed',
+  duplicate: 'status.duplicate', selected: 'status.selected', queued: 'status.queued', running: 'status.running', completed: 'status.completed',
   failed: 'status.failed', interrupted: 'status.interrupted', pending: 'status.pending', success: 'status.success',
   partial: 'status.partial', error: 'status.error'
 };

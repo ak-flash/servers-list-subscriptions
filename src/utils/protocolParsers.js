@@ -73,6 +73,10 @@ function vlessCapability(config) {
     if (!download || typeof download !== 'object' || Array.isArray(download) || typeof download.address !== 'string' || !Number.isInteger(Number(download.port)) || Number(download.port) < 1 || Number(download.port) > 65535 || !['xhttp', 'splithttp'].includes(download.network)) {
       return invalid('Некорректные XHTTP downloadSettings.');
     }
+    // The checker pins only the primary endpoint. Do not pass an additional
+    // source-controlled dial target to Xray until it has its own resolver and
+    // SSRF/public-address pinning path.
+    return unsupported('XHTTP downloadSettings address не поддерживается без отдельной SSRF-проверки.');
   }
   if (config.security === 'reality') {
     if (!config.reality || !isBase64UrlKey(config.reality.publicKey, 32)) return invalid('Для Reality требуется корректный публичный ключ pbk: 32 байта в Base64URL без padding.');

@@ -17,16 +17,21 @@ function decodeBase64Strict(text) {
 
 function parseSubscriptionNode(rawLink) {
   try {
+    if (typeof rawLink !== 'string' || rawLink.length > 16384 || /[\u0000-\u001f\u007f]/u.test(rawLink)) throw new SubscriptionError('invalid_link');
     const isVless = /^vless:\/\//i.test(rawLink);
     const isHysteria2 = /^hysteria2:\/\//i.test(rawLink);
     const isVmess = /^vmess:\/\//i.test(rawLink);
     const isTrojan = /^trojan:\/\//i.test(rawLink);
-    if (!isVless && !isHysteria2 && !isVmess && !isTrojan) throw new SubscriptionError('unsupported');
+    if (!isVless && !isHysteria2 && !isVmess && !isTrojan) {
+      if (!/^[a-z][a-z\d+.-]*:\/\/[^\s]+$/i.test(rawLink)) throw new SubscriptionError('invalid_link');
+      throw new SubscriptionError('unsupported');
+    }
     const parsed = isVless ? parseVless(rawLink) : isHysteria2 ? parseHysteria2(rawLink) : isVmess ? parseVmess(rawLink) : parseTrojan(rawLink);
     if (!parsed.config) return { ...parsed, rawLink, protocol: isVmess ? 'vmess' : parsed.protocol, host: null, port: null };
     return { ...parsed, rawLink, protocol: parsed.config.protocol, host: parsed.config.host, port: parsed.config.port };
   } catch (error) {
-    const unsupported = error.code === 'unsupported';
+    const hasUriScheme = /^[a-z][a-z\d+.-]*:\/\//i.test(rawLink);
+    const unsupported = error.code === 'unsupported' && hasUriScheme;
     return {
       rawLink: rawLink.slice(0, 16384), config: null, fingerprint: fingerprint({ raw: rawLink }),
       name: unsupported ? 'Неподдерживаемая ссылка' : 'Некорректная ссылка',
@@ -52,6 +57,9 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   if (!/(?:^|\n)\s*[a-z][a-z\d+.-]*:\/\//i.test(text)) {
     if (/^[<{\[]/.test(text) || text.includes(':')) throw new SubscriptionError('unsupported_format');
     text = decodeBase64Strict(text).replace(/^\uFEFF/, '').trim();
+    // Providers may encode URI records separated by spaces inside Base64.
+    // Split only before a new known scheme; preserve spaces in names/payloads.
+    text = text.replace(/\s+(?=(?:vless|vmess|trojan|hysteria2):\/\/)/gi, '\n');
     format = 'base64';
   }
   if (/^\s*</.test(text)) throw new SubscriptionError('unsupported_format');
@@ -59,20 +67,24 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   if (!lines.length) throw new SubscriptionError('empty_source');
   if (lines.length > maxNodes) throw new SubscriptionError('too_many_nodes');
   const nodes = new Map();
-  const report = { format, total: lines.length, duplicates: 0, supported: 0, unsupported: 0, invalid: 0 };
+  const report = { format, total: lines.length, duplicates: 0, supported: 0, unsupported: 0, invalid: 0, unparseable: 0 };
   let parsedNodes = 0;
   for (const rawLink of lines) {
     const node = parseSubscriptionNode(rawLink);
     if (node.config) parsedNodes++;
-    report[node.capability === 'supported' ? 'supported' : node.capability]++;
+    const reportKey = node.capability === 'supported' ? 'supported' : node.capability;
+    report[reportKey]++;
+    if (node.capability === 'invalid') report.unparseable++;
     if (nodes.has(node.fingerprint)) report.duplicates++;
     else nodes.set(node.fingerprint, node);
   }
-  if (!parsedNodes) throw new SubscriptionError('unsupported_format');
-  // Structurally parsed but unsupported VLESS remains part of a complete snapshot.
-  // Unparseable lines could hide an existing node, so a partial snapshot must not remove anything.
-  const complete = !report.invalid && ![...nodes.values()].some(node => !node.config);
-  return { nodes: [...nodes.values()], report, complete, maxNodes };
+  // A document containing only structurally valid unsupported links is still a
+  // usable catalog snapshot: those nodes are retained for identity but are not
+  // eligible for probing or delivery. Only invalid records make the snapshot
+  // partial. Empty/HTML/undecodable documents are rejected above.
+  if (!parsedNodes && report.invalid > 0) throw new SubscriptionError('unsupported_format');
+  const complete = !report.invalid;
+  return { nodes: [...nodes.values()], report, complete, parseComplete: complete, acceptance: complete ? 'accepted' : 'partial', maxNodes };
 }
 
 module.exports = { parseSubscription, parseSubscriptionNode, decodeBase64Strict };

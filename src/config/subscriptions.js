@@ -25,6 +25,14 @@ function snapshotProbeConfig(config) {
   });
 }
 
+function deadlineMode(env, key = 'PROBE_DEADLINE_SECONDS') {
+  const raw = env[key];
+  if (raw === undefined) return { mode: 'explicit', seconds: 90 };
+  if (raw === '') return { mode: 'auto', seconds: null };
+  if (String(raw).toLowerCase() === 'auto') return { mode: 'auto', seconds: null };
+  return { mode: 'explicit', seconds: integer(env, key, 5, 5, 180) };
+}
+
 function integer(env, key, fallback, min, max) {
   const raw = env[key];
   if (raw === undefined || raw === '') return fallback;
@@ -73,6 +81,7 @@ function loadConfig(env = process.env) {
     const url = new URL(target.url);
     if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error('PROBE_*_URL: требуется HTTPS URL без credentials/fragment');
   }
+  const deadline = deadlineMode(env);
   const config = {
     publicDomain,
     httpProxy: parseHttpProxy(env.PROBE_HTTP_PROXY),
@@ -83,14 +92,23 @@ function loadConfig(env = process.env) {
     probeLocation: env.PROBE_LOCATION || 'subscription-host',
     targets,
     syncIntervalMs: integer(env, 'SOURCE_SYNC_INTERVAL_SECONDS', 1800, 60, 604800) * 1000,
-    checkIntervalMs: integer(env, 'PROBE_INTERVAL_SECONDS', 300, 30, 86400) * 1000,
+    // Checks are intentionally not allowed more often than every 5 minutes:
+    // this leaves the queue time to drain and prevents probing storms.
+    checkIntervalMs: integer(env, 'PROBE_INTERVAL_SECONDS', 300, 300, 86400) * 1000,
     healthyTtlMs: 0,
+    hardExpiryMs: 0,
     sourceTimeoutMs: integer(env, 'SOURCE_TIMEOUT_SECONDS', 15, 1, 120) * 1000,
     maxSourceBytes: integer(env, 'SOURCE_MAX_BYTES', 5 * 1024 * 1024, 1024, 20 * 1024 * 1024),
     maxNodes: integer(env, 'SOURCE_MAX_NODES', 1000, 1, 10000),
-    readyTimeoutMs: integer(env, 'PROBE_READY_TIMEOUT_SECONDS', 5, 1, 30) * 1000,
-    attemptTimeoutMs: integer(env, 'PROBE_ATTEMPT_TIMEOUT_SECONDS', 5, 1, 30) * 1000,
-    deadlineMs: integer(env, 'PROBE_DEADLINE_SECONDS', 40, 5, 180) * 1000,
+    sourceMinRetainRatio: env.SOURCE_MIN_RETAIN_RATIO === undefined || env.SOURCE_MIN_RETAIN_RATIO === '' ? 0 : Number(env.SOURCE_MIN_RETAIN_RATIO),
+    sourceMinRetainNodes: integer(env, 'SOURCE_MIN_RETAIN_NODES', 20, 1, 10000),
+    sourceConfirmationIntervalMs: integer(env, 'SOURCE_CONFIRMATION_INTERVAL_SECONDS', 60, 1, 86400) * 1000,
+    sourceConfirmations: integer(env, 'SOURCE_CONFIRMATIONS', 2, 1, 10),
+    // Defaults are sized for a three-attempt, two-target cycle with margin.
+    readyTimeoutMs: integer(env, 'PROBE_READY_TIMEOUT_SECONDS', 10, 1, 30) * 1000,
+    attemptTimeoutMs: integer(env, 'PROBE_ATTEMPT_TIMEOUT_SECONDS', 10, 1, 30) * 1000,
+    deadlineMs: deadline.seconds === null ? null : deadline.seconds * 1000,
+    deadlineMode: deadline.mode,
     concurrency: integer(env, 'PROBE_CONCURRENCY', 4, 1, 64),
     syncConcurrency: integer(env, 'SOURCE_SYNC_CONCURRENCY', 2, 1, 8),
     maxQueued: integer(env, 'PROBE_MAX_QUEUED', 2000, 1, 20000),
@@ -102,14 +120,17 @@ function loadConfig(env = process.env) {
   };
   const proxyMode = env.PROBE_HTTP_PROXY_MODE === undefined || env.PROBE_HTTP_PROXY_MODE === '' ? 'extra' : env.PROBE_HTTP_PROXY_MODE;
   if (!['extra', 'only'].includes(proxyMode)) throw new Error('PROBE_HTTP_PROXY_MODE: допустимо extra или only');
+  if (!Number.isFinite(config.sourceMinRetainRatio) || config.sourceMinRetainRatio < 0 || config.sourceMinRetainRatio > 1) throw new Error('SOURCE_MIN_RETAIN_RATIO: допустимо 0–1');
   if (!config.httpProxy && proxyMode === 'only') throw new Error('PROBE_HTTP_PROXY_MODE=only требует заданный PROBE_HTTP_PROXY');
   config.httpProxyMode = proxyMode;
   if (!path.isAbsolute(config.xrayPath)) throw new Error('XRAY_PATH должен быть абсолютным путём');
   if (!/^\d+\.\d+\.\d+$/.test(config.xrayVersion)) throw new Error('XRAY_VERSION: ожидается версия вида 26.3.27');
   if (config.xraySha256 && !/^[a-f\d]{64}$/i.test(config.xraySha256)) throw new Error('XRAY_SHA256: ожидается SHA-256 бинарника');
   config.healthyTtlMs = config.checkIntervalMs + 900000;
+  config.hardExpiryMs = config.healthyTtlMs * 2;
+  config.deadlineMs = require('../utils/probeBudget').probeBudget(config).deadlineMs;
   config.profileVersion = probeProfileVersion(config);
   return snapshotProbeConfig(config);
 }
 
-module.exports = { loadConfig, integer, parseHttpProxy, probeProfileVersion, snapshotProbeConfig, PROBE_POLICY_VERSION };
+module.exports = { loadConfig, integer, deadlineMode, parseHttpProxy, probeProfileVersion, snapshotProbeConfig, PROBE_POLICY_VERSION };

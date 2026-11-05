@@ -27,7 +27,7 @@ test('resolver: with an extra HTTP proxy, only fresh proxy-healthy nodes come fi
   for (const node of health.getNodes(source.id)) {
     health.markStarted(node, node.id, now - 200);
     health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
-      latencyMs: directLatency[node.host], checkedAddress: node.host, httpStatus: 204, attempts: [], proxy: proxy[node.host] }, settings, null, now - 100);
+      latencyMs: directLatency[node.host], checkedAddress: node.host, httpStatus: 204, attempts: [], proxy: { ...proxy[node.host], checkedAddress: node.host } }, settings, null, now - 100);
   }
   db.run("UPDATE subscription_node_health SET proxy_checked_at = ? WHERE node_id = (SELECT id FROM subscription_nodes WHERE host = 'd.example.com')", [now - settings.healthyTtlMs - 1]);
   saveAssignments('u', { sources: [source.id] });
@@ -35,6 +35,7 @@ test('resolver: with an extra HTTP proxy, only fresh proxy-healthy nodes come fi
   assert.deepEqual(result.servers.map(server => server.host), ['b.example.com', 'a.example.com', 'c.example.com', 'd.example.com']);
   assert.equal(result.sources[0].excluded.stale, undefined);
   assert.equal(result.sources[0].excluded.proxy_unavailable, undefined);
+  assert.equal(result.sources[0].resolved_at, now);
 });
 
 test('resolver: deduplicates subscription nodes by checked IP, not hostname', async t => {
@@ -56,6 +57,76 @@ test('resolver: deduplicates subscription nodes by checked IP, not hostname', as
   assert.deepEqual(result.servers.map(server => server.host), ['one.example.com', 'three.example.com']);
   assert.equal(result.sources[0].excluded.duplicate, 1);
 });
+
+test('resolver reports per-node selection reasons without exposing credentials', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config();
+  const now = Date.now();
+  db.run("INSERT INTO users (id, username) VALUES ('u', 'User')");
+  const source = sources.createSource({ name: 'Reasons', url: 'https://reasons.example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription([link('fast.example.com'), link('slow.example.com'), link('dup-a.example.com'), link('dup-b.example.com')].join('\n')));
+  const latency = { 'fast.example.com': 50, 'slow.example.com': 900, 'dup-a.example.com': 60, 'dup-b.example.com': 70 };
+  for (const node of health.getNodes(source.id)) {
+    health.markStarted(node, node.id, now - 200);
+    health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
+      latencyMs: latency[node.host], checkedAddress: node.host.endsWith('dup-a.example.com') || node.host.endsWith('dup-b.example.com') ? '203.0.113.9' : node.host,
+      httpStatus: 204, attempts: [] }, settings, null, now - 100);
+  }
+  saveAssignments('u', { sources: [source.id], source_limits: { [source.id]: '1' }, max_latency: { [source.id]: '500' } });
+  const result = resolveUserSubscription('u', now, settings);
+  const report = result.sources[0];
+  assert.deepEqual(result.servers.map(server => server.host), ['fast.example.com']);
+  const reasons = Object.fromEntries(report.nodes.map(node => [node.host, node.reason]));
+  assert.equal(reasons['fast.example.com'], 'selected');
+  assert.equal(reasons['slow.example.com'], 'latency');
+  assert.equal(reasons['dup-a.example.com'], 'quota');
+  assert.equal(reasons['dup-b.example.com'], 'duplicate');
+  assert.ok(report.nodes.every(node => !('raw_link' in node) && !('normalized_config_json' in node)));
+  assert.ok(!JSON.stringify(subscriptionPreview(result)).includes(UUID));
+});
+
+test('resolver returns no source nodes after hard expiry while preserving diagnostics', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config({ healthyTtlMs: 1000, hardExpiryMs: 2000 });
+  const now = 10000;
+  db.run("INSERT INTO users (id, username) VALUES ('expired', 'Expired')");
+  const source = sources.createSource({ name: 'Expired', url: 'https://expired.example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription(link('expired.example.com')));
+  const node = health.getNodes(source.id)[0];
+  health.markStarted(node, node.id, now - 3000);
+  health.recordResult(node, node.id, { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0,
+    latencyMs: 10, checkedAddress: '198.51.100.9', httpStatus: 204, attempts: [] }, settings, null, now - 2500);
+  saveAssignments('expired', { sources: [source.id], source_limits: { [source.id]: '1' } });
+  const result = resolveUserSubscription('expired', now, settings);
+  assert.equal(result.servers.filter(server => server.origin === 'source').length, 0);
+  assert.equal(result.sources[0].excluded.hard_expired, 1);
+});
+
+test('resolver fresh candidates from later source beat stale candidates from earlier source without reserving IP', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config({ healthyTtlMs: 1000 });
+  const now = 10000;
+  db.run("INSERT INTO users (id, username) VALUES ('slo', 'SLO')");
+  const early = sources.createSource({ name: 'Early', url: 'https://early.example.com', is_active: true }, settings);
+  const late = sources.createSource({ name: 'Late', url: 'https://late.example.com', is_active: true }, settings);
+  sources.applySnapshot(early, parseSubscription(link('shared.example.com')));
+  sources.applySnapshot(late, parseSubscription([link('shared.example.com'), link('fresh.example.com')].join('\\n')));
+  for (const [source, checkedAt] of [[early, now - 2000], [late, now - 100]]) {
+    for (const node of health.getNodes(source.id)) {
+      health.markStarted(node, node.id, checkedAt - 1);
+      health.recordResult(node, node.id, { ...successful, checkedAddress: node.host }, settings, null, checkedAt);
+    }
+  }
+  saveAssignments('slo', { sources: [early.id, late.id], source_limits: { [early.id]: '1', [late.id]: '1' }, priorities: { [early.id]: '0', [late.id]: '1' } });
+  const result = resolveUserSubscription('slo', now, settings);
+  assert.deepEqual(result.servers.filter(server => server.origin === 'source').map(server => server.host), ['shared.example.com']);
+  assert.equal(result.sources[0].excluded.stale, 1);
+});
+
+const successful = { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0, latencyMs: 20, httpStatus: 204, attempts: [] };
 
 test('resolver: original credentials, manual overrides, dedupe/refill, priority, freshness and user isolation', async t => {
   await db.initDb({ filePath: ':memory:' });

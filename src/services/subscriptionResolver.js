@@ -17,17 +17,23 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     JOIN subscription_sources s ON s.id = us.source_id WHERE us.user_id = ? ORDER BY us.priority, us.source_id`, [userId]);
   const diagnostics = [];
   for (const binding of bindings) {
-    const report = { source_id: binding.source_id, name: binding.name, requested: binding.node_limit, available: 0, selected: [], excluded: {} };
+    const report = { source_id: binding.source_id, name: binding.name, requested: binding.node_limit, available: 0, selected: [], excluded: {}, nodes: [], resolved_at: now };
     const exclude = reason => { report.excluded[reason] = (report.excluded[reason] || 0) + 1; };
+    const noteNode = (node, reason) => report.nodes.push({
+      id: node.id, name: node.name, host: node.host, port: node.port, latency_ms: node.latency_ms ?? null,
+      reason, selected: reason === 'selected'
+    });
     if (!binding.is_active || !binding.source_active) {
       exclude('source_disabled');
+      for (const node of health.getNodes(binding.source_id)) noteNode(node, 'source_disabled');
       diagnostics.push(report);
       continue;
     }
     const candidates = health.getNodes(binding.source_id).filter(node => {
-      const state = health.eligibility(node, config, now);
-      if (state !== 'healthy') { exclude(state); return false; }
-      if (binding.max_latency_ms && node.latency_ms > binding.max_latency_ms) { exclude('latency'); return false; }
+      const state = health.deliveryState(node, config, now);
+      if (state !== 'fresh') { exclude(state); noteNode(node, state); return false; }
+      // The user limit applies to the stored main measurement: direct, or the proxy path in "only" mode.
+      if (binding.max_latency_ms && node.latency_ms > binding.max_latency_ms) { exclude('latency'); noteNode(node, 'latency'); return false; }
       return true;
     });
     const pool = health.rankNodes(candidates, config, now);
@@ -39,14 +45,15 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
         last_checked_at: node.last_checked_at, checked_address: node.checked_address, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
         proxy_status: node.proxy_status, proxy_latency_ms: node.proxy_latency_ms, proxy_checked_at: node.proxy_checked_at };
       const key = health.checkedAddressKey(node);
-      if (!key) { exclude('unknown_address'); continue; }
-      if (seenSubscriptionIps.has(key) || sourceIps.has(key)) { exclude('duplicate'); continue; }
+      if (!key) { exclude('unknown_address'); noteNode(node, 'unknown_address'); continue; }
+      if (seenSubscriptionIps.has(key) || sourceIps.has(key)) { exclude('duplicate'); noteNode(node, 'duplicate'); continue; }
       sourceIps.add(key);
       report.available++;
       const limit = binding.node_limit;
-      if (Number.isFinite(limit) && limit > 0 && selectedCount.used >= limit) { exclude('quota'); continue; }
+      if (Number.isFinite(limit) && limit > 0 && selectedCount.used >= limit) { exclude('quota'); noteNode(node, 'quota'); continue; }
       seenSubscriptionIps.add(key);
       selectedCount.used++;
+      noteNode(node, 'selected');
       servers.push(server);
       report.selected.push({ id: node.id, name: node.name, host: node.host, port: node.port, latency_ms: node.latency_ms,
         test_target_id: node.test_target_id, last_checked_at: node.last_checked_at });

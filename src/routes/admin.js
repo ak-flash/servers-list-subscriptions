@@ -12,7 +12,7 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
   });
 
   function proxyStats(config, now = Date.now()) {
-    const nodes = dbAll(`SELECT h.proxy_status, h.proxy_latency_ms, h.proxy_checked_at, n.is_present, n.is_enabled
+    const nodes = dbAll(`SELECT h.proxy_status, h.proxy_latency_ms, h.proxy_checked_at, h.proxy_checked_address, h.checked_address, h.probe_profile_version, n.is_present, n.is_enabled
       FROM subscription_nodes n JOIN subscription_node_health h ON h.node_id = n.id
       WHERE n.is_present = 1 AND n.is_enabled = 1 AND n.capability_status = 'supported'`);
     const configured = !!(config.httpProxy && config.httpProxyMode === 'extra');
@@ -21,14 +21,17 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
     for (const node of nodes) {
       if (!node.proxy_checked_at) unchecked++;
       else if (now - node.proxy_checked_at >= config.healthyTtlMs) stale++;
+      else if (node.probe_profile_version !== config.profileVersion || node.proxy_checked_address !== node.checked_address) stale++;
       else if (node.proxy_status === 'healthy') healthy++;
       else failed++;
     }
-    return { configured, total: nodes.length, healthy, failed, unchecked, stale };
+    return { configured, total: nodes.length, healthy, failed, unchecked, stale,
+      currentProfile: config.profileVersion, eligible: healthy };
   }
 
   router.get('/admin/settings', requireAuth, (req, res) => {
       const config = scheduler.config;
+      const budget = require('../utils/probeBudget').probeBudget(config);
       const settings = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode, config);
       const { proxy, mode } = settings;
       res.render('settings', {
@@ -40,16 +43,28 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
         probeConcurrency: settings.probeConcurrency ?? config.concurrency,
         syncConcurrency: settings.syncConcurrency ?? config.syncConcurrency,
         maxQueued: settings.maxQueued ?? config.maxQueued,
-        runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
+        probeBudget: budget,
+         deadlineMode: config.deadlineMode,
+         runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
         error: null, success: req.query.saved === '1', recheckJobs: null
       });
   });
 
   router.post('/admin/settings', requireAuth, requireCsrf, (req, res) => {
+    const previousState = dbAll('SELECT key, value FROM app_state');
     try {
-      const { proxyUrl, proxyMode, checkIntervalSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued } = req.body;
-      proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds, sourceTimeoutSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued }, scheduler.config);
-      refreshProxyConfig();
+      const { proxyUrl, proxyMode, checkIntervalSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, sourceTimeoutSeconds,
+        probeConcurrency, syncConcurrency, maxQueued } = req.body;
+      const candidate = proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds,
+        readyTimeoutSeconds, attemptTimeoutSeconds, sourceTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued }, scheduler.config);
+      // Refresh before reporting success; candidate validation already happened before durable writes.
+      try {
+        refreshProxyConfig(candidate);
+      } catch (refreshError) {
+        for (const row of previousState) dbRun('DELETE FROM app_state WHERE key = ?', [row.key]);
+        for (const row of previousState) dbRun('INSERT INTO app_state (key, value) VALUES (?, ?)', [row.key, row.value]);
+        throw refreshError;
+      }
       res.redirect('/admin/settings?saved=1');
     } catch (error) {
       const config = scheduler.config;
@@ -58,14 +73,16 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
       res.render('settings', {
         ...settings, appName, proxy, proxyMode: mode, proxyUrl: req.body.proxyUrl || '',
         checkIntervalSeconds: req.body.checkIntervalSeconds || config.checkIntervalMs / 1000,
-        sourceTimeoutSeconds: req.body.sourceTimeoutSeconds || config.sourceTimeoutMs / 1000,
-        readyTimeoutSeconds: req.body.readyTimeoutSeconds || config.readyTimeoutMs / 1000,
-        attemptTimeoutSeconds: req.body.attemptTimeoutSeconds || config.attemptTimeoutMs / 1000,
-        deadlineSeconds: req.body.deadlineSeconds || config.deadlineMs / 1000,
-        probeConcurrency: req.body.probeConcurrency || config.concurrency,
-        syncConcurrency: req.body.syncConcurrency || config.syncConcurrency,
-        maxQueued: req.body.maxQueued || config.maxQueued,
-        runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
+        sourceTimeoutSeconds: config.sourceTimeoutMs / 1000,
+        readyTimeoutSeconds: config.readyTimeoutMs / 1000,
+        attemptTimeoutSeconds: config.attemptTimeoutMs / 1000,
+        deadlineSeconds: config.deadlineMs / 1000,
+        probeConcurrency: config.concurrency,
+        syncConcurrency: config.syncConcurrency,
+        maxQueued: config.maxQueued,
+        probeBudget: budget,
+         deadlineMode: config.deadlineMode,
+         runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
         error: error.message, success: false, recheckJobs: null
       });
     }
@@ -74,6 +91,7 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
   router.post('/admin/settings/recheck', requireAuth, requireCsrf, (req, res) => {
     const jobs = scheduler.enqueueAllChecks({ reason: 'manual_recheck' });
     const config = scheduler.config;
+    const budget = require('../utils/probeBudget').probeBudget(config);
     const settings = proxySettings.effectiveHttpProxy(config.httpProxy, config.httpProxyMode, config);
     const { proxy, mode } = settings;
     res.render('settings', {
@@ -86,7 +104,9 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
       probeConcurrency: settings.probeConcurrency ?? config.concurrency,
       syncConcurrency: settings.syncConcurrency ?? config.syncConcurrency,
       maxQueued: settings.maxQueued ?? config.maxQueued,
-      runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
+      probeBudget: budget,
+         deadlineMode: config.deadlineMode,
+         runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
       error: null, success: false, recheckJobs: jobs.length
     });
   });

@@ -9,7 +9,7 @@ const { performance } = require('perf_hooks');
 const { setTimeout: delay } = require('timers/promises');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 const { buildXrayConfig } = require('../utils/xrayConfigBuilder');
-const { resolvePublicHost, abortable } = require('../utils/safeHttp');
+const { resolvePublicAddresses, resolvePublicHost, abortable } = require('../utils/safeHttp');
 const { SubscriptionError, safeError, messages } = require('../utils/subscriptionErrors');
 const { snapshotProbeConfig } = require('../config/subscriptions');
 
@@ -78,12 +78,21 @@ function median(values) {
 }
 
 function startupDetail(output) {
-  const detail = String(output || '').replace(/vless:\/\/\S+/gi, 'vless://[redacted]').replace(/\s+/g, ' ').trim();
+  // Redact before truncation and cover URI credentials plus common Xray
+  // credential-bearing fields. Startup diagnostics must remain bounded and
+  // must never echo raw proxy/node secrets.
+  let detail = String(output || '')
+    .replace(/(?:vless|vmess|trojan|hysteria2|ss):\/\/\S+/gi, '[redacted-uri]')
+    .replace(/(config|settings|payload|stream|json)\s*[:=]\s*[^\s]+/gi, '$1=[redacted]')
+    .replace(/(password|pass|secret|uuid|id|token|authorization|proxy-authorization)\s*[:=]\s*[^,;\s}]+/gi, '$1=[redacted]')
+    .replace(/\b(?:[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})\b/gi, '[redacted-uuid]')
+    .replace(/\s+/g, ' ').trim();
   return detail ? detail.slice(-240) : null;
 }
 
 async function evaluateTargets(config, request, signal) {
   const attempts = [];
+  const started = performance.now();
   const targets = [];
   for (const target of config.targets) {
     const results = [];
@@ -105,7 +114,7 @@ async function evaluateTargets(config, request, signal) {
   const last = selected.successes.at(-1) || selected.results.at(-1);
   const failure = status === 'healthy' ? null : selected.results.find(result => result.outcome !== 'success');
   return {
-    status, attempts, targetId: selected.target.id, targetPriority: selected.target.priority,
+    status, attempts, targetId: selected.target.id, durationMs: performance.now() - started, targetPriority: selected.target.priority,
     successCount, attemptCount: selected.results.length,
     latencyMs: successCount ? median(selected.successes.map(result => result.latencyMs)) : null,
     httpStatus: last.httpStatus ?? null, errorCode: failure?.errorCode || null,
@@ -114,9 +123,10 @@ async function evaluateTargets(config, request, signal) {
 }
 
 async function requestThroughHttpProxy(target, proxy, timeoutMs, signal, ca) {
+  signal?.throwIfAborted?.();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), timeoutMs);
-  const combined = AbortSignal.any([signal, controller.signal]);
+  const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   const targetUrl = new URL(target.url);
   const auth = proxy.user ? `Basic ${Buffer.from(`${proxy.user}:${proxy.pass}`).toString('base64')}` : null;
   const connectOptions = {
@@ -126,13 +136,29 @@ async function requestThroughHttpProxy(target, proxy, timeoutMs, signal, ca) {
   if (auth) connectOptions.headers['proxy-authorization'] = auth;
   const started = performance.now();
   return new Promise(resolve => {
+    let settled = false;
+    let socket = null;
+    let secure = null;
+    let httpReq = null;
+    const finish = result => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const cleanup = () => {
+      for (const resource of [httpReq, secure, socket, req]) {
+        try { resource?.destroy?.(); } catch {}
+      }
+    };
     const module = proxy.protocol === 'https' ? https : require('http');
     const req = module.request(connectOptions);
-    req.once('connect', (res, socket) => {
-      if (res.statusCode !== 200) { socket.destroy(); return resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: res.statusCode, errorCode: 'unexpected_http_status' }); }
+    req.once('connect', (res, connectedSocket) => {
+      socket = connectedSocket;
+      if (res.statusCode !== 200) { cleanup(); return finish({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: res.statusCode, errorCode: 'unexpected_http_status' }); }
       const tls = require('tls');
-      const secure = tls.connect({ socket, servername: targetUrl.hostname, ca, rejectUnauthorized: true }, () => {
-        const httpReq = https.get({ host: targetUrl.hostname, path: targetUrl.pathname + targetUrl.search, port: 443, createConnection: () => secure, agent: false, headers: { 'cache-control': 'no-cache, no-store', connection: 'close' } }, response => {
+      secure = tls.connect({ socket, servername: targetUrl.hostname, ca, rejectUnauthorized: true }, () => {
+        httpReq = https.get({ host: targetUrl.hostname, path: targetUrl.pathname + targetUrl.search, port: 443, createConnection: () => secure, agent: false, headers: { 'cache-control': 'no-cache, no-store', connection: 'close' } }, response => {
           let size = 0;
           const chunks = [];
           response.on('data', chunk => { size += chunk.length; if (size > 4096) httpReq.destroy(new SubscriptionError('unexpected_body')); else chunks.push(chunk); });
@@ -140,18 +166,22 @@ async function requestThroughHttpProxy(target, proxy, timeoutMs, signal, ca) {
             const body = Buffer.concat(chunks).toString('utf8');
             const correctStatus = response.statusCode === target.status;
             const correctBody = target.body === undefined ? (target.status !== 204 || size === 0) : body === target.body;
-            resolve({ outcome: correctStatus && correctBody ? 'success' : 'failure', latencyMs: performance.now() - started, httpStatus: response.statusCode,
+            finish({ outcome: correctStatus && correctBody ? 'success' : 'failure', latencyMs: performance.now() - started, httpStatus: response.statusCode,
               errorCode: !correctStatus ? 'unexpected_http_status' : !correctBody ? 'unexpected_body' : null });
           });
         });
-        httpReq.once('error', () => resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'connection_error' }));
+        httpReq.once('error', () => finish({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'connection_error' }));
       });
-      secure.once('error', () => resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'tls_error' }));
+      secure.once('error', () => finish({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'tls_error' }));
     });
-    req.once('error', () => resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'connection_error' }));
-    req.once('timeout', () => { req.destroy(); resolve({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'probe_timeout' }); });
+    req.once('error', () => finish({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'connection_error' }));
+    req.once('timeout', () => { cleanup(); finish({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode: 'probe_timeout' }); });
     req.end();
-    combined.addEventListener('abort', () => { req.destroy(); clearTimeout(timer); }, { once: true });
+    combined.addEventListener('abort', () => {
+      cleanup();
+      const errorCode = signal?.aborted ? 'cancelled' : 'probe_timeout';
+      finish({ outcome: 'failure', latencyMs: performance.now() - started, httpStatus: null, errorCode });
+    }, { once: true });
   }).finally(() => clearTimeout(timer));
 }
 
@@ -203,6 +233,9 @@ class VpnChecker {
   constructor(config, dependencies = {}) {
     this.config = config;
     this.resolveHost = dependencies.resolveHost || resolvePublicHost;
+    this.resolveAddresses = dependencies.resolveAddresses || (dependencies.resolveHost
+      ? async (host, options) => [await dependencies.resolveHost(host, options)]
+      : resolvePublicAddresses);
     this.ca = dependencies.ca; // Local integration-test CA; not configurable by a subscription source.
     this.targetCa = dependencies.targetCa === undefined ? this.ca : dependencies.targetCa;
     this.diagnostic = dependencies.diagnostic;
@@ -215,7 +248,7 @@ class VpnChecker {
   // Failures here never affect the node's main health verdict; they are stored alongside as proxy_* fields.
   async runProxyCycle(parsed, address, parentSignal, config = snapshotProbeConfig(this.config)) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), config.deadlineMs);
+    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), require('../utils/probeBudget').probeBudget(config).deadlineMs);
     const combined = parentSignal ? AbortSignal.any([controller.signal, parentSignal]) : controller.signal;
     let directory = null;
     let child = null;
@@ -240,7 +273,7 @@ class VpnChecker {
           const text = data.toString();
           if (/address already in use|Only one usage of each socket/i.test(text)) child.portConflict = true;
           child.startupOutput = `${child.startupOutput || ''}${text}`.slice(-2048);
-          if (this.diagnostic) this.diagnostic(text);
+          if (this.diagnostic) this.diagnostic(startupDetail(text));
         };
         child.stdout.on('data', inspect);
         child.stderr.on('data', inspect);
@@ -254,10 +287,11 @@ class VpnChecker {
         }
       }
       const socksUrl = `socks5h://${credentials.user}:${credentials.password}@127.0.0.1:${port}`;
-      return await evaluateTargets(config, async target => {
+      const result = await evaluateTargets(config, async target => {
         if (!child || child.exitCode !== null || child.spawnError) throw new SubscriptionError('xray_exit');
         return requestThroughSocks(target, socksUrl, config.attemptTimeoutMs, combined, this.targetCa);
       }, combined);
+      return { ...result, checkedAddress: address.address };
     } catch (error) {
       const safe = safeError(error);
       return { status: 'proxy_error', errorCode: safe.code, errorMessage: safe.message, attempts: [], latencyMs: null, httpStatus: null };
@@ -286,6 +320,9 @@ class VpnChecker {
       this.verified = signature;
       this.status = { available: true, error: null, version: xrayVersion };
     } catch (error) {
+      // A failed verification must invalidate the cache. Otherwise a later
+      // same-signature fast path can return while status.available is false.
+      this.verified = null;
       const code = error instanceof SubscriptionError ? error.code : ['ENOENT', 'EACCES'].includes(error.code) ? 'xray_missing' : 'runner_error';
       this.status = { available: false, error: messages[code], version: xrayVersion };
       throw new SubscriptionError(code);
@@ -306,7 +343,7 @@ class VpnChecker {
     const config = snapshotProbeConfig(requestedConfig);
     const controller = new AbortController();
     const combined = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
-    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), config.deadlineMs);
+    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), require('../utils/probeBudget').probeBudget(config).deadlineMs);
     const started = performance.now();
     let directory;
     let child;
@@ -316,12 +353,29 @@ class VpnChecker {
     try {
       await abortable(this.verifyBinary(config), combined);
       const parsed = JSON.parse(node.normalized_config_json);
-      const address = await this.resolveHost(parsed.host, { signal: combined });
+      const addresses = await this.resolveAddresses(parsed.host, { signal: combined });
+      if (!addresses.length) throw new SubscriptionError('dns_error');
       await fs.promises.mkdir(config.tempDir, { recursive: true, mode: 0o700 });
       directory = await fs.promises.mkdtemp(path.join(config.tempDir, 'probe-'));
       const credentials = { user: crypto.randomBytes(12).toString('hex'), password: crypto.randomBytes(24).toString('hex') };
       const chainedProxy = config.httpProxy && config.httpProxyMode === 'only' ? config.httpProxy : null;
       let port;
+      let result;
+      let selectedAddress = null;
+      let lastError;
+      let startupMs = 0;
+      const addressList = addresses.slice(0, 2);
+      for (let addressIndex = 0; addressIndex < addressList.length; addressIndex++) {
+        const address = addressList[addressIndex];
+        combined.throwIfAborted();
+        const remainingAddresses = addressList.length - addressIndex;
+        const remainingMs = Math.max(1, require('../utils/probeBudget').probeBudget(config).deadlineMs - (performance.now() - started));
+        // Reserve an equal share for every remaining address so a blackholed
+        // first IP cannot consume the complete absolute deadline.
+        const addressController = new AbortController();
+        const addressTimer = setTimeout(() => addressController.abort(new SubscriptionError('address_timeout')), Math.max(1, Math.floor(remainingMs / remainingAddresses)));
+        const addressSignal = AbortSignal.any([combined, addressController.signal]);
+        try {
       for (let attempt = 0; attempt < 3; attempt++) {
         combined.throwIfAborted();
         port = await freePort();
@@ -339,34 +393,48 @@ class VpnChecker {
           const text = data.toString();
           if (/address already in use|Only one usage of each socket/i.test(text)) child.portConflict = true;
           child.startupOutput = `${child.startupOutput || ''}${text}`.slice(-2048);
-          if (this.diagnostic) this.diagnostic(text);
+          if (this.diagnostic) this.diagnostic(startupDetail(text));
         };
         child.stdout.on('data', inspect);
         child.stderr.on('data', inspect);
         try {
-          await waitForPort(port, child, config.readyTimeoutMs, combined);
+          await waitForPort(port, child, config.readyTimeoutMs, addressSignal);
           break;
         } catch (error) {
           await stopChild(child);
           if (!child.portConflict || attempt === 2) throw error;
         }
       }
-      const startupMs = performance.now() - started;
+      startupMs = performance.now() - started;
       const socksUrl = `socks5h://${credentials.user}:${credentials.password}@127.0.0.1:${port}`;
       networkStarted = true;
-      const result = await evaluateTargets(config, async target => {
-        if (child.exitCode !== null || child.spawnError) throw new SubscriptionError('xray_exit');
-        return requestThroughSocks(target, socksUrl, config.attemptTimeoutMs, combined, this.targetCa);
-      }, combined);
+          const candidate = await evaluateTargets(config, async target => {
+            if (child.exitCode !== null || child.spawnError) throw new SubscriptionError('xray_exit');
+            return requestThroughSocks(target, socksUrl, config.attemptTimeoutMs, addressSignal, this.targetCa);
+          }, addressSignal);
+          if (candidate.status === 'healthy' || !result || candidate.successCount > result.successCount) {
+            result = candidate;
+            selectedAddress = address;
+          }
+          if (candidate.status === 'healthy') break;
+        } catch (error) {
+          lastError = error;
+          if (combined.aborted) throw combined.reason;
+        } finally {
+          clearTimeout(addressTimer);
+          await stopChild(child);
+          child = null;
+        }
+      }
+      if (!result) throw lastError || new SubscriptionError('dns_error');
       let proxy = null;
       if (config.httpProxy && config.httpProxyMode === 'extra') {
-        // The main verdict already reflects the direct cycle; release its deadline so the
-        // additional proxy cycle gets its own full budget and cannot misclassify the node.
-        clearTimeout(timer);
+        // The deadline is an absolute budget for the complete check, including
+        // address fallback and the optional proxy cycle. Never reset it here.
         const proxySignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
-        proxy = await this.runProxyCycle(parsed, address, proxySignal, config);
+        proxy = await this.runProxyCycle(parsed, selectedAddress, proxySignal, config);
       }
-      return { ...result, checkedAddress: address.address, proxy, startupMs, durationMs: performance.now() - started };
+      return { ...result, checkedAddress: selectedAddress.address, proxy, startupMs, durationMs: performance.now() - started };
     } catch (error) {
       const actual = combined.aborted ? combined.reason : error;
       const safe = safeError(actual);

@@ -5,7 +5,7 @@ const NODE_SELECT = `SELECT n.*, s.revision AS source_revision, s.is_active AS s
   h.last_attempt_at, h.last_checked_at, h.last_success_at, h.checked_address, h.latency_ms, h.test_target_id, h.target_priority,
   h.successful_attempts, h.total_attempts, h.http_status, h.error_code, h.error_message,
   h.runner_error_code, h.runner_error_message, h.pending_cycle_id,
-  h.proxy_status, h.proxy_latency_ms, h.proxy_http_status, h.proxy_error_code, h.proxy_checked_at
+  h.proxy_status, h.proxy_latency_ms, h.proxy_http_status, h.proxy_error_code, h.proxy_checked_at, h.proxy_checked_address
   FROM subscription_nodes n JOIN subscription_sources s ON s.id = n.source_id
   LEFT JOIN subscription_node_health h ON h.node_id = n.id`;
 
@@ -21,6 +21,7 @@ function proxyEligibility(node, config, now = Date.now()) {
   if (!config.httpProxy || config.httpProxyMode !== 'extra') return 'not_required';
   if (node.generation !== node.health_generation || node.fingerprint !== node.config_fingerprint || node.probe_profile_version !== config.profileVersion) return 'proxy_unknown';
   if (node.proxy_status !== 'healthy') return node.proxy_status || 'proxy_unknown';
+  if (!node.proxy_checked_address || node.proxy_checked_address !== node.checked_address) return 'proxy_unknown';
   if (!Number.isFinite(node.proxy_latency_ms) || node.proxy_latency_ms < 0) return 'proxy_unknown';
   if (!node.proxy_checked_at || now < node.proxy_checked_at || now - node.proxy_checked_at >= config.healthyTtlMs) return 'proxy_stale';
   return 'proxy_ok';
@@ -35,14 +36,15 @@ function eligibility(node, config, now = Date.now()) {
   if (node.status !== 'healthy') return node.status || 'unknown';
   if (!Number.isFinite(node.latency_ms) || node.latency_ms < 0 || !Number.isInteger(node.successful_attempts) ||
       node.successful_attempts < config.minSuccess || node.successful_attempts > node.total_attempts || node.total_attempts !== config.attempts) return 'unknown';
-  if (!node.last_checked_at || now < node.last_checked_at || now - node.last_checked_at >= config.healthyTtlMs) return 'stale';
+  if (!node.last_checked_at || now < node.last_checked_at) return 'unknown';
+  if (now - node.last_checked_at >= config.healthyTtlMs) return 'stale';
   if (!String(node.checked_address || '').trim()) return 'unknown_address';
   return 'healthy';
 } 
 
 function compareNodes(a, b, config, now = Date.now()) {
-  const aHealthy = eligibility(a, config, now) === 'healthy';
-  const bHealthy = eligibility(b, config, now) === 'healthy';
+  const aHealthy = deliveryState(a, config, now) === 'fresh';
+  const bHealthy = deliveryState(b, config, now) === 'fresh';
   if (aHealthy !== bHealthy) return aHealthy ? -1 : 1;
   if (aHealthy) {
     const aProxy = proxyEligibility(a, config, now) === 'proxy_ok';
@@ -61,7 +63,21 @@ function compareNodes(a, b, config, now = Date.now()) {
 }
 
 function checkedAddressKey(node) {
-  return String(node.checked_address || '').trim().toLowerCase();
+  let address = String(node.checked_address || '').trim().toLowerCase();
+  // Canonicalize IPv4-mapped IPv6 so equivalent endpoints dedupe identically.
+  if (address.startsWith('::ffff:')) address = address.slice(7);
+  return address;
+}
+
+function deliveryState(node, config, now = Date.now()) {
+  const state = eligibility(node, config, now);
+  if (state === 'healthy') return 'fresh';
+  if (state !== 'stale') return state;
+  if (node.generation !== node.health_generation || node.fingerprint !== node.config_fingerprint ||
+      node.probe_profile_version !== config.profileVersion || !node.checked_address ||
+      !Number.isFinite(node.latency_ms) || node.latency_ms < 0 || !node.last_success_at ||
+      now < node.last_success_at || now - node.last_success_at >= (config.hardExpiryMs || config.healthyTtlMs * 2)) return 'hard_expired';
+  return 'stale';
 }
 
 function rankNodes(nodes, config, now = Date.now()) {
@@ -70,7 +86,7 @@ function rankNodes(nodes, config, now = Date.now()) {
   const addresses = new Set();
   for (const node of [...nodes].sort((a, b) => compareNodes(a, b, config, now))) {
     const key = checkedAddressKey(node);
-    if (eligibility(node, config, now) === 'healthy' && !addresses.has(key)) {
+    if (deliveryState(node, config, now) === 'fresh' && !addresses.has(key)) {
       addresses.add(key);
       preferred.push(node);
     } else remaining.push(node);
@@ -133,27 +149,32 @@ function recordResult(node, cycleId, result, config, jobId = null, now = Date.no
           attempt.attempt ?? null, attempt.outcome, attempt.latencyMs ?? null, attempt.httpStatus ?? null, attempt.errorCode || null, now]);
       }
       db.run(`UPDATE subscription_node_health SET proxy_status = ?, proxy_latency_ms = ?, proxy_http_status = ?,
-        proxy_error_code = ?, proxy_checked_at = ? WHERE node_id = ?`,
+        proxy_error_code = ?, proxy_checked_at = ?, proxy_checked_address = ? WHERE node_id = ?`,
       [proxy ? proxy.status || null : null, proxy ? proxy.latencyMs ?? null : null, proxy ? proxy.httpStatus ?? null : null,
-        proxy ? proxy.errorCode ?? null : null, proxy ? now : null, node.id]);
+        proxy ? proxy.errorCode ?? null : null, proxy ? now : null, proxy ? proxy.checkedAddress || null : null, node.id]);
     } else if (!hasProxyResult && config.httpProxyMode === 'only') {
       // In "only" mode the proxy path IS the main measurement; stale extra-readings are cleared.
       db.run(`UPDATE subscription_node_health SET proxy_status = NULL, proxy_latency_ms = NULL,
-        proxy_http_status = NULL, proxy_error_code = NULL, proxy_checked_at = NULL WHERE node_id = ?`, [node.id]);
+        proxy_http_status = NULL, proxy_error_code = NULL, proxy_checked_at = NULL, proxy_checked_address = NULL WHERE node_id = ?`, [node.id]);
     }
   });
   return true;
 }
 
-function pruneHistory(now = Date.now()) {
+function pruneHistory(now = Date.now(), config = {}) {
+  const historyDays = Number.isInteger(config.historyDays) ? config.historyDays : 7;
+  const maxHistoryRows = Number.isInteger(config.maxHistoryRows) ? config.maxHistoryRows : 50000;
+  const before = db.get('SELECT count(*) AS n FROM subscription_node_checks').n;
   db.transaction(() => {
-    db.run('DELETE FROM subscription_node_checks WHERE checked_at < ?', [now - 86400000]);
+    db.run('DELETE FROM subscription_node_checks WHERE checked_at < ?', [now - historyDays * 86400000]);
     db.run(`DELETE FROM subscription_node_checks WHERE id < COALESCE(
-      (SELECT id FROM subscription_node_checks ORDER BY id DESC LIMIT 1 OFFSET ?), 0)`, [9999]);
+      (SELECT id FROM subscription_node_checks ORDER BY id DESC LIMIT 1 OFFSET ?), 0)`, [Math.max(0, maxHistoryRows - 1)]);
     db.run(`DELETE FROM background_jobs WHERE state NOT IN ('queued', 'running') AND id NOT IN (
       SELECT id FROM background_jobs ORDER BY created_at DESC LIMIT 100)`);
     db.run('DELETE FROM subscription_nodes WHERE is_present = 0 AND removed_at < ?', [now - 30 * 86400000]);
   });
+  const after = db.get('SELECT count(*) AS n FROM subscription_node_checks').n;
+  return { before, after, deleted: before - after, historyDays, maxHistoryRows };
 }
 
-module.exports = { NODE_SELECT, getNode, getNodes, safeNode, eligibility, proxyEligibility, compareNodes, checkedAddressKey, rankNodes, markStarted, recordResult, pruneHistory };
+module.exports = { NODE_SELECT, getNode, getNodes, safeNode, eligibility, deliveryState, proxyEligibility, compareNodes, checkedAddressKey, rankNodes, markStarted, recordResult, pruneHistory };

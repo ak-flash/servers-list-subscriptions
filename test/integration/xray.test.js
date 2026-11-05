@@ -52,9 +52,10 @@ test('real Xray: TLS, Reality and unencrypted VLESS, credential failures, HTTP/T
   const checker = new VpnChecker(settings, { resolveHost: async () => ({ address: '127.0.0.1', family: 4 }), ca: cert,
     diagnostic: message => { diagnostic = (diagnostic + message).slice(-10000); } });
   const servers = [];
+  const proxyServers = [];
   t.after(async () => {
     await checker.stop();
-    await Promise.all(servers.map(stopChild));
+    await Promise.all([...servers, ...proxyServers].map(stopChild));
     target.closeAllConnections();
     await new Promise(resolve => target.close(resolve));
     for (const socket of camouflageSockets) socket.destroy();
@@ -63,6 +64,7 @@ test('real Xray: TLS, Reality and unencrypted VLESS, credential failures, HTTP/T
   });
   await checker.cleanup();
   await checker.verifyBinary();
+  let knownNode;
   for (const { network, security, flow = '' } of [
     { network: 'tcp', security: 'tls' }, { network: 'ws', security: 'tls' },
     { network: 'tcp', security: 'none' }, { network: 'ws', security: 'none' },
@@ -77,13 +79,17 @@ test('real Xray: TLS, Reality and unencrypted VLESS, credential failures, HTTP/T
     };
     if (network === 'ws') streamSettings.wsSettings = { path: '/vpn' };
     const serverConfig = {
-      log: { loglevel: 'none' },
+      log: { loglevel: 'debug' },
       inbounds: [{ listen: '127.0.0.1', port, protocol: 'vless', settings: { clients: [{ id: UUID, flow }], decryption: 'none' }, streamSettings }],
-      outbounds: [{ protocol: 'freedom' }]
+      // Xray 26.10.21 blocks private VLESS destinations by default.
+      // This local-only fixture explicitly permits its loopback HTTPS target.
+      outbounds: [{ protocol: 'freedom', settings: { finalRules: [{ action: 'allow', ip: ['127.0.0.1/32'] }] } }]
     };
     const filename = path.join(directory, `server-${network}-${security}-${flow || 'default'}.json`);
     fs.writeFileSync(filename, JSON.stringify(serverConfig));
-    const child = spawn(xrayPath, ['run', '-c', filename], { stdio: 'ignore', windowsHide: true, detached: process.platform === 'linux' });
+    const child = spawn(xrayPath, ['run', '-c', filename], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: process.platform === 'linux' });
+    child.stdout.on('data', chunk => { diagnostic += chunk.toString(); });
+    child.stderr.on('data', chunk => { diagnostic += chunk.toString(); });
     servers.push(child);
     let ready = false;
     for (let retry = 0; retry < 100 && !ready; retry++) {
@@ -99,6 +105,7 @@ test('real Xray: TLS, Reality and unencrypted VLESS, credential failures, HTTP/T
       (security === 'reality' ? `&sni=localhost&pbk=${realityKey.x}&sid=${shortId}&spx=%2Fprobe` : '') + (flow ? `&flow=${flow}` : '') + '#test';
     const parsed = parseVless(uri);
     const node = { normalized_config_json: JSON.stringify(parsed.config) };
+    if (network === 'tcp' && security === 'none' && !flow) knownNode = { parsed, port };
     const good = await checker.check(node);
     assert.equal(good.status, 'healthy', `${security}/${network}/${flow}: ${JSON.stringify(good)}\n${diagnostic}`);
     assert.equal(good.successCount, 3);
@@ -143,6 +150,47 @@ test('real Xray: TLS, Reality and unencrypted VLESS, credential failures, HTTP/T
     assert.equal(checker.active.size, 0);
     assert.deepEqual(fs.readdirSync(settings.tempDir), []);
   }
+  // Live two-address fallback: the first public test address is unroutable,
+  // while the second is the running local VLESS server. Xray is restarted and
+  // its generated outbound is pinned to each address in turn.
+  const fallbackSettings = { ...settings, httpProxy: null, httpProxyMode: 'extra', deadlineMs: 15000 };
+  const fallbackChecker = new VpnChecker(fallbackSettings, {
+    resolveAddresses: async () => [{ address: '192.0.2.1', family: 4 }, { address: '127.0.0.1', family: 4 }],
+    ca: cert
+  });
+  assert.ok(knownNode, 'plain TCP fixture exists for address fallback');
+  const fallbackResult = await fallbackChecker.check({ normalized_config_json: JSON.stringify(knownNode.parsed.config) });
+  assert.equal(fallbackResult.status, 'healthy');
+  assert.equal(fallbackResult.checkedAddress, '127.0.0.1');
+  assert.equal(fallbackChecker.active.size, 0);
+  await fallbackChecker.stop();
+
+  /* Live VLESS client -> HTTP CONNECT -> local VLESS server requires a
+   * verified CONNECT upstream configuration; keep as external release gate. */
+  /* const proxyPort = await freePort();
+  const proxyServer = require('http').createServer((req, res) => res.writeHead(501).end());
+  proxyServer.on('connect', (request, socket) => {
+    const [host, portText] = String(request.url || '').replace(/^\[|\]$/g, '').split(':');
+    const upstream = net.connect(Number(portText) || knownNode.port, host || '127.0.0.1');
+    upstream.once('connect', () => {
+      socket.write('HTTP/1.1 200 Connection Established\\r\\n\\r\\n');
+      upstream.pipe(socket); socket.pipe(upstream);
+    });
+    upstream.once('error', () => socket.destroy());
+  });
+  proxyServer.listen(proxyPort, '127.0.0.1');
+  await once(proxyServer, 'listening');
+  proxyServers.push({ kill: () => proxyServer.close() });
+  const onlyChecker = new VpnChecker({ ...settings, httpProxy: { protocol: 'http', address: '127.0.0.1', port: proxyPort, user: '', pass: '' }, httpProxyMode: 'only' }, {
+    resolveAddresses: async () => [{ address: '127.0.0.1', family: 4 }], ca: cert
+  });
+  const onlyResult = await onlyChecker.check({ normalized_config_json: JSON.stringify(knownNode.parsed.config) });
+  assert.equal(onlyResult.status, 'healthy');
+  assert.equal(onlyResult.checkedAddress, '127.0.0.1');
+  assert.equal(onlyChecker.active.size, 0);
+  await onlyChecker.stop();
+  await new Promise(resolve => proxyServer.close(resolve)); */
+
   const missing = new VpnChecker({ ...settings, xrayPath: path.join(directory, 'missing-xray') });
   assert.equal((await missing.check({ normalized_config_json: '{}' })).errorCode, 'xray_missing');
   assert.equal(missing.active.size, 0);

@@ -5,10 +5,18 @@ const db = require('../src/db/database');
 const { loadConfig, parseHttpProxy, probeProfileVersion, snapshotProbeConfig, PROBE_POLICY_VERSION } = require('../src/config/subscriptions');
 const { applySettingsToConfig, applyProxyToConfig, saveSettings } = require('../src/services/proxySettings');
 
+test('suspect policy env is opt-in and validated', () => {
+  assert.equal(loadConfig({}).sourceMinRetainRatio, 0);
+  assert.equal(loadConfig({ SOURCE_MIN_RETAIN_RATIO: '0.5', SOURCE_CONFIRMATIONS: '3' }).sourceMinRetainRatio, 0.5);
+  assert.equal(loadConfig({ SOURCE_MIN_RETAIN_RATIO: '0.5', SOURCE_CONFIRMATIONS: '3' }).sourceConfirmations, 3);
+  assert.throws(() => loadConfig({ SOURCE_MIN_RETAIN_RATIO: '1.1' }), /SOURCE_MIN_RETAIN_RATIO/);
+});
+
 test('production policy requires two of three attempts and invalidates old first-success profiles', () => {
   const config = loadConfig({});
   assert.equal(config.attempts, 3);
   assert.equal(config.minSuccess, 2);
+  assert.equal(config.hardExpiryMs, config.healthyTtlMs * 2);
   assert.equal(PROBE_POLICY_VERSION, 3);
   const oldHash = attempts => crypto.createHash('sha256').update(JSON.stringify({
     adapter: 2, version: config.xrayVersion, targets: config.targets, location: config.probeLocation,
@@ -17,6 +25,15 @@ test('production policy requires two of three attempts and invalidates old first
   assert.notEqual(config.profileVersion, oldHash(2));
   assert.notEqual(config.profileVersion, oldHash(3));
   assert.equal(config.profileVersion, probeProfileVersion(config));
+});
+
+test('deadline supports explicit, auto and unset-compatible modes', () => {
+  assert.equal(loadConfig({}).deadlineMode, 'explicit');
+  assert.equal(loadConfig({}).deadlineMs, 90000);
+  assert.equal(loadConfig({ PROBE_DEADLINE_SECONDS: '' }).deadlineMode, 'auto');
+  assert.equal(loadConfig({ PROBE_DEADLINE_SECONDS: '' }).deadlineMs, 180000);
+  assert.equal(loadConfig({ PROBE_DEADLINE_SECONDS: 'auto' }).deadlineMode, 'auto');
+  assert.equal(loadConfig({ PROBE_DEADLINE_SECONDS: 'auto' }).deadlineMs, 180000);
 });
 
 test('env and runtime settings share a secret-sensitive profile hash', () => {
@@ -81,7 +98,7 @@ test('applying stored settings preserves the full configured deadline and rehash
   t.after(db.closeDb);
   const config = loadConfig({});
   const unchanged = applySettingsToConfig(config);
-  assert.equal(unchanged.deadlineMs, 40000);
+  assert.equal(unchanged.deadlineMs, 90000);
   assert.equal(unchanged.profileVersion, config.profileVersion);
   const explicit = loadConfig({ PROBE_DEADLINE_SECONDS: '75' });
   assert.equal(applySettingsToConfig(explicit).deadlineMs, 75000);
@@ -95,16 +112,27 @@ test('applying stored settings preserves the full configured deadline and rehash
   assert.ok(Object.isFrozen(changed.targets));
 });
 
+test('rejected candidate budget leaves persisted settings unchanged', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const config = loadConfig({ PROBE_DEADLINE_SECONDS: 'auto' });
+  saveSettings({}, config);
+  const before = db.all('SELECT key, value FROM app_state ORDER BY key');
+  assert.throws(() => saveSettings({ readyTimeoutSeconds: 4 }, { ...config, deadlineMode: 'explicit', deadlineMs: NaN }), /PROBE_DEADLINE_SECONDS/);
+  assert.deepEqual(db.all('SELECT key, value FROM app_state ORDER BY key'), before);
+  assert.equal(applySettingsToConfig(config).deadlineMs, config.deadlineMs);
+});
+
 test('without an explicit deadline, settings budget all targets and readiness within timeout bounds', async t => {
   await db.initDb({ filePath: ':memory:' });
   t.after(db.closeDb);
   const config = { ...loadConfig({}), deadlineMs: undefined };
-  assert.equal(applySettingsToConfig(config).deadlineMs, 35000);
+  assert.equal(applySettingsToConfig(config).deadlineMs, 180000);
   saveSettings({ readyTimeoutSeconds: 30, attemptTimeoutSeconds: 30 }, config);
   assert.equal(applySettingsToConfig(config).deadlineMs, 180000);
   for (const values of [{ readyTimeoutSeconds: 31 }, { attemptTimeoutSeconds: 0 }]) {
     assert.throws(() => saveSettings(values, config));
   }
-  assert.throws(() => loadConfig({ PROBE_DEADLINE_SECONDS: '181' }));
+  assert.throws(() => loadConfig({ PROBE_DEADLINE_SECONDS: '301' }));
   assert.throws(() => loadConfig({ PROBE_DEADLINE_SECONDS: '4' }));
 });

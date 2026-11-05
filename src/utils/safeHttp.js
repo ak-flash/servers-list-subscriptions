@@ -44,7 +44,7 @@ function abortable(promise, signal) {
   });
 }
 
-async function resolvePublicHost(host, { signal, lookup = dns.lookup.bind(dns) } = {}) {
+async function resolvePublicAddresses(host, { signal, lookup = dns.lookup.bind(dns) } = {}) {
   host = normalizeHost(host);
   let addresses;
   try {
@@ -55,7 +55,11 @@ async function resolvePublicHost(host, { signal, lookup = dns.lookup.bind(dns) }
   }
   if (!addresses.length) throw new SubscriptionError('dns_error');
   if (addresses.some(entry => !isPublicAddress(entry.address))) throw new SubscriptionError('blocked_address');
-  return addresses[0];
+  return addresses.sort((a, b) => a.family - b.family);
+}
+
+async function resolvePublicHost(host, options = {}) {
+  return (await resolvePublicAddresses(host, options))[0];
 }
 
 function pinnedLookup(address) {
@@ -157,4 +161,4 @@ function maskSourceUrl(value) {
   catch { return 'Некорректный URL'; }
 }
 
-module.exports = { isPublicAddress, validateSourceUrl, resolvePublicHost, pinnedLookup, abortable, downloadSource, maskSourceUrl };
+module.exports = { isPublicAddress, validateSourceUrl, resolvePublicAddresses, resolvePublicHost, pinnedLookup, abortable, downloadSource, maskSourceUrl };

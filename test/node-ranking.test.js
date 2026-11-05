@@ -3,6 +3,11 @@ const assert = require('node:assert/strict');
 const health = require('../src/services/subscriptionHealth');
 const { config } = require('./fixtures');
 
+test('checked address key canonicalizes IPv4-mapped IPv6', () => {
+  assert.equal(health.checkedAddressKey({ checked_address: '::FFFF:198.51.100.1' }), '198.51.100.1');
+  assert.equal(health.checkedAddressKey({ checked_address: '198.51.100.1' }), '198.51.100.1');
+});
+
 function node(settings, overrides = {}) {
   return { id: 'node', name: 'Node', source_active: 1, capability_status: 'supported', is_present: 1, is_enabled: 1,
     generation: 1, health_generation: 1, fingerprint: 'node-fingerprint', config_fingerprint: 'node-fingerprint',
@@ -63,7 +68,7 @@ test('rankNodes marks only healthy nodes with a unique checked address as delive
 test('proxy ranking only prefers fresh successes from the current profile; extra failures do not veto direct health', () => {
   const settings = config({ httpProxy: { protocol: 'http', address: 'proxy.example.com', port: 3128 }, httpProxyMode: 'extra' });
   const direct = node(settings, { id: 'direct', latency_ms: 20 });
-  const fresh = node(settings, { id: 'fresh', proxy_status: 'healthy', proxy_latency_ms: 300, proxy_checked_at: now - 1 });
+  const fresh = node(settings, { id: 'fresh', proxy_status: 'healthy', proxy_latency_ms: 300, proxy_checked_at: now - 1, proxy_checked_address: '198.51.100.1' });
   assert.ok(health.compareNodes(fresh, direct, settings, now) < 0);
   const invalid = [
     { proxy_checked_at: now - settings.healthyTtlMs },

@@ -70,6 +70,10 @@ Settings in `.env`:
 | `XRAY_VERSION` | Expected Xray version | `26.10.21` |
 | `PROBE_CONCURRENCY` | Concurrent VPN probes | `4` |
 | `PROBE_HTTP_PROXY` | HTTP(S) proxy for additional node probes: Xray connects to the node through this proxy, with latency measured separately (Proxy badge) | Empty: probe without a proxy |
+| `SOURCE_MIN_RETAIN_RATIO` | Opt-in suspicious-shrink protection; `0` disables it | `0` |
+| `SOURCE_MIN_RETAIN_NODES` | Minimum accepted catalog size before suspect policy applies | `20` |
+| `SOURCE_CONFIRMATION_INTERVAL_SECONDS` | Minimum interval between independent observations | `60` |
+| `SOURCE_CONFIRMATIONS` | Observations required before accepting shrink | `2` |
 | `PROBE_HTTP_PROXY_MODE` | `extra`: regular probe plus an additional proxy probe; `only`: all probes use the proxy | `extra` |
 | `PROFILE_UPDATE_INTERVAL_HOURS` | Client profile update interval | `1` |
 

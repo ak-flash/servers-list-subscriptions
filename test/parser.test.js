@@ -5,6 +5,16 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { buildXrayConfig } = require('../src/utils/xrayConfigBuilder');
 const { UUID, link } = require('./fixtures');
 
+test('VMess metadata-only ps rename preserves semantic config fingerprint', () => {
+  const base = { v: '2', ps: 'Old', add: 'vmess.example.com', port: 443, id: '11111111-2222-4333-8444-555555555555', aid: 0, scy: 'auto', net: 'tcp', type: 'none', tls: 'tls', sni: 'vmess.example.com' };
+  const encode = value => `vmess://${Buffer.from(JSON.stringify(value)).toString('base64')}`;
+  const first = parseSubscription(encode(base)).nodes[0];
+  const second = parseSubscription(encode({ ...base, ps: 'New' })).nodes[0];
+  assert.equal(first.fingerprint, second.fingerprint);
+  assert.equal(first.name, 'Old');
+  assert.equal(second.name, 'New');
+});
+
 test('Trojan accepts matching insecure and allowInsecure aliases', () => {
   const raw = 'Trojan://happybirthdaydaniel@de-bots4.h1cloud.net:25267?security=tls&sni=de-bots4.h1cloud.net&insecure=1&allowInsecure=1&type=tcp&fp=safari#%F0%9F%87%A9%F0%9F%87%AA%20Germany%20%5B%2ACIDR%5D';
   const parsed = parseSubscription(raw);
@@ -124,13 +134,44 @@ test('VLESS XHTTP normalizes a path without a leading slash', () => {
   assert.equal(parsed.config.xhttp.path, '/playlist/CsUIQriaBfjX4A6X98tTXhYX5sniC6o3h0TzTb8mbwdh33qjN8K3q1kT99ZbCEg32');
 });
 
-test('VLESS XHTTP accepts downloadSettings', () => {
+test('unsupported-only URI snapshots are accepted without supported nodes', () => {
+  const parsed = parseSubscription('ss://opaque.example/secret');
+  assert.equal(parsed.nodes.length, 1);
+  assert.equal(parsed.report.supported, 0);
+  assert.equal(parsed.report.unsupported, 1);
+  assert.equal(parsed.complete, true);
+});
+
+test('subscription parser accepts plain, Base64 and Base64URL mixed documents', () => {
+  const plain = [link('plain.example.com'), 'ss://opaque.example/secret'].join('\n');
+  for (const encoded of [Buffer.from(plain).toString('base64'), Buffer.from(plain).toString('base64url')]) {
+    const parsed = parseSubscription(encoded);
+    assert.equal(parsed.complete, true);
+    assert.equal(parsed.parseComplete, true);
+    assert.equal(parsed.acceptance, 'accepted');
+    assert.equal(parsed.report.supported, 1);
+    assert.equal(parsed.report.unsupported, 1);
+  }
+  const spaced = parseSubscription(Buffer.from(`${link('encoded-a.example.com')} ${link('encoded-b.example.com')}`).toString('base64'));
+  assert.equal(spaced.report.supported, 2);
+  const opaque = parseSubscription(Buffer.from('ss://opaque.example/one\nss://opaque.example/two').toString('base64'));
+  assert.equal(opaque.complete, true);
+  assert.equal(opaque.report.supported, 0);
+  assert.equal(opaque.report.unsupported, 2);
+});
+
+test('opaque URI requires a non-empty safe payload', () => {
+  assert.throws(() => parseSubscription('ss://'), { code: 'unsupported_format' });
+  assert.throws(() => parseSubscription('invalid'), { code: 'unsupported_format' });
+  assert.throws(() => parseSubscription(`ss://opaque${String.fromCharCode(0)}payload`), { code: 'unsupported_format' });
+});
+
+test('VLESS XHTTP rejects unvalidated downloadSettings', () => {
   const raw = 'Vless://9c5ad05d-d807-0031-bf48-cfad48af6dec@135.106.142.209:443?type=xhttp&headerType=none&security=reality&encryption=none&sni=alfastat.ru&pbk=fz_xpZfQks3oa9c_d1OSokmTgmJuGbvFMkyK0Qt8w3I&sid=0066a7326f06d426&path=%2Fassets&mode=packet-up&extra=%7B%22xmux%22%3A+%7B%22cMaxReuseTimes%22%3A+0%2C+%22maxConnections%22%3A+%221-2%22%2C+%22hKeepAlivePeriod%22%3A+0%2C+%22hMaxRequestTimes%22%3A+%22900-1400%22%2C+%22hMaxReusableSecs%22%3A+%223600-5400%22%7D%2C+%22downloadSettings%22%3A+%7B%22port%22%3A+443%2C+%22address%22%3A+%22135.106.142.209%22%2C+%22network%22%3A+%22xhttp%22%2C+%22security%22%3A+%22reality%22%2C+%22xhttpSettings%22%3A+%7B%22path%22%3A+%22%2Fassets%22%7D%2C+%22realitySettings%22%3A+%7B%22shortId%22%3A+%2275a0c0e236b0a436%22%2C%22publicKey%22%3A+%22fz_xpZfQks3oa9c_d1OSokmTgmJuGbvFMkyK0Qt8w3I%22%2C%22serverName%22%3A+%22seo.alfastat.ru%22%2C%22fingerprint%22%3A+%22firefox%22%7D%7D%7D&fp=ios#Sweden';
   const parsed = parseSubscription(raw);
-  assert.equal(parsed.report.supported, 1);
-  const settings = buildXrayConfig(parsed.nodes[0].config, '135.106.142.209', 12000, { user: 'test', password: 'test' }).outbounds[0].streamSettings.xhttpSettings;
-  assert.equal(settings.downloadSettings.address, '135.106.142.209');
-  assert.equal(settings.downloadSettings.xhttpSettings.path, '/assets');
+  assert.equal(parsed.report.supported, 0);
+  assert.equal(parsed.nodes[0].capability, 'unsupported');
+  assert.match(parsed.nodes[0].error, /downloadSettings/);
 });
 
 test('VLESS Reality TCP accepts packetEncoding=xudp', () => {

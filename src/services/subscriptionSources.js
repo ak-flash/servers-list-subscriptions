@@ -10,7 +10,9 @@ function getSource(id) {
 
 function publicSource(source) {
   const { url, headers_json, ...safe } = source;
-  return { ...safe, masked_url: maskSourceUrl(url), has_authorization: !!JSON.parse(headers_json).authorization };
+  const headers = JSON.parse(headers_json || '{}');
+  return { ...safe, masked_url: maskSourceUrl(url), has_authorization: !!headers.authorization,
+    suspect: safe.sync_status === 'suspect', suspect_candidate: safe.candidate_json ? JSON.parse(safe.candidate_json) : null };
 }
 
 function validateSettings(input, existing, config) {
@@ -42,14 +44,22 @@ function updateSource(id, input, config, now = Date.now()) {
   const old = getSource(id);
   if (!old) throw new SubscriptionError('not_found', 'Источник не найден.', 404);
   const source = validateSettings(input, old, config);
-  const reset = source.url !== old.url || source.headers_json !== old.headers_json;
+  const oldHeaders = JSON.parse(old.headers_json || '{}');
+  const newHeaders = JSON.parse(source.headers_json || '{}');
+  const urlChanged = source.url !== old.url;
+  const authorizationChanged = (oldHeaders.authorization || '') !== (newHeaders.authorization || '');
+  const userAgentChanged = (oldHeaders['user-agent'] || '') !== (newHeaders['user-agent'] || '');
+  const reset = urlChanged || authorizationChanged || userAgentChanged;
   db.transaction(() => {
     db.run(`UPDATE subscription_sources SET name = ?, url = ?, headers_json = ?, sync_interval_seconds = ?,
       is_active = ?, revision = revision + 1, updated_at = ?, next_sync_at = 0 WHERE id = ?`,
     [source.name, source.url, source.headers_json, source.sync_interval_seconds, source.is_active, now, id]);
     if (reset) {
       db.run(`UPDATE subscription_sources SET etag = NULL, last_modified = NULL, last_success_at = NULL,
-        metadata_json = NULL, report_json = NULL, last_error = NULL, sync_status = 'pending', failure_count = 0 WHERE id = ?`, [id]);
+        metadata_json = NULL, report_json = NULL, candidate_json = NULL, last_error = NULL, sync_status = 'pending', failure_count = 0 WHERE id = ?`, [id]);
+      // URL and Authorization can select a different account/catalog: hide the
+      // old representation immediately. User-Agent is treated identically to
+      // avoid serving a catalog parsed under another representation.
       db.run('UPDATE subscription_nodes SET is_present = 0, removed_at = ?, generation = generation + 1 WHERE source_id = ?', [now, id]);
     }
   });
@@ -99,8 +109,17 @@ function reparseStoredNodes(sourceId = null) {
     const display = [...members].sort((a, b) => b.old.is_present - a.old.is_present || b.old.last_seen_at - a.old.last_seen_at || a.old.id.localeCompare(b.old.id))[0];
     const parsed = display.parsed;
     const normalized = parsed.config ? JSON.stringify(parsed.config) : null;
-    if (members.length === 1 && survivor.fingerprint === parsed.fingerprint && survivor.normalized_config_json === normalized &&
-        survivor.capability_status === parsed.capability && survivor.parse_error === parsed.error) continue;
+    const sameConfig = members.length === 1 && survivor.fingerprint === parsed.fingerprint &&
+      Boolean(survivor.normalized_config_json) === Boolean(normalized) &&
+      survivor.capability_status === parsed.capability &&
+      (survivor.parse_error || null) === (parsed.error || null);
+    if (sameConfig) {
+      if (survivor.raw_link !== display.old.raw_link || survivor.name !== parsed.name) {
+        db.run('UPDATE subscription_nodes SET raw_link = ?, name = ?, last_seen_at = ? WHERE id = ?',
+          [display.old.raw_link, parsed.name, Math.max(survivor.last_seen_at, display.old.last_seen_at), survivor.id]);
+      }
+      continue;
+    }
     updates.push({ members, survivor, parsed, normalized, rawLink: display.old.raw_link });
   }
   if (!updates.length) return { updated: 0, merged: 0 };
@@ -143,21 +162,28 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
     if (!current || !current.is_active || current.revision !== source.revision) throw new SubscriptionError('superseded');
     reparseStoredNodes(source.id);
     const existing = new Map(db.all('SELECT * FROM subscription_nodes WHERE source_id = ?', [source.id]).map(node => [node.fingerprint, node]));
-    if (!snapshot.complete) {
-      const present = new Set([...existing.values()].filter(node => node.is_present).map(node => node.fingerprint));
-      for (const node of snapshot.nodes) present.add(node.fingerprint);
-      if (present.size > (snapshot.maxNodes || 1000)) throw new SubscriptionError('too_many_nodes');
-    }
-    const report = { ...snapshot.report, added: 0, existing: 0, removed: 0, complete: snapshot.complete };
+    // Enforce the cap on the union of retained and incoming fingerprints for
+    // every snapshot type. Partial snapshots must not bypass it, and complete
+    // snapshots must not temporarily stage more than SOURCE_MAX_NODES either.
+    const present = new Set([...existing.values()].filter(node => node.is_present).map(node => node.fingerprint));
+    for (const node of snapshot.nodes) present.add(node.fingerprint);
+    if (present.size > (snapshot.maxNodes || 1000)) throw new SubscriptionError('too_many_nodes');
+    const report = { ...snapshot.report, added: 0, existing: 0, removed: 0, complete: snapshot.complete,
+      parseComplete: snapshot.parseComplete ?? snapshot.complete, acceptance: snapshot.acceptance || (snapshot.complete ? 'accepted' : 'partial') };
     const seen = new Set();
     for (const node of snapshot.nodes) {
       seen.add(node.fingerprint);
       const old = existing.get(node.fingerprint);
       const id = old?.id || crypto.randomUUID();
       const configJson = node.config ? JSON.stringify(node.config) : null;
-      if (old && old.is_present && old.raw_link === node.rawLink && old.normalized_config_json === configJson && old.capability_status === node.capability) {
+      const sameConfig = old && old.fingerprint === node.fingerprint &&
+        Boolean(old.normalized_config_json) === Boolean(configJson) &&
+        old.capability_status === node.capability &&
+        (old.parse_error || null) === (node.error || null);
+      if (old && old.is_present && sameConfig) {
         report.existing++;
-        db.run('UPDATE subscription_nodes SET last_seen_at = ? WHERE id = ?', [now, id]);
+        db.run(`UPDATE subscription_nodes SET raw_link = ?, name = ?, last_seen_at = ?,
+          removed_at = NULL WHERE id = ?`, [node.rawLink, node.name, now, id]);
         continue;
       }
       const generation = old ? old.generation + 1 : 1;
@@ -165,7 +191,7 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
         report.existing++;
         db.run(`UPDATE subscription_nodes SET raw_link = ?, normalized_config_json = ?, name = ?, capability_status = ?,
           parse_error = ?, last_seen_at = ?, removed_at = NULL, is_present = 1, generation = ?,
-          next_check_at = CASE WHEN is_present = 0 THEN 0 ELSE next_check_at END WHERE id = ?`,
+          next_check_at = 0 WHERE id = ?`,
         [node.rawLink, configJson, node.name, node.capability, node.error, now, generation, id]);
       } else {
         report.added++;
@@ -211,11 +237,44 @@ async function syncSource(id, config, { signal, download = downloadSource, now =
     const current = getSource(id);
     if (!current || !current.is_active || current.revision !== source.revision) throw new SubscriptionError('superseded');
     if (response.status === 304) {
+      // A conditional response is valid only after an accepted representation.
+      // Partial/invalid imports deliberately clear validators, so 304 cannot certify them.
+      if (!source.etag && !source.last_modified) throw new SubscriptionError('unsupported_format');
       db.run(`UPDATE subscription_sources SET last_success_at = ?, sync_status = 'success', last_error = NULL,
         failure_count = 0, next_sync_at = ? WHERE id = ?`, [now(), now() + source.sync_interval_seconds * 1000, id]);
       return { unchanged: true };
     }
-    return applySnapshot(source, parseSubscription(response.body, config), response.headers, now());
+    const parsed = parseSubscription(response.body, config);
+    if (!parsed.complete) {
+      db.run('UPDATE subscription_sources SET etag = NULL, last_modified = NULL WHERE id = ?', [id]);
+    }
+    const observedAt = now();
+    // Shrink protection is opt-in; never silently change acceptance policy.
+    const ratio = config.sourceMinRetainRatio;
+    const presentCount = db.get('SELECT count(*) AS n FROM subscription_nodes WHERE source_id = ? AND is_present = 1', [id]).n;
+    const suspect = parsed.complete && Number.isFinite(ratio) && ratio > 0 && ratio < 1 &&
+      presentCount >= (config.sourceMinRetainNodes || 20) && parsed.nodes.length < presentCount * ratio;
+    if (suspect) {
+      const hash = crypto.createHash('sha256').update(JSON.stringify(parsed.nodes.map(node => node.fingerprint).sort())).digest('hex');
+      const previous = current.candidate_json ? JSON.parse(current.candidate_json) : null;
+      const same = previous?.hash === hash && previous.revision === source.revision;
+      const candidate = same ? { ...previous } : { hash, revision: source.revision, firstSeen: observedAt, lastSeen: observedAt, confirmations: 1 };
+      if (same && observedAt - previous.lastSeen >= (config.sourceConfirmationIntervalMs || 60000)) {
+        candidate.confirmations++;
+        candidate.lastSeen = observedAt;
+      }
+      if (candidate.confirmations < (config.sourceConfirmations || 2)) {
+        db.run(`UPDATE subscription_sources SET candidate_json = ?, etag = NULL, last_modified = NULL,
+          sync_status = 'suspect', last_error = ?, next_sync_at = ? WHERE id = ?`,
+        [JSON.stringify(candidate), 'Сокращение каталога ожидает подтверждения.', observedAt + (config.sourceConfirmationIntervalMs || 60000), id]);
+        return { acceptance: 'suspect', parseComplete: true, candidate_count: parsed.nodes.length };
+      }
+    }
+    return db.transaction(() => {
+      const report = applySnapshot(source, parsed, response.headers, observedAt);
+      db.run('UPDATE subscription_sources SET candidate_json = NULL WHERE id = ?', [id]);
+      return report;
+    });
   } catch (error) {
     const current = getSource(id);
     if (current && current.revision === source.revision && !['superseded', 'cancelled'].includes(error.code)) {

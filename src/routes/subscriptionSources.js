@@ -21,9 +21,13 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   function sourceList() {
     return db.all('SELECT * FROM subscription_sources ORDER BY name, id').map(source => {
       const nodes = health.getNodes(source.id);
-      return { ...sources.publicSource(source), count: nodes.filter(node => node.is_present).length,
-        healthy: nodes.filter(node => health.eligibility(node, currentConfig()) === 'healthy').length,
-        users: db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n };
+      const config = currentConfig();
+      const present = nodes.filter(node => node.is_present);
+      const healthy = present.filter(node => health.eligibility(node, config) === 'healthy');
+      const candidate = present.filter(node => health.deliveryState(node, config) === 'fresh');
+      return { ...sources.publicSource(source), count: present.length,
+        healthy: healthy.length, candidate: candidate.length,
+        selected: null, users: db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n };
     });
   }
 

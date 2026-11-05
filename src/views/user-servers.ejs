@@ -95,6 +95,19 @@
         <div class="border-b border-gray-200 pb-4 mb-4">
           <h3 class="font-medium break-all"><%= source.name %></h3>
           <p class="mt-1"><%= t('Запрошено {requested}, доступно {available}, выбрано {selected}.', { requested: source.requested, available: source.available, selected: source.selected.length }) %></p>
+          <% if (source.nodes && source.nodes.length) { %>
+            <details class="mt-2">
+              <summary class="cursor-pointer text-sm text-blue-700"><%= t('Причины отбора узлов') %></summary>
+              <ul class="mt-2 space-y-1 text-sm text-slate-600">
+                <% source.nodes.forEach(node => { %>
+                  <li class="flex flex-wrap items-center gap-2">
+                    <span class="min-w-0 truncate" title="<%= node.name %>"><%= node.name %></span>
+                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs"><%= statusLabel(node.reason) %></span>
+                  </li>
+                <% }); %>
+              </ul>
+            </details>
+          <% } %>
         </div>
       <% }); %>
       <div class="flex flex-wrap gap-3">

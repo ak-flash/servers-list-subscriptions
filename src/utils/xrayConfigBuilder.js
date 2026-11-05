@@ -58,15 +58,10 @@ function buildXhttpSettings(node) {
     if (extra[from] !== undefined && extra[from] !== '') settings[to] = extra[from];
   }
   if (extra.downloadSettings && typeof extra.downloadSettings === 'object' && !Array.isArray(extra.downloadSettings)) {
-    const download = extra.downloadSettings;
-    settings.downloadSettings = {
-      address: download.address,
-      port: Number(download.port) || 0,
-      network: download.network || 'xhttp',
-      security: download.security || 'none',
-      xhttpSettings: download.xhttpSettings || undefined,
-      realitySettings: download.realitySettings || undefined
-    };
+    // protocolParsers rejects source-controlled downloadSettings until every
+    // nested dial endpoint is validated and pinned. Keep this defense-in-depth
+    // guard for callers that construct a config without the parser.
+    throw new SubscriptionError('unsupported', 'XHTTP downloadSettings address не поддерживается без отдельной SSRF-проверки.');
   }
   if (extra.xmux && typeof extra.xmux === 'object') {
     settings.xmux = {};

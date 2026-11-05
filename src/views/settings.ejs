@@ -17,30 +17,22 @@
           <option value="<%= languageUrl('en') %>" <%= locale === 'en' ? 'selected' : '' %>><%= t('English') %></option>
         </select>
       </div>
+      <% if (typeof probeBudget !== 'undefined') { %>
+      <p class="mt-4 text-sm text-gray-600" data-probe-budget>
+        Deadline (<%= deadlineMode %>): <%= probeBudget.deadlineMs / 1000 %> s.
+        <%= t('Расчётный бюджет полного плана') %>: <%= probeBudget.requiredMs / 1000 %> s.
+        <% if (probeBudget.constrained) { %><strong><%= t('Лимит меньше полного плана; проверка может завершиться по таймауту.') %></strong><% } %>
+      </p>
+      <% } %>
       <form method="post" action="/admin/settings" class="mt-5 space-y-4">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div>
           <label class="block text-sm font-medium mb-1" for="checkIntervalSeconds"><%= t('Интервал VPN-проверок, секунд') %></label>
-          <input id="checkIntervalSeconds" name="checkIntervalSeconds" type="number" min="30" max="86400" step="1" value="<%= checkIntervalSeconds %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
-          <p class="mt-1 text-xs text-gray-500"><%= t('Например, 3600 — проверка не чаще одного раза в час.') %></p>
+          <input id="checkIntervalSeconds" name="checkIntervalSeconds" type="number" min="300" max="86400" step="1" value="<%= checkIntervalSeconds %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+          <p class="mt-1 text-xs text-gray-500"><%= t('Минимум 300 секунд (5 минут): чаще запускать проверки нельзя. Например, 3600 — не чаще одного раза в час.') %></p>
         </div>
 
-        <details class="rounded-lg border border-slate-200 p-3">
-          <summary class="cursor-pointer font-medium"><%= t('Дополнительные настройки проверки') %></summary>
-          <div class="mt-4 grid gap-4 sm:grid-cols-2">
-            <% const editable = [
-              ['sourceTimeoutSeconds', 'Таймаут загрузки источника, секунд', 1, 120],
-              ['readyTimeoutSeconds', 'Таймаут запуска Xray, секунд', 1, 30],
-              ['attemptTimeoutSeconds', 'Таймаут попытки VPN-проверки, секунд', 1, 30],
-              ['probeConcurrency', 'Параллельные VPN-проверки', 1, 64],
-              ['syncConcurrency', 'Параллельные загрузки источников', 1, 8],
-              ['maxQueued', 'Максимум задач в очереди', 1, 20000]
-            ]; %>
-            <% editable.forEach(([name, label, min, max]) => { %>
-              <div><label class="block text-sm font-medium mb-1" for="<%= name %>"><%= t(label) %></label><input id="<%= name %>" name="<%= name %>" type="number" min="<%= min %>" max="<%= max %>" step="1" value="<%= locals[name] %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2"></div>
-            <% }); %>
-          </div>
-        </details>
+        <p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-gray-600"><%= t('Таймауты, параллельность, размер очереди и другие параметры проверки настраиваются только через переменные окружения и требуют перезапуска сервиса.') %></p>
         <div>
           <label class="block text-sm font-medium mb-1" for="proxyUrl"><%= t('URL прокси') %></label>
           <input id="proxyUrl" name="proxyUrl" type="text" value="<%= proxyUrl %>" placeholder="http://user:pass@host:port" class="w-full rounded-lg border border-slate-300 px-3 py-2">
