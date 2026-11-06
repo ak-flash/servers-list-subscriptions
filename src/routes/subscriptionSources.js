@@ -24,9 +24,12 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       const config = currentConfig();
       const present = nodes.filter(node => node.is_present);
       const healthy = present.filter(node => health.eligibility(node, config) === 'healthy');
-      const unchecked = present.filter(node => !node.last_checked_at || health.eligibility(node, config) === 'unknown').length;
+      const failed = Math.max(0, present.length - healthy.length);
+      const failedPercent = present.length ? Math.round((failed / present.length) * 100) : 0;
+      const latencies = healthy.map(node => Number(node.latency_ms)).filter(Number.isFinite);
+      const averageLatency = latencies.length ? Math.round(latencies.reduce((sum, value) => sum + value, 0) / latencies.length) : null;
       return { ...sources.publicSource(source), count: present.length,
-        healthy: healthy.length, unchecked,
+        healthy: healthy.length, failedPercent, averageLatency,
         selected: null };
     });
   }
