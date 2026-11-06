@@ -16,9 +16,9 @@
           <p class="mt-1.5 text-sm leading-5 text-slate-300"><%= t('Импорт VLESS-подписок и выдача проверенных узлов пользователям.') %></p>
         </div>
         <dl class="grid min-w-0 grid-cols-3 gap-2 lg:w-[22rem]" aria-label="<%= t('Сводка по источникам') %>">
-          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Источники') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums"><%= sources.length %></dd></div>
-          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Рабочие узлы') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums"><%= totalHealthy %></dd></div>
-          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('В каталоге') %></dt><dd class="mt-1 text-2xl font-semibold tabular-nums"><%= totalNodes %></dd></div>
+          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Источники') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= sources.length %></dd></div>
+          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Рабочие узлы') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= totalHealthy %></dd></div>
+          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('В каталоге') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= totalNodes %></dd></div>
         </dl>
         <a href="/admin/subscription-sources/new" data-icon="add" class="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"><%= t('Добавить') %></a>
       </div>
@@ -51,11 +51,23 @@
               </div>
               <a href="/admin/subscription-sources/<%= source.id %>/edit" class="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" aria-label="<%= t('Настроить источник: {name}', { name: source.name }) %>"><%= t('Настроить') %></a>
             </div>
-            <div class="mt-5 grid grid-cols-2 divide-x divide-y divide-slate-200 rounded-xl bg-slate-50 py-3 text-center sm:grid-cols-4 sm:divide-y-0">
-              <div class="px-3"><p class="text-xs text-slate-500"><%= t('Рабочие') %></p><p class="mt-1 text-xl font-semibold tabular-nums text-emerald-700"><%= source.healthy %></p></div>
-              <div class="px-3"><p class="text-xs text-slate-500"><%= t('В каталоге') %></p><p class="mt-1 text-xl font-semibold tabular-nums"><%= source.count %></p></div>
-              <div class="px-3"><p class="text-xs text-slate-500"><%= t('Не рабочие') %></p><p class="mt-1 text-xl font-semibold tabular-nums text-amber-700"><%= source.failedPercent %>%</p></div>
-              <div class="px-3"><p class="text-xs text-slate-500"><%= t('Средняя задержка') %></p><p class="mt-1 text-xl font-semibold tabular-nums text-blue-700"><%= source.averageLatency === null ? '—' : `${source.averageLatency} мс` %></p></div>
+            <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-3 text-center">
+                <p class="text-xs font-medium text-emerald-700"><%= t('Рабочие') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-emerald-800"><%= source.healthy %></p>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-white px-3 py-3 text-center">
+                <p class="text-xs font-medium text-slate-500"><%= t('В каталоге') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.count %></p>
+              </div>
+              <div class="rounded-xl border border-amber-100 bg-amber-50 px-3 py-3 text-center">
+                <p class="text-xs font-medium text-amber-700"><%= t('Не рабочие') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-amber-800"><%= source.failedPercent %>%</p>
+              </div>
+              <div class="rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 text-center">
+                <p class="text-xs font-medium text-blue-700"><%= t('Средняя задержка') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-blue-800"><%= source.averageLatency === null ? '—' : `${source.averageLatency} мс` %></p>
+              </div>
             </div>
             <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
               <span class="rounded-full px-2.5 py-1 font-medium <%= !source.is_active ? 'bg-slate-100 text-slate-600' : source.sync_status === 'suspect' ? 'bg-amber-50 text-amber-700' : source.sync_status === 'error' ? 'bg-red-50 text-red-700' : source.sync_status === 'running' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700' %>"><%= source.is_active ? statusLabel(source.sync_status) : t('Источник отключён') %></span>
