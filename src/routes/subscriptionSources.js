@@ -24,9 +24,9 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       const config = currentConfig();
       const present = nodes.filter(node => node.is_present);
       const healthy = present.filter(node => health.eligibility(node, config) === 'healthy');
-      const candidate = present.filter(node => health.deliveryState(node, config) === 'fresh');
+      const unchecked = present.filter(node => !node.last_checked_at || health.eligibility(node, config) === 'unknown').length;
       return { ...sources.publicSource(source), count: present.length,
-        healthy: healthy.length, candidate: candidate.length,
+        healthy: healthy.length, unchecked,
         selected: null };
     });
   }

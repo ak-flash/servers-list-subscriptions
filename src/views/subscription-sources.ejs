@@ -54,7 +54,7 @@
             <div class="mt-5 grid grid-cols-3 divide-x divide-slate-200 rounded-xl bg-slate-50 py-3">
               <div class="px-3"><p class="text-xs text-slate-500"><%= t('Рабочие') %></p><p class="mt-1 text-xl font-semibold tabular-nums text-emerald-700"><%= source.healthy %></p></div>
               <div class="px-3"><p class="text-xs text-slate-500"><%= t('В каталоге') %></p><p class="mt-1 text-xl font-semibold tabular-nums"><%= source.count %></p></div>
-              <div class="px-3"><p class="text-xs text-slate-500"><%= t('Свежие кандидаты') %></p><p class="mt-1 text-xl font-semibold tabular-nums text-blue-700"><%= source.candidate %></p></div>
+              <div class="px-3"><p class="text-xs text-slate-500"><%= t('Не проверены') %></p><p class="mt-1 text-xl font-semibold tabular-nums text-amber-700"><%= source.unchecked %></p></div>
             </div>
             <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
               <span class="rounded-full px-2.5 py-1 font-medium <%= !source.is_active ? 'bg-slate-100 text-slate-600' : source.sync_status === 'suspect' ? 'bg-amber-50 text-amber-700' : source.sync_status === 'error' ? 'bg-red-50 text-red-700' : source.sync_status === 'running' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700' %>"><%= source.is_active ? statusLabel(source.sync_status) : t('Источник отключён') %></span>

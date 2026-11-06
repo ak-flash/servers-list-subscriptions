@@ -116,7 +116,7 @@ class ProbeScheduler {
       if (job.existing) task = this.tasks.get(key);
       if (!task) {
         task = { key, kind: 'check', sourceId: node.source_id, node, config, jobIds: new Set(), state: 'queued',
-          queuedAt: Date.now(), priority: 0, assigned: true, waiters: [], controller: new AbortController() };
+          queuedAt: Date.now(), priority: -100, assigned: true, manual: true, waiters: [], controller: new AbortController() };
         this.addTask(task);
       }
       task.jobIds.add(job.id);
@@ -222,6 +222,9 @@ class ProbeScheduler {
     try {
       const now = Date.now();
       const priority = task => {
+        // Manual node checks jump ahead of background/source work, but still
+        // respect the configured concurrency and the single-node dedupe rule.
+        if (task.manual) return -100;
         // Keep already usable assigned nodes fresh while a large initial import is still being checked.
         if (task.assigned && task.node?.status === 'healthy' && now - task.node.last_checked_at >= this.config.healthyTtlMs / 2) return -1;
         return Math.max(0, task.priority - Math.floor((now - task.queuedAt) / this.config.checkIntervalMs));

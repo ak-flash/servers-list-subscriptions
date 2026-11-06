@@ -182,6 +182,7 @@ const dictionaries = {
     'Таймаут попытки VPN-проверки, секунд': 'VPN check attempt timeout, seconds',
     'Параллельные VPN-проверки': 'Concurrent VPN checks',
     'Без прокси (выкл.)': 'No proxy (disabled)',
+    'Не проверены': 'Not checked',
     'Количество узлов, проверяемых одновременно.': 'Number of nodes checked concurrently.',
     'Параллельность и размер очереди применяются сразу после сохранения. Таймауты и интервал источников требуют перезапуска сервиса.': 'Concurrency and queue size apply immediately after saving. Timeouts and source interval require a service restart.',
     'Параллельные загрузки источников': 'Concurrent source downloads',
