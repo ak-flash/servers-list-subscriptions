@@ -184,6 +184,7 @@ const dictionaries = {
     'Без прокси (выкл.)': 'No proxy (disabled)',
     'Не рабочие': 'Unavailable',
     'Средняя задержка': 'Average latency',
+    'Ср. задержка': 'Avg. latency',
     'Количество узлов, проверяемых одновременно.': 'Number of nodes checked concurrently.',
     'Параллельность и размер очереди применяются сразу после сохранения. Таймауты и интервал источников требуют перезапуска сервиса.': 'Concurrency and queue size apply immediately after saving. Timeouts and source interval require a service restart.',
     'Параллельные загрузки источников': 'Concurrent source downloads',

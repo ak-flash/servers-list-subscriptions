@@ -16,9 +16,9 @@
           <p class="mt-1.5 text-sm leading-5 text-slate-300"><%= t('Импорт VLESS-подписок и выдача проверенных узлов пользователям.') %></p>
         </div>
         <dl class="grid min-w-0 grid-cols-3 gap-2 lg:w-[22rem]" aria-label="<%= t('Сводка по источникам') %>">
-          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Источники') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= sources.length %></dd></div>
-          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Рабочие узлы') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= totalHealthy %></dd></div>
-          <div class="min-w-0 rounded-xl border border-white/10 bg-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('В каталоге') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= totalNodes %></dd></div>
+          <div class="min-w-0 rounded-xl border border-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Источники') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= sources.length %></dd></div>
+          <div class="min-w-0 rounded-xl border border-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('Рабочие узлы') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= totalHealthy %></dd></div>
+          <div class="min-w-0 rounded-xl border border-white/10 p-3"><dt class="text-xs leading-4 text-slate-300"><%= t('В каталоге') %></dt><dd class="mt-1 text-center text-2xl font-semibold tabular-nums"><%= totalNodes %></dd></div>
         </dl>
         <a href="/admin/subscription-sources/new" data-icon="add" class="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300"><%= t('Добавить') %></a>
       </div>
@@ -65,7 +65,7 @@
                 <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-amber-800"><%= source.failedPercent %>%</p>
               </div>
               <div class="rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 text-center">
-                <p class="text-xs font-medium text-blue-700"><%= t('Средняя задержка') %></p>
+                <p class="text-xs font-medium text-blue-700"><%= t('Ср. задержка') %></p>
                 <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-blue-800"><%= source.averageLatency === null ? '—' : `${source.averageLatency} мс` %></p>
               </div>
             </div>
