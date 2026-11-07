@@ -52,21 +52,21 @@
               <a href="/admin/subscription-sources/<%= source.id %>/edit" class="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" aria-label="<%= t('Настроить источник: {name}', { name: source.name }) %>"><%= t('Настроить') %></a>
             </div>
             <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div class="rounded-xl border border-emerald-100 px-3 py-3 text-center">
-                <p class="text-xs font-medium text-emerald-700"><%= t('Рабочие') %></p>
-                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-emerald-800"><%= source.healthy %></p>
+              <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
+                <p class="text-xs font-medium text-slate-500"><%= t('Рабочие') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.healthy %></p>
               </div>
               <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
                 <p class="text-xs font-medium text-slate-500"><%= t('В каталоге') %></p>
                 <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.count %></p>
               </div>
-              <div class="rounded-xl border border-amber-100 px-3 py-3 text-center">
-                <p class="text-xs font-medium text-amber-700"><%= t('Не рабочие') %></p>
-                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-amber-800"><%= source.failedPercent %>%</p>
+              <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
+                <p class="text-xs font-medium text-slate-500"><%= t('Не рабочие') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.failedPercent %>%</p>
               </div>
-              <div class="rounded-xl border border-blue-100 px-3 py-3 text-center">
-                <p class="text-xs font-medium text-blue-700"><%= t('Ср. задержка') %></p>
-                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-blue-800"><%= source.averageLatency === null ? '—' : `${source.averageLatency} мс` %></p>
+              <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
+                <p class="text-xs font-medium text-slate-500"><%= t('Ср. задержка') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.averageLatency === null ? '—' : `${source.averageLatency} мс` %></p>
               </div>
             </div>
             <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
