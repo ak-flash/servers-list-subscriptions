@@ -62,7 +62,7 @@
               </div>
               <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
                 <p class="text-xs font-medium text-slate-500"><%= t('Рабочие') %></p>
-                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.healthy %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.count ? Math.round((source.healthy / source.count) * 100) : 0 %>%</p>
               </div>
               <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
                 <p class="text-xs font-medium text-slate-500"><%= t('Ср. задержка') %></p>
