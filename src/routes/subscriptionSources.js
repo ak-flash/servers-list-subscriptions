@@ -124,6 +124,11 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       catch (error) { res.status(error instanceof SubscriptionError ? error.status : 500).json({ error: error instanceof SubscriptionError ? translateError(error, req.t) : req.t('Не удалось выполнить действие. Повторите попытку.') }); }
     };
   }
+  router.post('/api/subscription-sources/:id/settings', ...auth, requireCsrf, action((req, res) => {
+    if (!['0', '1', 0, 1, true, false, 'true', 'false'].includes(req.body.is_active)) throw new SubscriptionError('validation', req.t('Укажите состояние источника.'));
+    const source = sources.setSourceEnabled(req.params.id, ['1', 1, true, 'true'].includes(req.body.is_active));
+    res.json({ id: source.id, is_active: source.is_active });
+  }));
   router.post('/api/subscription-sources/:id/sync', ...auth, requireCsrf, action((req, res) => {
     const job = scheduler.enqueueSync(req.params.id);
     res.status(202).json({ jobId: job.id, job });

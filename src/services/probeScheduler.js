@@ -206,7 +206,7 @@ class ProbeScheduler {
         const priority = !node.last_checked_at || node.generation !== node.health_generation ? 0 : assigned ? 1 : 2;
         if (!task) {
           task = { key: taskKey, kind: 'check', sourceId: node.source_id, node, config, jobIds: new Set(), state: 'queued',
-            queuedAt: now, priority, assigned: !!assigned, controller: new AbortController() };
+            queuedAt: now, priority, assigned: !!assigned, manual: reason !== 'scheduled', controller: new AbortController() };
           this.addTask(task);
         }
         task.jobIds.add(job.id);

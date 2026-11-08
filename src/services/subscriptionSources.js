@@ -30,7 +30,8 @@ function validateSettings(input, existing, config) {
     else delete headers[header];
   }
   if (input.clear_authorization === '1' || input.clear_authorization === true) delete headers.authorization;
-  return { name, url, headers_json: JSON.stringify(headers), sync_interval_seconds: interval, is_active: 1 };
+  return { name, url, headers_json: JSON.stringify(headers), sync_interval_seconds: interval,
+    is_active: input.is_active === undefined ? (existing?.is_active ?? 1) : (['1', 1, true, 'true'].includes(input.is_active) ? 1 : 0) };
 }
 
 function createSource(input, config, now = Date.now()) {
@@ -38,6 +39,17 @@ function createSource(input, config, now = Date.now()) {
   db.run(`INSERT INTO subscription_sources (id, name, url, headers_json, sync_interval_seconds, is_active, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [source.id, source.name, source.url, source.headers_json, source.sync_interval_seconds, source.is_active, now, now]);
   return getSource(source.id);
+}
+
+function setSourceEnabled(id, enabled, now = Date.now()) {
+  const source = getSource(id);
+  if (!source) throw new SubscriptionError('not_found', 'Источник не найден.', 404);
+  const value = enabled ? 1 : 0;
+  if (source.is_active !== value) {
+    db.run(`UPDATE subscription_sources SET is_active = ?, revision = revision + 1,
+      next_sync_at = 0, updated_at = ? WHERE id = ?`, [value, now, id]);
+  }
+  return getSource(id);
 }
 
 function updateSource(id, input, config, now = Date.now()) {
@@ -286,4 +298,4 @@ async function syncSource(id, config, { signal, download = downloadSource, now =
   }
 }
 
-module.exports = { getSource, publicSource, createSource, updateSource, deleteSource, setNodeEnabled, applySnapshot, syncSource, reparseStoredNodes };
+module.exports = { getSource, publicSource, createSource, updateSource, deleteSource, setSourceEnabled, setNodeEnabled, applySnapshot, syncSource, reparseStoredNodes };
