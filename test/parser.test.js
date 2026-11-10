@@ -441,6 +441,14 @@ test('VLESS security=none supports TCP/WS without adding TLS and rejects Vision 
   assert.equal(parseVless(link('vpn.example.com', '&flow=xtls-rprx-vision').replace('security=tls', 'security=none')).capability, 'unsupported');
 });
 
+test('VLESS names may contain spaces without making snapshot partial', () => {
+  const raw = 'vless://11111111-1111-4111-8111-111111111111@example.com:443?type=tcp&security=tls#Name with spaces';
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.complete, true);
+  assert.equal(parsed.report.invalid, 0);
+  assert.equal(parsed.nodes.length, 1);
+});
+
 test('plain, Base64/Base64URL, BOM, CRLF, duplicates, partial and limits', () => {
   const plain = `\uFEFF#profile-title: test\r\n${link()}\r\n${link()}\r\n${link('other.example.com')}`;
   for (const input of [plain, Buffer.from(plain).toString('base64'), Buffer.from(plain).toString('base64url')]) {

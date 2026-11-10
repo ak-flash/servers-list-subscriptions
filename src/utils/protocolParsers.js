@@ -195,7 +195,11 @@ function parseTrojan(raw) {
 }
 
 function parseVless(raw) {
-  if (typeof raw !== 'string' || raw.length > 16384 || /[\s\u0000-\u001f\u007f]/u.test(raw)) throw new SubscriptionError('invalid_link');
+  // Providers commonly leave ordinary spaces in URI fragments/names. Reject
+  // controls, but preserve display text after the fragment.
+  if (typeof raw !== 'string' || raw.length > 16384 || /[\u0000-\u001f\u007f]/u.test(raw)) throw new SubscriptionError('invalid_link');
+  const hashIndex = raw.indexOf('#');
+  if (/\s/.test(hashIndex >= 0 ? raw.slice(0, hashIndex) : raw)) throw new SubscriptionError('invalid_link');
   let url;
   let name;
   let uuid;

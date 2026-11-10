@@ -510,8 +510,8 @@ async function startServer() {
             process.exit(1);
         }
     };
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', () => shutdown(0));
+    process.on('SIGINT', () => shutdown(0));
     process.on('uncaughtException', error => {
         logger.error('uncaught_exception', { error: error?.message, stack: error?.stack });
         shutdown(1);
