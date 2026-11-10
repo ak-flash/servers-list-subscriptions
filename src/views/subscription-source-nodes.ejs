@@ -58,6 +58,12 @@
               </div>
               <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm mt-1">
                 <span data-node-status class="font-medium <%= node.effective_status === 'healthy' ? 'text-green-800' : 'text-gray-700' %>"><%= statusLabel(node.effective_status) %></span>
+                <% if (node.score !== null && node.score !== undefined) { %><span class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-800 tabular-nums" title="Score: latency, reliability, throughput and stability">Score: <%= Number(node.score).toFixed(1) %></span><% } %>
+                <% if (node.stability !== null && node.stability !== undefined) { %><span class="text-xs text-gray-500" title="Stability: success rate and latency jitter">Stability: <%= (Number(node.stability) * 100).toFixed(0) %>%</span><% } %>
+                <% if (node.fast_status) { %><span class="text-xs text-gray-500" title="Fast Probe"><%= node.fast_status === 'reachable' ? 'Fast ✓' : `Fast: ${node.fast_status}` %></span><% } %>
+                <% if (node.probe_profile) { %><span class="text-xs text-gray-500">Profile: <%= node.probe_profile %></span><% } %>
+                <% if (node.throughput_bps) { %><span class="text-xs text-gray-500">Speed: <%= (node.throughput_bps / 1024 / 1024).toFixed(2) %> MB/s</span><% } %>
+                <% if (node.service_gates && node.service_gates.length) { %><span class="text-xs <%= node.service_gates.every(g => g.passed) ? 'text-green-700' : 'text-red-700' %>">Gates: <%= node.service_gates.filter(g => g.passed).length %>/<%= node.service_gates.length %></span><% } %>
                 <% if (node.delivery_candidate) { %>
                   <span data-node-delivery data-icon="check" role="img" aria-label="<%= t('Будет выдан') %>: <%= t('Соответствует параметрам отбора и попадёт в подписку, если не ограничен лимитом узлов или порогом задержки пользователя.') %>" title="<%= t('Будет выдан') %>: <%= t('Соответствует параметрам отбора и попадёт в подписку, если не ограничен лимитом узлов или порогом задержки пользователя.') %>" class="h-6 w-6 shrink-0 rounded-full bg-emerald-100 text-emerald-800"></span>
                 <% } %>

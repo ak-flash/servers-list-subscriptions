@@ -12,6 +12,7 @@ const { buildXrayConfig } = require('../utils/xrayConfigBuilder');
 const { resolvePublicAddresses, resolvePublicHost, abortable } = require('../utils/safeHttp');
 const { SubscriptionError, safeError, messages } = require('../utils/subscriptionErrors');
 const { snapshotProbeConfig } = require('../config/subscriptions');
+const { probeDeadlineMs } = require('../utils/probeBudget');
 
 const exec = promisify(execFile);
 
@@ -77,6 +78,18 @@ function median(values) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+function fastHandshakePlan(parsed) {
+  const transport = parsed.network || 'tcp';
+  const security = parsed.security || 'none';
+  return {
+    protocol: parsed.protocol || 'unknown', transport, security,
+    mode: security === 'none' ? 'tcp-connect' : 'tls-clienthello',
+    // The current Fast Probe still launches a reduced Xray cycle for every
+    // supported transport, so the plan must not claim a direct socket path.
+    requiresXray: true
+  };
+}
+
 function startupDetail(output) {
   // Redact before truncation and cover URI credentials plus common Xray
   // credential-bearing fields. Startup diagnostics must remain bounded and
@@ -113,11 +126,19 @@ async function evaluateTargets(config, request, signal) {
     selected.results.some(result => ['unexpected_http_status', 'unexpected_body'].includes(result.errorCode)) ? 'test_failed' : 'offline';
   const last = selected.successes.at(-1) || selected.results.at(-1);
   const failure = status === 'healthy' ? null : selected.results.find(result => result.outcome !== 'success');
+  const throughputSamples = selected.successes
+    .map(item => Number(item.throughputBps))
+    .filter(value => Number.isFinite(value) && value > 0);
   return {
     status, attempts, targetId: selected.target.id, durationMs: performance.now() - started, targetPriority: selected.target.priority,
     successCount, attemptCount: selected.results.length,
     latencyMs: successCount ? median(selected.successes.map(result => result.latencyMs)) : null,
     httpStatus: last.httpStatus ?? null, errorCode: failure?.errorCode || null,
+    bytesTransferred: selected.successes.reduce((sum, item) => sum + (item.bytesTransferred || 0), 0),
+    // Bodyless probes (e.g. generate_204) transfer no payload. Unknown speed
+    // must stay null instead of being reported as a real 0 B/s measurement.
+    throughputBps: throughputSamples.length ? throughputSamples.reduce((sum, value) => sum + value, 0) / throughputSamples.length : null,
+    serviceGates: selected.results.map(item => ({ targetId: selected.target.id, passed: item.outcome === 'success', status: item.httpStatus ?? null, errorCode: item.errorCode || null })),
     errorMessage: failure ? messages[failure.errorCode] || messages.connection_error : null
   };
 }
@@ -166,7 +187,9 @@ async function requestThroughHttpProxy(target, proxy, timeoutMs, signal, ca) {
             const body = Buffer.concat(chunks).toString('utf8');
             const correctStatus = response.statusCode === target.status;
             const correctBody = target.body === undefined ? (target.status !== 204 || size === 0) : body === target.body;
-            finish({ outcome: correctStatus && correctBody ? 'success' : 'failure', latencyMs: performance.now() - started, httpStatus: response.statusCode,
+            const elapsedMs = performance.now() - started;
+            finish({ outcome: correctStatus && correctBody ? 'success' : 'failure', latencyMs: elapsedMs, httpStatus: response.statusCode,
+              bytesTransferred: size, throughputBps: size > 0 ? size / (elapsedMs / 1000) : null,
               errorCode: !correctStatus ? 'unexpected_http_status' : !correctBody ? 'unexpected_body' : null });
           });
         });
@@ -209,9 +232,12 @@ async function requestThroughSocks(target, socksUrl, timeoutMs, signal, ca) {
           const body = Buffer.concat(chunks).toString('utf8');
           const correctStatus = res.statusCode === target.status;
           const correctBody = target.body === undefined ? (target.status !== 204 || size === 0) : body === target.body;
+          const elapsedMs = performance.now() - started;
           resolve({
             outcome: correctStatus && correctBody ? 'success' : 'failure',
-            latencyMs: performance.now() - started, httpStatus: res.statusCode,
+            latencyMs: elapsedMs, bytesTransferred: size,
+            throughputBps: size > 0 ? size / (elapsedMs / 1000) : null,
+            httpStatus: res.statusCode,
             errorCode: !correctStatus ? 'unexpected_http_status' : !correctBody ? 'unexpected_body' : null
           });
         });
@@ -246,9 +272,9 @@ class VpnChecker {
 
   // Additional probe cycle: the connection to the VPN node is dialed through the configured HTTP proxy.
   // Failures here never affect the node's main health verdict; they are stored alongside as proxy_* fields.
-  async runProxyCycle(parsed, address, parentSignal, config = snapshotProbeConfig(this.config)) {
+  async runProxyCycle(parsed, address, parentSignal, config = snapshotProbeConfig(this.config), deadlineMs = probeDeadlineMs(config, 'full')) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), require('../utils/probeBudget').probeBudget(config).deadlineMs);
+    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), deadlineMs);
     const combined = parentSignal ? AbortSignal.any([controller.signal, parentSignal]) : controller.signal;
     let directory = null;
     let child = null;
@@ -339,11 +365,54 @@ class VpnChecker {
     }
   }
 
-  async check(node, { signal, config: requestedConfig = this.config } = {}) {
+  async fastProbe(node, { signal, timeoutMs = 6000, config: requestedConfig = this.config } = {}) {
+    const started = performance.now();
+    const parsed = JSON.parse(node.normalized_config_json);
+    const plan = fastHandshakePlan(parsed);
+    const base = snapshotProbeConfig(requestedConfig);
+    const fastTimeoutMs = Math.max(1, Math.min(Number(timeoutMs) || base.fastProbeTimeoutMs || 6000, base.fastProbeTimeoutMs || 6000));
+    // A proxy-only policy is a connectivity requirement, not an optional extra
+    // cycle. Keep the chained proxy for "only", but never launch the extra
+    // proxy measurement from the fast path.
+    const proxyOnly = Boolean(base.httpProxy && base.httpProxyMode === 'only');
+    const fastConfig = snapshotProbeConfig({ ...base, targets: base.targets.slice(0, 1), attempts: 1, minSuccess: 1,
+      readyTimeoutMs: Math.min(base.readyTimeoutMs, fastTimeoutMs), attemptTimeoutMs: Math.min(base.attemptTimeoutMs, fastTimeoutMs),
+      deadlineMs: fastTimeoutMs, deadlineMode: 'explicit',
+      httpProxyMode: proxyOnly ? 'only' : 'disabled', httpProxy: proxyOnly ? base.httpProxy : null });
+    const result = await this.check(node, { signal, config: fastConfig, profile: 'full', skipFast: true });
+    return { profile: 'fast', status: result.status === 'healthy' ? 'reachable' : result.status,
+      latencyMs: result.latencyMs ?? performance.now() - started, checkedAddress: result.checkedAddress,
+      handshake: result.status === 'healthy', handshakePlan: plan, serviceGates: result.serviceGates || [],
+      bytesTransferred: result.bytesTransferred, throughputBps: result.throughputBps, errorCode: result.errorCode,
+      errorMessage: result.errorMessage || null };
+  }
+
+  async check(node, { signal, config: requestedConfig = this.config, profile = 'full', skipFast = true } = {}) {
     const config = snapshotProbeConfig(requestedConfig);
+    signal?.throwIfAborted();
+    if (!node?.normalized_config_json) {
+      try { await abortable(this.verifyBinary(config), signal); }
+      catch (error) { return { profile: 'full', status: 'cancelled', errorCode: signal?.aborted ? 'cancelled' : 'runner_error', attempts: [] }; }
+      return { profile: 'full', status: 'runner_error', errorCode: 'validation', attempts: [] };
+    }
+    if (profile === 'fast') return this.fastProbe(node, { signal, timeoutMs: config.fastProbeTimeoutMs });
+    let fast = skipFast ? { status: 'reachable', handshake: true, skipped: true } : await this.fastProbe(node, { signal, timeoutMs: config.fastProbeTimeoutMs });
+    if (fast.status !== 'reachable') {
+      const runnerFailure = ['runner_error', 'cancelled'].includes(fast.status);
+      return {
+        profile: 'full', fast,
+        status: runnerFailure ? fast.status : 'offline', attempts: [], targetId: null, durationMs: fast.latencyMs,
+        successCount: 0, attemptCount: 0, latencyMs: fast.latencyMs ?? null,
+        checkedAddress: fast.checkedAddress || node.host || null,
+        httpStatus: null, errorCode: fast.errorCode || 'connection_error',
+        errorMessage: runnerFailure ? fast.errorMessage || null
+          : fast.status === 'timeout' ? 'Fast Probe timeout.' : 'Fast Probe не достиг узла.'
+      };
+    }
     const controller = new AbortController();
     const combined = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
-    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), require('../utils/probeBudget').probeBudget(config).deadlineMs);
+    const deadlineMs = probeDeadlineMs(config, 'full');
+    const timer = setTimeout(() => controller.abort(new SubscriptionError('probe_timeout')), deadlineMs);
     const started = performance.now();
     let directory;
     let child;
@@ -369,7 +438,7 @@ class VpnChecker {
         const address = addressList[addressIndex];
         combined.throwIfAborted();
         const remainingAddresses = addressList.length - addressIndex;
-        const remainingMs = Math.max(1, require('../utils/probeBudget').probeBudget(config).deadlineMs - (performance.now() - started));
+        const remainingMs = Math.max(1, deadlineMs - (performance.now() - started));
         // Reserve an equal share for every remaining address so a blackholed
         // first IP cannot consume the complete absolute deadline.
         const addressController = new AbortController();
@@ -432,9 +501,11 @@ class VpnChecker {
         // The deadline is an absolute budget for the complete check, including
         // address fallback and the optional proxy cycle. Never reset it here.
         const proxySignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
-        proxy = await this.runProxyCycle(parsed, selectedAddress, proxySignal, config);
+        const remainingMs = Math.max(1, deadlineMs - (performance.now() - started));
+        proxy = await this.runProxyCycle(parsed, selectedAddress, proxySignal, config, remainingMs);
       }
-      return { ...result, checkedAddress: selectedAddress.address, proxy, startupMs, durationMs: performance.now() - started };
+      return { profile: 'full', ...result, checkedAddress: selectedAddress.address, proxy, startupMs, durationMs: performance.now() - started,
+        ...(fast.skipped ? {} : { fast }) };
     } catch (error) {
       const actual = combined.aborted ? combined.reason : error;
       const safe = safeError(actual);
@@ -447,7 +518,8 @@ class VpnChecker {
       const errorDetail = ['xray_start', 'xray_exit'].includes(safe.code)
         ? startupDetail(child?.startupOutput) || child?.spawnErrorDetail || null
         : null;
-      return { status, errorCode: safe.code, errorMessage: safe.message, errorDetail, attempts: [], durationMs: performance.now() - started };
+      return { profile: 'full', status, errorCode: safe.code, errorMessage: safe.message, errorDetail, attempts: [], durationMs: performance.now() - started,
+        ...(fast && !fast.skipped ? { fast } : {}) };
     } finally {
       clearTimeout(timer);
       controller.abort(new SubscriptionError('cancelled'));

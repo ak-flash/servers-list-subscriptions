@@ -34,6 +34,34 @@ function proxyProfiles() {
   return { only, extra };
 }
 
+test('standalone Fast Probe uses a distinct dedupe key and shares one task', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  const settings = config({ fastProbeConcurrency: 2 });
+  const deferred = Promise.withResolvers();
+  const calls = [];
+  const checker = { status: { available: true }, stop: async () => {}, check: async (_node, options) => {
+    calls.push(options.profile);
+    return deferred.promise;
+  } };
+  const scheduler = new ProbeScheduler(settings, { checker });
+  t.after(async () => { await scheduler.stop(); db.closeDb(); });
+  const source = sources.createSource({ name: 'Fast key', url: 'https://fast-key.example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription(link()));
+  const node = getNodes(source.id)[0];
+  const first = scheduler.fastProbeNow(node.id);
+  const second = scheduler.fastProbeNow(node.id);
+  await delay(1);
+  assert.equal(calls.length, 1);
+  assert.ok(scheduler.tasks.has(`fast:${scheduler.nodeKey(node, settings)}`));
+  deferred.resolve({ profile: 'fast', status: 'reachable', latencyMs: 3, checkedAddress: '198.51.100.2' });
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(a.status, 'reachable');
+  assert.equal(b.status, 'reachable');
+  assert.equal(db.get("SELECT count(*) AS n FROM background_jobs WHERE type = 'fast_probe'").n, 1);
+});
+
+
+
 test('bounded queue shares node checks, persists progress and ignores a result from an old generation', async t => {
   await db.initDb({ filePath: ':memory:' });
   const settings = config({ concurrency: 2 });

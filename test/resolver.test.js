@@ -180,3 +180,28 @@ test('resolver: original credentials, manual overrides, dedupe/refill, priority,
   db.run("UPDATE users SET is_active = 0 WHERE id = 'u'");
   assert.equal(resolveUserSubscription('u', now, settings).user, null);
 });
+
+test('resolver exposes service gates and persisted stability, and tolerates malformed gate JSON', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config();
+  const now = Date.now();
+  db.run("INSERT INTO users (id, username) VALUES ('gates', 'Gates')");
+  const source = sources.createSource({ name: 'Gates', url: 'https://gates.example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription(link('gates.example.com')));
+  const node = health.getNodes(source.id)[0];
+  const gates = [{ targetId: 'primary', passed: true, status: 204, errorCode: null }];
+  health.markStarted(node, 'gates-cycle', now - 2);
+  health.recordResult(node, 'gates-cycle', { ...successful, status: 'healthy', latencyMs: 15,
+    checkedAddress: '198.51.100.7', throughputBps: 2 * 1024 * 1024, serviceGates: gates }, settings, null, now - 1);
+  saveAssignments('gates', { sources: [source.id] });
+  const resolved = resolveUserSubscription('gates', now, settings);
+  assert.deepEqual(resolved.servers[0].service_gates, gates);
+  assert.ok(resolved.servers[0].stability > 0 && resolved.servers[0].stability <= 1);
+  assert.equal(resolved.servers[0].throughput_bps, 2 * 1024 * 1024);
+  db.run('UPDATE subscription_node_health SET service_gates_json = ? WHERE node_id = ?', ['{broken', node.id]);
+  assert.deepEqual(health.safeNode(health.getNode(node.id), settings, now).service_gates, []);
+  assert.deepEqual(resolveUserSubscription('gates', now, settings).servers[0].service_gates, []);
+  db.run('UPDATE subscription_node_health SET service_gates_json = ? WHERE node_id = ?', ['[null,{"passed":true}]', node.id]);
+  assert.deepEqual(health.safeNode(health.getNode(node.id), settings, now).service_gates, [{ passed: true }]);
+});

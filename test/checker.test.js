@@ -169,6 +169,19 @@ test('target evaluation exposes duration without mixing target attempt counts', 
   assert.equal(result.attempts.length, settings.attempts);
 });
 
+test('throughput stays null for bodyless probes and averages only measured payload rates', async () => {
+  const settings = snapshotProbeConfig({ ...loadConfig({}), attempts: 1, minSuccess: 1 });
+  const bodyless = await evaluateTargets(settings, async () => ({ outcome: 'success', latencyMs: 10,
+    httpStatus: 204, bytesTransferred: 0, throughputBps: null }));
+  assert.equal(bodyless.status, 'healthy');
+  assert.equal(bodyless.bytesTransferred, 0);
+  assert.equal(bodyless.throughputBps, null);
+  const payload = await evaluateTargets(settings, async () => ({ outcome: 'success', latencyMs: 10,
+    httpStatus: 200, bytesTransferred: 2048, throughputBps: 2048 }));
+  assert.equal(payload.throughputBps, 2048);
+  assert.equal(payload.bytesTransferred, 2048);
+});
+
 test('checker keeps one absolute deadline across direct and extra proxy cycles', async t => {
   const settings = snapshotProbeConfig({ ...loadConfig({}), deadlineMs: 20, readyTimeoutMs: 1, attemptTimeoutMs: 1,
     httpProxy: { protocol: 'http', address: 'proxy.example.com', port: 3128, user: '', pass: '' }, httpProxyMode: 'extra' });

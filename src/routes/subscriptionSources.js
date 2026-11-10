@@ -134,7 +134,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
     res.status(202).json({ jobId: job.id, job });
   }));
   router.post('/api/subscription-sources/:id/check', ...auth, requireCsrf, action((req, res) => {
-    const job = scheduler.enqueueCheck({ sourceId: req.params.id });
+    const job = scheduler.enqueueCheck({ sourceId: req.params.id, pipeline: true });
     res.status(202).json({ jobId: job.id, job });
   }));
   router.post('/api/subscription-nodes/:id/check', ...auth, requireCsrf, async (req, res) => {

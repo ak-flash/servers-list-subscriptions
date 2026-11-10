@@ -111,8 +111,9 @@ test('304 does not block reclassification; startup automatically checks nodes ac
   const checked = [];
   const checker = {
     status: { available: true }, verifyBinary: async () => {}, cleanup: async () => {}, stop: async () => {},
-    check: async node => {
-      checked.push(node.id);
+    check: async (node, options) => {
+      checked.push({ id: node.id, profile: options.profile, skipFast: options.skipFast });
+      if (options.profile === 'fast') return { profile: 'fast', status: 'reachable', latencyMs: 5 };
       return { status: 'healthy', successCount: 3, attemptCount: 3, targetId: 'primary', targetPriority: 0, latencyMs: 50, httpStatus: 204, attempts: [] };
     }
   };
@@ -120,6 +121,10 @@ test('304 does not block reclassification; startup automatically checks nodes ac
   t.after(async () => { await scheduler.stop(); db.closeDb(); });
   await scheduler.start();
   await scheduler.idle();
-  assert.deepEqual(checked.sort(), ['cached', 'on-restart']);
+  for (const id of ['cached', 'on-restart']) {
+    assert.deepEqual(checked.filter(call => call.id === id).map(call => call.profile), ['fast', 'full']);
+    assert.equal(checked.find(call => call.id === id && call.profile === 'full').skipFast, true);
+  }
+  assert.equal(checked.length, 4);
   assert.ok(health.getNodes(source.id).every(node => health.eligibility(node, settings) === 'healthy'));
 });

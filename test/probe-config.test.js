@@ -62,6 +62,7 @@ test('every outcome-affecting target, threshold, timeout, and location change in
   const changes = [
     { attempts: 4 }, { minSuccess: 3 },
     { readyTimeoutMs: 6000 }, { attemptTimeoutMs: 6000 }, { deadlineMs: 60000 },
+    { fastProbeTimeoutMs: 3000 }, { fullProbeTimeoutMs: 10000 },
     { xrayVersion: '26.11.1' }, { xraySha256: 'f'.repeat(64) }, { probeLocation: 'other-host' },
     ...['url', 'status', 'body', 'priority', 'id'].map(field => ({
       targets: config.targets.map((target, index) => index ? target : { ...target, [field]: {

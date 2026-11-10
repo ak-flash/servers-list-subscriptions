@@ -167,6 +167,9 @@ npm run test:vpn
 | `PROBE_READY_TIMEOUT_SECONDS` | `10` | Готовность SOCKS-входа |
 | `PROBE_ATTEMPT_TIMEOUT_SECONDS` | `10` | Таймаут HTTPS-попытки |
 | `PROBE_DEADLINE_SECONDS` | `90` или `auto` | Общий hard deadline узла; `auto` рассчитывает бюджет плана с cap 180 секунд |
+| `FAST_PROBE_TIMEOUT_SECONDS` | `6` | Абсолютный таймаут Fast Probe (одна цель, одна попытка) |
+| `FULL_PROBE_TIMEOUT_SECONDS` | `20` | Абсолютный таймаут Full Probe, включая резервные адреса и proxy-цикл |
+| `FAST_PROBE_CONCURRENCY` | `16` | Максимум одновременных Fast Probe |
 | `PROBE_HISTORY_DAYS` | `7` | Максимальный возраст истории |
 | `PROBE_HISTORY_MAX_ROWS` | `50000` | Дополнительный предел истории для `sql.js` |
 | `PROBE_PRIMARY_URL` | `https://www.gstatic.com/generate_204` | Основная цель, ожидается 204 |

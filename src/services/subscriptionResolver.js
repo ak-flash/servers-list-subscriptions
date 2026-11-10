@@ -43,7 +43,11 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
       const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, checked_address: node.checked_address, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
-        proxy_status: node.proxy_status, proxy_latency_ms: node.proxy_latency_ms, proxy_checked_at: node.proxy_checked_at };
+        probe_profile: node.probe_profile || 'full', score: node.score ?? null, throughput_bps: node.throughput_bps ?? null,
+         fast_status: node.fast_status ?? null, fast_latency_ms: node.fast_latency_ms ?? null, fast_checked_at: node.fast_checked_at ?? null,
+         service_gates: health.parseServiceGates(node.service_gates_json),
+         stability: Number.isFinite(node.stability) ? node.stability : null,
+         proxy_status: node.proxy_status, proxy_latency_ms: node.proxy_latency_ms, proxy_checked_at: node.proxy_checked_at };
       const key = health.checkedAddressKey(node);
       if (!key) { exclude('unknown_address'); noteNode(node, 'unknown_address'); continue; }
       if (seenSubscriptionIps.has(key) || sourceIps.has(key)) { exclude('duplicate'); noteNode(node, 'duplicate'); continue; }
@@ -67,7 +71,10 @@ function subscriptionPreview(result) {
   return { user: result.user, sources: result.sources, resolved_at: result.resolved_at, servers: result.servers.map(server => ({
     id: server.id, name: server.name, origin: server.origin, host: server.host, port: server.port,
     latency_ms: server.latency_ms ?? null, last_checked_at: server.last_checked_at ?? null,
-    proxy_status: server.proxy_status ?? null, proxy_latency_ms: server.proxy_latency_ms ?? null, proxy_checked_at: server.proxy_checked_at ?? null
+    proxy_status: server.proxy_status ?? null, proxy_latency_ms: server.proxy_latency_ms ?? null, proxy_checked_at: server.proxy_checked_at ?? null,
+    probe_profile: server.probe_profile || 'full', score: server.score ?? null, throughput_bps: server.throughput_bps ?? null,
+    fast_status: server.fast_status ?? null, fast_latency_ms: server.fast_latency_ms ?? null, fast_checked_at: server.fast_checked_at ?? null,
+    service_gates: server.service_gates || [], stability: server.stability ?? null
   })) };
 }
 

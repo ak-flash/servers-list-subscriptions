@@ -1,5 +1,13 @@
 // One absolute check deadline. Explicit legacy limits remain valid even when
 // they cannot accommodate the worst-case plan; no silent migration of numbers.
+// Fast and Full probes have independent absolute caps. The legacy deadline is
+// still honoured when it is tighter than the profile cap.
+function probeDeadlineMs(config, profile = 'full') {
+  const budgetMs = probeBudget(config).deadlineMs;
+  const capMs = profile === 'fast' ? config.fastProbeTimeoutMs : config.fullProbeTimeoutMs;
+  return Number.isFinite(capMs) && capMs > 0 ? Math.min(budgetMs, capMs) : budgetMs;
+}
+
 function probeBudget(config) {
   const cycles = 2 + (config.httpProxy && config.httpProxyMode === 'extra' ? 1 : 0);
   const perCycleMs = 3 * config.readyTimeoutMs + config.attemptTimeoutMs * config.attempts * config.targets.length;
@@ -13,4 +21,4 @@ function probeBudget(config) {
   }
   return { deadlineMs, requiredMs, constrained: deadlineMs < requiredMs };
 }
-module.exports = { probeBudget };
+module.exports = { probeBudget, probeDeadlineMs };

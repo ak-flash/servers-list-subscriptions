@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const { normalizeHost } = require('../utils/protocolParsers');
 
 const PROBE_POLICY_VERSION = 3;
+const FAST_PROBE_TIMEOUT_SECONDS = 6;
+const FULL_PROBE_TIMEOUT_SECONDS = 20;
 
 function probeProfileVersion(config) {
   const proxy = config.httpProxy;
@@ -11,6 +13,7 @@ function probeProfileVersion(config) {
     targets: config.targets, location: config.probeLocation,
     attempts: config.attempts, minSuccess: config.minSuccess,
     readyTimeoutMs: config.readyTimeoutMs, attemptTimeoutMs: config.attemptTimeoutMs, deadlineMs: config.deadlineMs,
+    fastProbeTimeoutMs: config.fastProbeTimeoutMs, fullProbeTimeoutMs: config.fullProbeTimeoutMs,
     proxyMode: config.httpProxyMode || 'extra',
     // Credentials affect connectivity, but only their contribution to this digest is persisted with checks.
     proxy: proxy ? { protocol: proxy.protocol, address: proxy.address, port: proxy.port, user: proxy.user || '', pass: proxy.pass || '' } : null
@@ -109,6 +112,9 @@ function loadConfig(env = process.env) {
     attemptTimeoutMs: integer(env, 'PROBE_ATTEMPT_TIMEOUT_SECONDS', 10, 1, 30) * 1000,
     deadlineMs: deadline.seconds === null ? null : deadline.seconds * 1000,
     deadlineMode: deadline.mode,
+    fastProbeTimeoutMs: integer(env, 'FAST_PROBE_TIMEOUT_SECONDS', FAST_PROBE_TIMEOUT_SECONDS, 1, 6) * 1000,
+    fullProbeTimeoutMs: integer(env, 'FULL_PROBE_TIMEOUT_SECONDS', FULL_PROBE_TIMEOUT_SECONDS, 1, 20) * 1000,
+    fastProbeConcurrency: integer(env, 'FAST_PROBE_CONCURRENCY', 16, 1, 128),
     concurrency: integer(env, 'PROBE_CONCURRENCY', 4, 1, 64),
     syncConcurrency: integer(env, 'SOURCE_SYNC_CONCURRENCY', 2, 1, 8),
     maxQueued: integer(env, 'PROBE_MAX_QUEUED', 2000, 1, 20000),

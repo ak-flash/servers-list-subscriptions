@@ -1,7 +1,8 @@
 const net = require('net');
 
-function checkServer(host, port, timeout = 5000) {
+function checkServer(host, port, timeout = 6000) {
     return new Promise((resolve) => {
+        const started = Date.now();
         const socket = new net.Socket();
         let status = 'offline';
 
@@ -23,7 +24,7 @@ function checkServer(host, port, timeout = 5000) {
         });
 
         socket.on('close', () => {
-            resolve({ host, port, status, timestamp: Date.now() });
+            resolve({ host, port, status, latencyMs: Date.now() - started, timestamp: Date.now() });
         });
 
         try {
@@ -35,7 +36,7 @@ function checkServer(host, port, timeout = 5000) {
     });
 }
 
-async function checkMultipleServers(servers, timeout = 5000, concurrency = 8) {
+async function checkMultipleServers(servers, timeout = 6000, concurrency = 8) {
     const results = new Array(servers.length);
     let index = 0;
     await Promise.all(Array.from({ length: Math.min(concurrency, servers.length) }, async () => {
