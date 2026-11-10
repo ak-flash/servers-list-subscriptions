@@ -64,12 +64,20 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   }
   if (/^\s*</.test(text)) throw new SubscriptionError('unsupported_format');
   const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line && !line.startsWith('#'));
-  if (!lines.length) throw new SubscriptionError('empty_source');
-  if (lines.length > maxNodes) throw new SubscriptionError('too_many_nodes');
+  // Subscription providers often include human-readable metadata lines between
+  // URI records (for example Telegram/contact notices). They are not node
+  // records and must not turn an otherwise complete snapshot into a partial
+  // import, which would retain stale nodes forever.
+  const records = lines.filter(line => /^[a-z][a-z\d+.-]*:\/\//i.test(line));
+  const metadataOnly = lines.length > 0 && records.length < lines.length &&
+    lines.filter(line => !/^[a-z][a-z\d+.-]*:\/\//i.test(line)).every(line => /^[^\w]*(?:➡️|👉|📣|📆|剩余|剩余流量)/u.test(line));
+  if (!records.length) throw new SubscriptionError('empty_source');
+  const sourceLines = metadataOnly ? records : lines;
+  if (sourceLines.length > maxNodes) throw new SubscriptionError('too_many_nodes');
   const nodes = new Map();
-  const report = { format, total: lines.length, duplicates: 0, supported: 0, unsupported: 0, invalid: 0, unparseable: 0 };
+  const report = { format, total: sourceLines.length, duplicates: 0, supported: 0, unsupported: 0, invalid: 0, unparseable: 0 };
   let parsedNodes = 0;
-  for (const rawLink of lines) {
+  for (const rawLink of sourceLines) {
     const node = parseSubscriptionNode(rawLink);
     if (node.config) parsedNodes++;
     const reportKey = node.capability === 'supported' ? 'supported' : node.capability;

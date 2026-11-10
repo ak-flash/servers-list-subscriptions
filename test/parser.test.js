@@ -441,6 +441,14 @@ test('VLESS security=none supports TCP/WS without adding TLS and rejects Vision 
   assert.equal(parseVless(link('vpn.example.com', '&flow=xtls-rprx-vision').replace('security=tls', 'security=none')).capability, 'unsupported');
 });
 
+test('metadata lines between subscription links are ignored', () => {
+  const raw = `${link()}\n➡️ t.me/example\n${link('other.example.com')}`;
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.complete, true);
+  assert.equal(parsed.nodes.length, 2);
+  assert.equal(parsed.report.invalid, 0);
+});
+
 test('VLESS names may contain spaces without making snapshot partial', () => {
   const raw = 'vless://11111111-1111-4111-8111-111111111111@example.com:443?type=tcp&security=tls#Name with spaces';
   const parsed = parseSubscription(raw);
