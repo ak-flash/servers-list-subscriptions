@@ -441,6 +441,16 @@ test('VLESS security=none supports TCP/WS without adding TLS and rejects Vision 
   assert.equal(parseVless(link('vpn.example.com', '&flow=xtls-rprx-vision').replace('security=tls', 'security=none')).capability, 'unsupported');
 });
 
+test('provider account placeholders are not imported as unsupported nodes', () => {
+  const raw = `${link()}\nvless://xxxxxxxxxx1@localhost:80?...#Expiry notice\nvless://xxxxxxxxxx1@localhost:444?...#Contact\nvless://xxxxxxxxxx3@localhost:8443?...#Traffic notice`;
+  const parsed = parseSubscription(raw);
+  assert.equal(parsed.complete, true);
+  assert.equal(parsed.nodes.length, 1);
+  assert.equal(parsed.report.unsupported, 0);
+  const actualLocalNode = parseSubscription(`${link()}\nvless://real-user@localhost:444?unknown=1#Real node`);
+  assert.equal(actualLocalNode.nodes.length, 2, 'non-placeholder links must not be silently discarded');
+});
+
 test('metadata lines between subscription links are ignored', () => {
   const raw = `${link()}\n➡️ t.me/example\n${link('other.example.com')}`;
   const parsed = parseSubscription(raw);

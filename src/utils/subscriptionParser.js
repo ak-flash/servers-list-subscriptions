@@ -72,7 +72,18 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   const metadataOnly = lines.length > 0 && records.length < lines.length &&
     lines.filter(line => !/^[a-z][a-z\d+.-]*:\/\//i.test(line)).every(line => /^[^\w]*(?:➡️|👉|📣|📆|剩余|剩余流量)/u.test(line));
   if (!records.length) throw new SubscriptionError('empty_source');
-  const sourceLines = metadataOnly ? records : lines;
+  const sourceLines = (metadataOnly ? records : lines).filter(line => {
+    // Some providers encode account notices as deliberately non-connectable
+    // VLESS placeholders. Match the complete sentinel shape, never arbitrary
+    // private/local nodes or unsupported connection parameters.
+    try {
+      const url = new URL(line);
+      return !(url.protocol === 'vless:' && url.hostname === 'localhost' &&
+        /^x+\d+$/.test(url.username) && url.search === '?...' &&
+        ['80', '444', '8443'].includes(url.port) && url.hash);
+    } catch { return true; }
+  });
+  if (!sourceLines.length) throw new SubscriptionError('empty_source');
   if (sourceLines.length > maxNodes) throw new SubscriptionError('too_many_nodes');
   const nodes = new Map();
   const report = { format, total: sourceLines.length, duplicates: 0, supported: 0, unsupported: 0, invalid: 0, unparseable: 0 };
