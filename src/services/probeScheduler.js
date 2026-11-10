@@ -275,14 +275,18 @@ class ProbeScheduler {
         if (task.assigned && task.node?.status === 'healthy' && now - task.node.last_checked_at >= this.config.healthyTtlMs / 2) return -1;
         return Math.max(0, task.priority - Math.floor((now - task.queuedAt) / this.config.checkIntervalMs));
       };
-      const candidates = [...this.tasks.values()].filter(task => task.state === 'queued')
+      // A pipeline task is briefly marked queued between Fast and Full while
+      // its previous promise is still unwinding. Never admit that same task
+      // again during this hand-off: doing so can overlap Xray processes,
+      // corrupt phase counters and overload the host.
+      const candidates = [...this.tasks.values()].filter(task => task.state === 'queued' && !task.runningSlot)
         .sort((a, b) => priority(a) - priority(b) || (this.lastServed.get(a.sourceId) || 0) - (this.lastServed.get(b.sourceId) || 0) || a.queuedAt - b.queuedAt);
       if (!candidates.length) return;
       // One node must never have two probes running (or waiting to be flushed).
       // Both would call markStarted with different cycle ids and the loser's
       // result would be rejected as superseded.
       const busyNodes = new Set([...this.tasks.values()]
-        .filter(task => task.kind === 'check' && task.state !== 'queued')
+        .filter(task => task.kind === 'check' && (task.state !== 'queued' || task.runningSlot))
         .map(task => task.node.id));
       db.transaction(() => {
         for (const task of candidates) {
