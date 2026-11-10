@@ -28,7 +28,9 @@ test('fresh database, nested rollback, persistence and cascading source/user del
   const rename = fs.renameSync;
   try {
     fs.renameSync = () => { throw Object.assign(new Error('Disk write failed'), { code: 'ENOSPC' }); };
-    assert.throws(() => db.run("UPDATE users SET username = 'unsaved' WHERE id = 'u'"), /Disk write failed/);
+    db.run("UPDATE users SET username = 'unsaved' WHERE id = 'u'");
+    await new Promise(resolve => setTimeout(resolve, 150));
+    assert.equal(db.get("SELECT username FROM users WHERE id = 'u'").username, 'user');
   } finally {
     fs.renameSync = rename;
   }

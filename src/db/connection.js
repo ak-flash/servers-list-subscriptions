@@ -176,7 +176,25 @@ function get(sql, params = []) {
 
 function run(sql, params = []) {
   getDb().run(sql, params);
-  saveDb();
+  // Persist standalone writes, but coalesce rapid writes into one export.
+  // sql.js export is synchronous and can otherwise block the HTTP event loop
+  // during probe-heavy workloads.
+  if (transactionDepth) return;
+  scheduleSave();
+}
+
+let saveTimer = null;
+let savePending = false;
+function scheduleSave() {
+  savePending = true;
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (!savePending) return;
+    savePending = false;
+    try { saveDb(); } catch (error) { console.error('database_save_failed', error); }
+  }, 100);
+  saveTimer.unref?.();
 }
 
 function registerFunctions(functions = {}) {
@@ -208,6 +226,9 @@ function transaction(callback) {
 }
 
 function closeDb() {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  savePending = false;
+  saveDb();
   if (db) db.close();
   db = null;
   persisted = null;
