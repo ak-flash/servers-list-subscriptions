@@ -11,7 +11,16 @@ function getSource(id) {
 function publicSource(source) {
   const { url, headers_json, ...safe } = source;
   const headers = JSON.parse(headers_json || '{}');
-  return { ...safe, masked_url: maskSourceUrl(url), has_authorization: !!headers.authorization,
+  let metadata = {};
+  try { metadata = JSON.parse(source.metadata_json || '{}') || {}; } catch { /* Tolerate legacy malformed metadata. */ }
+  const expiry = Number.isFinite(metadata.expire) && metadata.expire > 0 ? metadata.expire * 1000 : metadata.notice_expires_at;
+  const remainingDays = Number.isFinite(expiry) ? Math.max(0, Math.ceil((expiry - Date.now()) / 86400000)) : null;
+  let contactUrl = null;
+  try {
+    const contact = new URL(metadata.contact_url);
+    if (['http:', 'https:'].includes(contact.protocol) && !contact.username && !contact.password) contactUrl = contact.href;
+  } catch { /* No safe contact URL. */ }
+  return { ...safe, remaining_days: remainingDays, contact_url: contactUrl, masked_url: maskSourceUrl(url), has_authorization: !!headers.authorization,
     suspect: safe.sync_status === 'suspect', suspect_candidate: safe.candidate_json ? JSON.parse(safe.candidate_json) : null };
 }
 
@@ -93,8 +102,10 @@ function setNodeEnabled(id, enabled) {
   return db.get('SELECT * FROM subscription_nodes WHERE id = ?', [id]);
 }
 
-function sourceMetadata(headers) {
+function sourceMetadata(headers, metadata = {}, now = Date.now()) {
   const values = {};
+  if (Number.isInteger(metadata.remaining_days) && metadata.remaining_days >= 0) values.notice_expires_at = now + metadata.remaining_days * 86400000;
+  if (metadata.contact_url) values.contact_url = metadata.contact_url;
   for (const part of String(headers['subscription-userinfo'] || '').split(';')) {
     const match = /^\s*(upload|download|total|expire)=(\d+)\s*$/.exec(part);
     if (match && Number.isSafeInteger(Number(match[2]))) values[match[1]] = Number(match[2]);
@@ -234,7 +245,7 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
     [snapshot.complete ? 'success' : 'partial', snapshot.complete ? now : current.last_success_at,
       snapshot.complete ? null : 'Часть записей не разобрана. Отсутствующие узлы сохранены.', now + current.sync_interval_seconds * 1000,
       snapshot.complete ? headers.etag || null : null, snapshot.complete ? headers['last-modified'] || null : null,
-      sourceMetadata(headers), JSON.stringify(report), source.id]);
+      sourceMetadata(headers, snapshot.metadata, now), JSON.stringify(report), source.id]);
     return report;
   });
 }

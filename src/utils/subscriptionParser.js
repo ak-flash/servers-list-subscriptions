@@ -72,15 +72,34 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   const metadataOnly = lines.length > 0 && records.length < lines.length &&
     lines.filter(line => !/^[a-z][a-z\d+.-]*:\/\//i.test(line)).every(line => /^[^\w]*(?:➡️|👉|📣|📆|剩余|剩余流量)/u.test(line));
   if (!records.length) throw new SubscriptionError('empty_source');
+  const metadata = {};
+  function readNotice(notice) {
+    const days = /(?:осталось\s*:?\s*|remaining\s*:?\s*)(\d+)\s*(?:дн|день|дня|days?)/iu.exec(notice);
+    if (days && Number(days[1]) <= 36500) metadata.remaining_days = Number(days[1]);
+    const contact = /https?:\/\/[^\s<>"']+|(?:t\.me|telegram\.me)\/[a-z\d_/?=&%-]+/iu.exec(notice);
+    if (contact) {
+      try {
+        const url = new URL(/^https?:/i.test(contact[0]) ? contact[0] : `https://${contact[0]}`);
+        if (['https:', 'http:'].includes(url.protocol) && !url.username && !url.password) metadata.contact_url = url.href;
+      } catch { /* Ignore malformed contact URLs. */ }
+    }
+  }
+  for (const line of lines) {
+    if (!/^[a-z][a-z\d+.-]*:\/\//i.test(line) && /^[^\w]*(?:➡️|👉|📣|📆)/u.test(line)) readNotice(line);
+  }
   const sourceLines = (metadataOnly ? records : lines).filter(line => {
     // Some providers encode account notices as deliberately non-connectable
     // VLESS placeholders. Match the complete sentinel shape, never arbitrary
     // private/local nodes or unsupported connection parameters.
     try {
       const url = new URL(line);
-      return !(url.protocol === 'vless:' && url.hostname === 'localhost' &&
+      const placeholder = url.protocol === 'vless:' && url.hostname === 'localhost' &&
         /^x+\d+$/.test(url.username) && url.search === '?...' &&
-        ['80', '444', '8443'].includes(url.port) && url.hash);
+        ['80', '444', '8443'].includes(url.port) && url.hash;
+      if (placeholder) {
+        try { readNotice(decodeURIComponent(url.hash.slice(1))); } catch { /* Invalid encoding is not metadata. */ }
+      }
+      return !placeholder;
     } catch { return true; }
   });
   if (!sourceLines.length) throw new SubscriptionError('empty_source');
@@ -103,7 +122,7 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   // partial. Empty/HTML/undecodable documents are rejected above.
   if (!parsedNodes && report.invalid > 0) throw new SubscriptionError('unsupported_format');
   const complete = !report.invalid;
-  return { nodes: [...nodes.values()], report, complete, parseComplete: complete, acceptance: complete ? 'accepted' : 'partial', maxNodes };
+  return { nodes: [...nodes.values()], metadata, report, complete, parseComplete: complete, acceptance: complete ? 'accepted' : 'partial', maxNodes };
 }
 
 module.exports = { parseSubscription, parseSubscriptionNode, decodeBase64Strict };

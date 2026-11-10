@@ -48,6 +48,12 @@
                   <h3 class="min-w-0 break-words text-lg font-semibold"><a href="/admin/subscription-sources/<%= source.id %>/nodes" class="underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><%= source.name %></a></h3>
                 </div>
                 <p class="mt-2 truncate text-sm text-slate-500" title="<%= source.masked_url %>"><%= source.masked_url %></p>
+                <% if (source.remaining_days != null) { %>
+                  <p class="mt-2 text-sm text-slate-600"><%= t('Осталось дней') %>: <%= source.remaining_days %></p>
+                <% } %>
+                <% if (source.contact_url) { %>
+                  <p class="mt-2 break-all text-sm"><a href="<%= source.contact_url %>" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline"><%= source.contact_url %></a></p>
+                <% } %>
               </div>
               <a href="/admin/subscription-sources/<%= source.id %>/edit" class="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" aria-label="<%= t('Настроить источник: {name}', { name: source.name }) %>"><%= t('Настроить') %></a>
             </div>

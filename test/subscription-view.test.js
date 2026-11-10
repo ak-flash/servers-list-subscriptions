@@ -44,6 +44,14 @@ function renderSources({ locale = 'ru', job = null, metrics = {}, sources = [] }
   });
 }
 
+test('source cards render remaining days and escaped contact links', async () => {
+  const html = await renderSources({ sources: [{ id: 'notice', name: 'Notice', masked_url: 'https://example.com', is_active: true,
+    sync_status: 'success', count: 1, healthy: 0, users: 0, remaining_days: 0, contact_url: 'https://example.com/?a=1&b=2' }] });
+  assert.match(html, /Осталось дней: 0/);
+  assert.match(html, /href="https:\/\/example.com\/\?a=1&amp;b=2"/);
+  assert.match(html, /rel="noopener noreferrer"/);
+});
+
 test('source summary cards sit between the heading and add-source action', async () => {
   const sources = Array.from({ length: 3 }, (_, index) => ({
     id: `source-${index}`, name: `Source ${index}`, masked_url: 'https://example.com',

@@ -6,6 +6,25 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { getNodes, markStarted, recordResult } = require('../src/services/subscriptionHealth');
 const { link, config } = require('./fixtures');
 
+test('provider notices persist as source metadata, expire and disappear with a fresh snapshot', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const source = sources.createSource({ name: 'Notices', url: 'https://example.com/sub', is_active: true }, config());
+  const snapshot = parseSubscription(`${link()}\nvless://xxxxxxxxxx1@localhost:80?...#${encodeURIComponent('📆 Осталось: 23 дня')}\nvless://xxxxxxxxxx1@localhost:444?...#${encodeURIComponent('➡️t.me/example_bot')}`);
+  assert.deepEqual(snapshot.metadata, { remaining_days: 23, contact_url: 'https://t.me/example_bot' });
+  assert.equal(snapshot.nodes.length, 1);
+  sources.applySnapshot(source, snapshot, { 'subscription-userinfo': 'total=100' }, Date.now() - 86400000);
+  let publicSource = sources.publicSource(sources.getSource(source.id));
+  assert.equal(publicSource.remaining_days, 22);
+  assert.equal(publicSource.contact_url, 'https://t.me/example_bot');
+  assert.equal(JSON.parse(publicSource.metadata_json).total, 100);
+  assert.equal(sources.publicSource({ ...sources.getSource(source.id), metadata_json: '{"contact_url":"javascript:alert(1)"}' }).contact_url, null);
+  sources.applySnapshot(source, parseSubscription(link()), {}, Date.now());
+  publicSource = sources.publicSource(sources.getSource(source.id));
+  assert.equal(publicSource.remaining_days, null);
+  assert.equal(publicSource.contact_url, null);
+});
+
 test('snapshot node cap applies to union of retained and incoming nodes', async t => {
   await db.initDb({ filePath: ':memory:' });
   t.after(db.closeDb);
