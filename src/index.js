@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const os = require('node:os');
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
@@ -311,6 +312,20 @@ app.get('/admin', requireAuth, (req, res) => {
         return [1, 'ellipsis-start', page - 1, page, page + 1, 'ellipsis-end', pageCount];
     };
 
+    const memoryTotal = os.totalmem();
+    const memoryFree = os.freemem();
+    const memoryUsed = memoryTotal - memoryFree;
+    const serverLoad = os.loadavg();
+    const serverCpu = {
+        cores: os.cpus().length,
+        load1: serverLoad[0].toFixed(2),
+        load5: serverLoad[1].toFixed(2),
+        load15: serverLoad[2].toFixed(2),
+        memoryUsedPercent: Math.round((memoryUsed / memoryTotal) * 100),
+        memoryUsedGb: (memoryUsed / 1024 ** 3).toFixed(1),
+        memoryTotalGb: (memoryTotal / 1024 ** 3).toFixed(1)
+    };
+
     res.render('dashboard', {
         servers: serversWithInfo,
         users: usersWithTraffic,
@@ -321,7 +336,7 @@ app.get('/admin', requireAuth, (req, res) => {
         collectionUrl,
         paginationPages,
         totals: { servers: serverTotals, users: userTotals },
-        stats: { totalSources: subscriptionSources.length, healthyNodes }
+        stats: { totalSources: subscriptionSources.length, healthyNodes, serverCpu }
     });
 });
 

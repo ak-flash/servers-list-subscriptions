@@ -20,12 +20,23 @@
                 </div>
             </div>
         </section>
-        <section class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="<%= t('Сводка') %>">
+        <div class="mb-6 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)] md:items-stretch">
+            <section class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="<%= t('Сводка') %>">
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500"><%= t('Серверы') %></p><p class="mt-1 text-3xl font-bold text-slate-900"><%= totals.servers.active || 0 %></p><p class="mt-1 text-xs text-slate-500"><%= totals.servers.total %> <%= t('всего') %></p></div>
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500"><%= t('Пользователи') %></p><p class="mt-1 text-3xl font-bold text-slate-900"><%= totals.users.active || 0 %></p><p class="mt-1 text-xs text-slate-500"><%= totals.users.total %> <%= t('всего') %></p></div>
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500"><%= t('Источники подписок') %></p><p class="mt-1 text-3xl font-bold text-slate-900"><%= stats.totalSources %></p><a href="/admin/subscription-sources" class="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline"><%= t('Открыть каталог') %></a></div>
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-sm text-slate-500"><%= t('Рабочие узлы') %></p><p class="mt-1 text-3xl font-bold text-slate-900"><%= stats.healthyNodes %></p><p class="mt-1 text-xs text-slate-500"><%= t('работают через VPN') %></p></div>
-        </section>
+            </section>
+            <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="<%= t('Нагрузка сервера') %>">
+                <p class="text-sm font-medium text-slate-500"><%= t('Нагрузка сервера') %></p>
+                <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div class="rounded-lg bg-slate-50 p-2"><p class="text-xs text-slate-500">CPU 1 мин</p><p class="mt-1 text-xl font-bold text-slate-900"><%= stats.serverCpu.load1 %></p></div>
+                    <div class="rounded-lg bg-slate-50 p-2"><p class="text-xs text-slate-500">5 мин</p><p class="mt-1 text-xl font-bold text-slate-900"><%= stats.serverCpu.load5 %></p></div>
+                    <div class="rounded-lg bg-slate-50 p-2"><p class="text-xs text-slate-500">15 мин</p><p class="mt-1 text-xl font-bold text-slate-900"><%= stats.serverCpu.load15 %></p></div>
+                </div>
+                <p class="mt-3 text-xs text-slate-500"><%= stats.serverCpu.cores %> CPU · RAM: <%= stats.serverCpu.memoryUsedGb %> / <%= stats.serverCpu.memoryTotalGb %> ГБ (<%= stats.serverCpu.memoryUsedPercent %>%)</p>
+            </section>
+        </div>
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6 mb-6 w-full" data-dashboard-collections>
             <div class="border-b border-slate-200" role="tablist" aria-label="<%= t('Список управления') %>">
                 <div class="flex flex-wrap gap-2">

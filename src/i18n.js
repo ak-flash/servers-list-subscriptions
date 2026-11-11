@@ -52,6 +52,7 @@ const dictionaries = {
     'Серверы': 'Servers',
     'Пользователи': 'Users',
     'Рабочие узлы': 'Working nodes',
+    'Нагрузка сервера': 'Server load',
     'работают через VPN': 'working through VPN',
     'Открыть каталог': 'Open catalog',
     'Ручные серверы': 'Manual servers',
