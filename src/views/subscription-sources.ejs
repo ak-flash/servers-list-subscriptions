@@ -90,8 +90,8 @@
                 <span class="text-sm font-medium text-slate-600"><%= source.is_active ? t('Источник активен') : t('Источник отключён') %></span>
                 <label class="relative inline-flex min-h-[44px] cursor-pointer items-center" title="<%= source.is_active ? t('Отключить источник') : t('Включить источник') %>">
                   <input type="checkbox" class="peer sr-only" <%= source.is_active ? 'checked' : '' %> aria-label="<%= source.is_active ? t('Отключить источник') : t('Включить источник') %>" onchange="this.form.elements.is_active.value = this.checked ? '1' : '0'; this.form.requestSubmit();">
-                  <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500 peer-focus-visible:ring-offset-2"></span>
-                  <span class="pointer-events-none absolute left-1 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                  <span class="source-toggle-track"></span>
+                  <span class="source-toggle-thumb"></span>
                 </label>
               </form>
               <% if (source.is_active) { %>
