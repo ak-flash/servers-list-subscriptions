@@ -44,8 +44,6 @@
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
-                  <span class="h-2.5 w-2.5 rounded-full <%= source.is_active ? (source.healthy ? 'bg-emerald-500' : 'bg-amber-400') : 'bg-slate-400' %>" aria-hidden="true"></span>
-                  <h3 class="min-w-0 break-words text-lg font-semibold"><a href="/admin/subscription-sources/<%= source.id %>/nodes" class="underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><%= source.name %></a></h3>
                   <form method="post" action="/api/subscription-sources/<%= source.id %>/settings" class="shrink-0">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <input type="hidden" name="is_active" value="<%= source.is_active ? '1' : '0' %>">
@@ -55,6 +53,8 @@
                       <span class="source-toggle-thumb"></span>
                     </label>
                   </form>
+                  <span class="h-2.5 w-2.5 rounded-full <%= source.is_active ? (source.healthy ? 'bg-emerald-500' : 'bg-amber-400') : 'bg-slate-400' %>" aria-hidden="true"></span>
+                  <h3 class="min-w-0 break-words text-lg font-semibold"><a href="/admin/subscription-sources/<%= source.id %>/nodes" class="underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><%= source.name %></a></h3>
                 </div>
                 <p class="mt-2 truncate text-sm text-slate-500" title="<%= source.masked_url %>"><%= source.masked_url %></p>
                 <div class="mt-2 flex min-w-0 items-center gap-3 truncate text-sm text-slate-600">
