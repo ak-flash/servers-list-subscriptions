@@ -185,11 +185,10 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
     if (!current || !current.is_active || current.revision !== source.revision) throw new SubscriptionError('superseded');
     reparseStoredNodes(source.id);
     const existing = new Map(db.all('SELECT * FROM subscription_nodes WHERE source_id = ?', [source.id]).map(node => [node.fingerprint, node]));
-    // Enforce the cap on the union of retained and incoming fingerprints for
-    // every snapshot type. Partial snapshots must not bypass it, and complete
-    // snapshots must not temporarily stage more than SOURCE_MAX_NODES either.
-    const present = new Set([...existing.values()].filter(node => node.is_present).map(node => node.fingerprint));
-    for (const node of snapshot.nodes) present.add(node.fingerprint);
+    // Every accepted download is authoritative for this source, including a
+    // partial parse: only records seen in this response remain in the catalog.
+    // Apply the cap to the incoming snapshot, not to historical rows.
+    const present = new Set(snapshot.nodes.map(node => node.fingerprint));
     if (present.size > (snapshot.maxNodes || 1000)) throw new SubscriptionError('too_many_nodes');
     const report = { ...snapshot.report, added: 0, existing: 0, removed: 0, complete: snapshot.complete,
       parseComplete: snapshot.parseComplete ?? snapshot.complete, acceptance: snapshot.acceptance || (snapshot.complete ? 'accepted' : 'partial') };
@@ -230,16 +229,14 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
         runner_error_code = NULL, runner_error_message = NULL`,
       [id, node.fingerprint, generation, node.capability === 'supported' ? 'unknown' : node.capability]);
     }
-    if (snapshot.complete) {
-      for (const old of existing.values()) {
-        if (old.is_present && !seen.has(old.fingerprint)) {
-          report.removed++;
-          db.run('UPDATE subscription_nodes SET is_present = 0, removed_at = ? WHERE id = ?', [now, old.id]);
-        }
+    for (const old of existing.values()) {
+      if (old.is_present && !seen.has(old.fingerprint)) {
+        report.removed++;
+        db.run('DELETE FROM subscription_nodes WHERE id = ?', [old.id]);
       }
     }
-    // Row history for absent nodes is kept (is_present = 0) and cleaned up by historyDays pruning.
-    // Do not keep even old validators after a partial response: a subsequent 304 cannot certify that snapshot.
+    // The source catalog is a current snapshot, not an archive. Partial parses
+    // are still applied as received; this prevents stale nodes from accumulating.
     db.run(`UPDATE subscription_sources SET sync_status = ?, last_success_at = ?, last_error = ?, failure_count = 0,
       next_sync_at = ?, etag = ?, last_modified = ?, metadata_json = ?, report_json = ? WHERE id = ?`,
     [snapshot.complete ? 'success' : 'partial', snapshot.complete ? now : current.last_success_at,

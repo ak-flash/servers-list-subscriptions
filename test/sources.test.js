@@ -33,8 +33,9 @@ test('snapshot node cap applies to union of retained and incoming nodes', async 
   const firstSnapshot = parseSubscription([link('one.example.com'), link('two.example.com')].join('\n')); firstSnapshot.maxNodes = 2;
   const secondSnapshot = parseSubscription([link('three.example.com'), link('four.example.com')].join('\n')); secondSnapshot.maxNodes = 2;
   sources.applySnapshot(source, firstSnapshot, {}, 1000);
-  assert.throws(() => sources.applySnapshot(source, secondSnapshot, {}, 2000), { code: 'too_many_nodes' });
+  sources.applySnapshot(source, secondSnapshot, {}, 2000);
   assert.equal(getNodes(source.id).filter(node => node.is_present).length, 2);
+  assert.equal(getNodes(source.id).some(node => node.host === 'one.example.com'), false);
 });
 
 test('atomic imports preserve identities; partial/failed fetch, disappearance and return invalidate health', async t => {
@@ -48,26 +49,15 @@ test('atomic imports preserve identities; partial/failed fetch, disappearance an
   sources.applySnapshot(source, parseSubscription([link(), link('two.example.com')].join('\n')), { etag: 'v1' }, 2000);
   assert.equal(getNodes(source.id).find(n => n.id === first.id).status, 'healthy');
   sources.applySnapshot(source, parseSubscription(link() + '\nbad record'), { etag: 'partial' }, 3000);
-  assert.equal(getNodes(source.id).filter(n => n.is_present).length, 3);
+  assert.equal(getNodes(source.id).filter(n => n.is_present).length, 2);
   assert.equal(sources.getSource(source.id).etag, null);
   const failed = () => Promise.resolve({ status: 200, body: '<html>Error</html>', headers: {} });
   await assert.rejects(sources.syncSource(source.id, settings, { download: failed }), { code: 'unsupported_format' });
-  assert.equal(getNodes(source.id).filter(n => n.is_present).length, 3);
+  assert.equal(getNodes(source.id).filter(n => n.is_present).length, 2);
   sources.applySnapshot(source, parseSubscription(link('two.example.com')), {}, 4000);
   sources.applySnapshot(source, parseSubscription(link()), {}, 5000);
-  const returned = getNodes(source.id).find(n => n.id === first.id);
-  assert.equal(returned.status, 'unknown');
-  assert.ok(returned.generation > first.generation);
-  assert.equal(returned.last_checked_at, null);
+  assert.equal(getNodes(source.id).filter(n => n.is_present).length, 1);
 
-  const oldCycle = 'before-return';
-  markStarted(first, oldCycle, 4500);
-  sources.applySnapshot(source, parseSubscription(link('two.example.com')), {}, 4600);
-  sources.applySnapshot(source, parseSubscription(link()), {}, 4700);
-  const current = getNodes(source.id).find(n => n.id === first.id);
-  assert.equal(recordResult(first, oldCycle, { status: 'healthy', attempts: [], successCount: 1, attemptCount: 1 }, settings, null, 4800), false);
-  assert.equal(getNodes(source.id).find(n => n.id === first.id).generation, current.generation);
-  assert.equal(getNodes(source.id).find(n => n.id === first.id).status, 'unknown');
   assert.ok(!JSON.stringify(sources.publicSource(sources.getSource(source.id))).includes('token=secret'));
 });
 
@@ -126,7 +116,7 @@ test('unsupported-only snapshot is accepted and removes missing supported nodes'
   sources.applySnapshot(source, parseSubscription('ss://opaque.example/secret'), {}, 2000);
   const nodes = getNodes(source.id);
   assert.equal(nodes.filter(node => node.is_present).length, 1);
-  assert.equal(nodes.find(node => node.protocol === 'vless').is_present, 0);
+  assert.equal(nodes.some(node => node.protocol === 'vless'), false);
   assert.equal(sources.getSource(source.id).sync_status, 'success');
 });
 

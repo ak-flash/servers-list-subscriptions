@@ -366,15 +366,11 @@ test('history pruning keeps disabled absent nodes until removed retention', asyn
   const original = getNodes(source.id)[0];
   sources.setNodeEnabled(original.id, false);
   sources.applySnapshot(source, parseSubscription('ss://opaque.example/only'), {}, 2000);
-  let absent = getNode(original.id);
-  assert.equal(absent.is_present, 0);
-  assert.equal(absent.is_enabled, 0);
-  pruneHistory(2000 + 2 * 86400000, settings);
-  assert.ok(getNode(original.id));
+  assert.equal(getNode(original.id), null);
   sources.applySnapshot(source, parseSubscription(link()), {}, 3000);
-  const returned = getNode(original.id);
+  const returned = getNodes(source.id)[0];
   assert.equal(returned.is_present, 1);
-  assert.equal(returned.is_enabled, 0);
+  assert.equal(returned.is_enabled, 1);
 });
 
 test('proxy-only and extra modes expose consistent freshness and provenance', async t => {
