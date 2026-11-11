@@ -5,8 +5,8 @@
 /* Keep the source activity switch visible even when utility classes are purged. */
 .source-toggle-track {
   display: block;
-  width: 3rem;
-  height: 1.75rem;
+  width: 2.5rem;
+  height: 1.5rem;
   border-radius: 9999px;
   background: rgb(203 213 225);
   transition: background-color 0.2s ease;
@@ -29,7 +29,7 @@ label:has(> input:focus-visible) .source-toggle-track {
   outline-offset: 2px;
 }
 label:has(> input:checked) .source-toggle-track { background: rgb(16 185 129); }
-label:has(> input:checked) .source-toggle-thumb { transform: translateX(1.25rem); }
+label:has(> input:checked) .source-toggle-thumb { transform: translateX(1rem); }
 
 .stats-card {
   min-width: 0;
