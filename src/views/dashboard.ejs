@@ -14,10 +14,18 @@
                     <h2 class="mt-2 text-xl font-semibold tracking-tight md:text-2xl"><%= t('Серверы и пользователи') %></h2>
                     <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-300"><%= t('Управляйте ручными серверами, пользователями и автоматическими источниками VPN-подписок.') %></p>
                 </div>
-                <div class="flex items-center gap-2 text-xs text-slate-400 md:pt-1">
-                    <svg viewBox="0 0 24 24" class="h-4 w-4 text-blue-300" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                    <span><%= t('Часовой пояс:') %> <strong class="font-medium text-slate-200"><%= timezone %></strong></span>
+                <div class="rounded-xl border border-white/10 bg-white/10 p-3 md:min-w-[20rem]">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm font-medium text-slate-200"><%= t('Нагрузка сервера') %></p>
+                        <span class="text-xs text-slate-400"><%= stats.serverCpu.cores %> CPU · RAM: <%= stats.serverCpu.memoryUsedGb %> / <%= stats.serverCpu.memoryTotalGb %> ГБ (<%= stats.serverCpu.memoryUsedPercent %>%)</span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+                        <div><p class="text-xs text-slate-400">1 мин</p><p class="mt-1 text-lg font-bold text-white"><%= stats.serverCpu.load1 %></p></div>
+                        <div><p class="text-xs text-slate-400">5 мин</p><p class="mt-1 text-lg font-bold text-white"><%= stats.serverCpu.load5 %></p></div>
+                        <div><p class="text-xs text-slate-400">15 мин</p><p class="mt-1 text-lg font-bold text-white"><%= stats.serverCpu.load15 %></p></div>
+                    </div>
                 </div>
+             </div>
             </div>
         </section>
         <div class="mb-6 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)] md:items-stretch">
