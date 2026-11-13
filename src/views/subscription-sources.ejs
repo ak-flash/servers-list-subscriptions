@@ -109,11 +109,9 @@
                     <circle cx="<%= x %>" cy="<%= 59 - point.healthy_percent * 0.54 %>" r="4" tabindex="0" role="button" fill="#10b981" class="cursor-pointer outline-none focus:ring-2" onclick="showHistoryPoint('<%= source.id %>', '<%= time(point.recorded_at) %>', '<%= Math.round(point.healthy_percent) %>', '<%= point.average_latency_ms == null ? '' : Math.round(point.average_latency_ms) %>')" onkeydown="if(event.key==='Enter'||event.key===' ') showHistoryPoint('<%= source.id %>', '<%= time(point.recorded_at) %>', '<%= Math.round(point.healthy_percent) %>', '<%= point.average_latency_ms == null ? '' : Math.round(point.average_latency_ms) %>')"><title><%= time(point.recorded_at) %>: <%= Math.round(point.healthy_percent) %>% · <%= point.average_latency_ms == null ? '—' : Math.round(point.average_latency_ms) + ' мс' %></title></circle>
                   <% }); %>
                   <polyline fill="none" stroke="#10b981" stroke-width="2" points="<%= points.map((p, i) => `${points.length === 1 ? 150 : 5 + i * 290 / (points.length - 1)},${59 - p.healthy_percent * 0.54}`).join(' ') %>" />
-                  <polyline fill="none" stroke="#3b82f6" stroke-width="2" points="<%= points.flatMap((p, i) => p.average_latency_ms == null ? [] : [`${points.length === 1 ? 150 : 5 + i * 290 / (points.length - 1)},${59 - p.average_latency_ms / maxLatency * 54}`]).join(' ') %>" />
                   </svg>
                 </div>
                 <div id="history-info-<%= source.id %>" class="mt-2 min-h-5 text-xs text-slate-600" aria-live="polite"></div>
-                <p class="mt-1 text-xs text-slate-500"><span style="color:#10b981" title="<%= t('Рабочие') %>">✓ %</span> · <span style="color:#3b82f6" title="<%= t('Ср. задержка') %>">⏱ <%= t('мс') %> (0–<%= Math.round(maxLatency) %>)</span></p>
               <% } else { %>
                 <p class="mt-2 text-xs text-slate-500"><%= t('История появится после следующей загрузки подписки.') %></p>
               <% } %>
