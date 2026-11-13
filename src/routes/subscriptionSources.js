@@ -83,7 +83,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
     const source = sources.getSource(req.params.id);
     if (!source) return res.status(404).send(req.t('Источник не найден'));
     try {
-      assignSourceToAllUsers(source.id, req.body.node_limit);
+      assignSourceToAllUsers(source.id, req.body.node_limit, req.body.special_node_limit);
       res.redirect(`/admin/subscription-sources/${source.id}/edit?saved=1`);
     } catch (error) {
       renderForm(req, res, source, error, req.body);

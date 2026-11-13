@@ -1,5 +1,6 @@
 const statusKeys = {
   healthy: 'status.healthy', unknown: 'status.unknown', unknown_address: 'status.unknown_address', quota: 'status.quota',
+  special_quota: 'status.special_quota',
   offline: 'status.offline', degraded: 'status.degraded',
   test_failed: 'status.test_failed', stale: 'status.stale', unsupported: 'status.unsupported', invalid: 'status.invalid',
   disabled: 'status.disabled', source_disabled: 'status.source_disabled', removed: 'status.removed', latency: 'status.latency',

@@ -20,7 +20,7 @@ function fieldNumber(value, fallback, min, max, label) {
 
 function saveAssignments(userId, input) {
   if (!db.get('SELECT id FROM users WHERE id = ?', [userId])) throw new SubscriptionError('not_found', 'Пользователь не найден.', 404);
-  for (const field of ['uuids', 'source_limits', 'max_latency', 'priorities']) {
+  for (const field of ['uuids', 'source_limits', 'special_node_limits', 'max_latency', 'priorities']) {
     if (input[field] !== undefined && (!input[field] || typeof input[field] !== 'object' || Array.isArray(input[field]))) {
       throw new SubscriptionError('validation', 'Проверьте параметры назначений.');
     }
@@ -46,6 +46,7 @@ function saveAssignments(userId, input) {
     if (!db.get('SELECT id FROM subscription_sources WHERE id = ?', [id])) throw new SubscriptionError('validation', 'Один из выбранных источников удалён. Обновите страницу.');
     return {
       id, limit: fieldNumber(input.source_limits?.[id], 10000, 1, 10000, 'Лимит узлов'),
+      specialLimit: fieldNumber(input.special_node_limits?.[id], null, 0, 10000, 'Лимит особых узлов'),
       latency: fieldNumber(input.max_latency?.[id], null, 1, 60000, 'Максимальная задержка'),
       priority: fieldNumber(input.priorities?.[id], 0, 0, 1000, 'Приоритет')
     };
@@ -58,10 +59,11 @@ function saveAssignments(userId, input) {
     for (const old of existing.keys()) if (!serverIds.includes(old)) db.run('DELETE FROM user_servers WHERE user_id = ? AND server_id = ?', [userId, old]);
     const now = Date.now();
     for (const binding of bindings) {
-      db.run(`INSERT INTO user_subscription_sources (user_id, source_id, node_limit, max_latency_ms, priority, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, source_id) DO UPDATE SET node_limit = excluded.node_limit,
-        max_latency_ms = excluded.max_latency_ms, priority = excluded.priority, is_active = 1, updated_at = excluded.updated_at`,
-      [userId, binding.id, binding.limit, binding.latency, binding.priority, now, now]);
+      db.run(`INSERT INTO user_subscription_sources (user_id, source_id, node_limit, special_node_limit, max_latency_ms, priority, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, source_id) DO UPDATE SET node_limit = excluded.node_limit,
+        special_node_limit = excluded.special_node_limit, max_latency_ms = excluded.max_latency_ms,
+        priority = excluded.priority, is_active = 1, updated_at = excluded.updated_at`,
+      [userId, binding.id, binding.limit, binding.specialLimit, binding.latency, binding.priority, now, now]);
     }
     for (const old of db.all('SELECT source_id FROM user_subscription_sources WHERE user_id = ?', [userId])) {
       if (!sourceIds.includes(old.source_id)) db.run('DELETE FROM user_subscription_sources WHERE user_id = ? AND source_id = ?', [userId, old.source_id]);
@@ -69,16 +71,18 @@ function saveAssignments(userId, input) {
   });
 }
 
-function assignSourceToAllUsers(sourceId, nodeLimit) {
+function assignSourceToAllUsers(sourceId, nodeLimit, specialNodeLimit) {
   if (!db.get('SELECT id FROM subscription_sources WHERE id = ?', [sourceId])) throw new SubscriptionError('not_found', 'Источник не найден.', 404);
   const limit = fieldNumber(nodeLimit, null, 1, 10000, 'Количество узлов');
   if (limit === null) throw new SubscriptionError('validation', 'Укажите количество узлов.');
+  const specialLimit = fieldNumber(specialNodeLimit, null, 0, 10000, 'Количество особых узлов');
   const now = Date.now();
   db.transaction(() => {
     for (const user of db.all('SELECT id FROM users')) {
-      db.run(`INSERT INTO user_subscription_sources (user_id, source_id, node_limit, max_latency_ms, priority, created_at, updated_at)
-        VALUES (?, ?, ?, NULL, 0, ?, ?) ON CONFLICT(user_id, source_id) DO UPDATE SET node_limit = excluded.node_limit,
-        is_active = 1, updated_at = excluded.updated_at`, [user.id, sourceId, limit, now, now]);
+      db.run(`INSERT INTO user_subscription_sources (user_id, source_id, node_limit, special_node_limit, max_latency_ms, priority, created_at, updated_at)
+        VALUES (?, ?, ?, ?, NULL, 0, ?, ?) ON CONFLICT(user_id, source_id) DO UPDATE SET node_limit = excluded.node_limit,
+        special_node_limit = excluded.special_node_limit, is_active = 1, updated_at = excluded.updated_at`,
+      [user.id, sourceId, limit, specialLimit, now, now]);
     }
   });
   return db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [sourceId]).n;

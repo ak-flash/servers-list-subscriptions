@@ -25,7 +25,7 @@ Xray runs as a temporary client to test external VPN nodes. User traffic goes di
 - **Caddy routing** with forwarding for `/join/*`
 - **External sources**: HTTP(S), plain/Base64/Base64URL VLESS, periodic updates, and a persistent catalog
 - **Real VPN probes**: VLESS TCP/WS/XHTTP/gRPC with or without TLS, TCP/XHTTP/gRPC Reality (including Vision), HTTPS 204 checks, latency, and failure reasons
-- **Automatic node assignment**: per-source node limits, latency thresholds, priorities, deduplication, and freshness checks
+- **Automatic node assignment**: per-source node limits, a separate quota for nodes named LTE, БС, or “Белые списки”, latency thresholds, priorities, deduplication, and freshness checks
 - **Background jobs**: a bounded queue, progress in the admin panel, and schedule recovery
 
 Configuration, compatibility matrix, and operations: [external subscriptions and Xray](docs/EXTERNAL_SUBSCRIPTIONS.md) (in Russian).

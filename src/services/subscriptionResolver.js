@@ -1,6 +1,7 @@
 const db = require('../db/database');
 const health = require('./subscriptionHealth');
 const { effectiveLink } = require('../utils/linkBuilder');
+const { isSpecialNodeName } = require('../utils/specialNodes');
 const { loadConfig } = require('../config/subscriptions');
 
 function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()) {
@@ -17,11 +18,17 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     JOIN subscription_sources s ON s.id = us.source_id WHERE us.user_id = ? ORDER BY us.priority, us.source_id`, [userId]);
   const diagnostics = [];
   for (const binding of bindings) {
-    const report = { source_id: binding.source_id, name: binding.name, requested: binding.node_limit, available: 0, selected: [], excluded: {}, nodes: [], resolved_at: now };
+    // NULL keeps the legacy single-quota behavior. A number enables an
+    // independent quota for LTE / base-station / white-list nodes.
+    const separateSpecial = Number.isInteger(binding.special_node_limit) && binding.special_node_limit >= 0;
+    const specialLimit = separateSpecial ? binding.special_node_limit : null;
+    const report = { source_id: binding.source_id, name: binding.name, requested: binding.node_limit,
+      requested_special: specialLimit, separate_special: separateSpecial, available: 0, available_special: 0,
+      selected: [], selected_special: 0, excluded: {}, nodes: [], resolved_at: now };
     const exclude = reason => { report.excluded[reason] = (report.excluded[reason] || 0) + 1; };
-    const noteNode = (node, reason) => report.nodes.push({
+    const noteNode = (node, reason, special = isSpecialNodeName(node.name)) => report.nodes.push({
       id: node.id, name: node.name, host: node.host, port: node.port, latency_ms: node.latency_ms ?? null,
-      reason, selected: reason === 'selected'
+      reason, special, selected: reason === 'selected'
     });
     if (!binding.is_active || !binding.source_active) {
       exclude('source_disabled');
@@ -38,10 +45,13 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     });
     const pool = health.rankNodes(candidates, config, now);
     const sourceIps = new Set();
-    const selectedCount = { used: 0 };
+    const selectedCount = { ordinary: 0, special: 0 };
+    const selectedServers = { ordinary: [], special: [] };
+    const selectedInOrder = [];
     for (const node of pool) {
+      const special = isSpecialNodeName(node.name);
       const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
-        origin: 'source', host: node.host, port: node.port, protocol: node.protocol,
+        origin: 'source', special, host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, checked_address: node.checked_address, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
         probe_profile: node.probe_profile || 'full', score: node.score ?? null, throughput_bps: node.throughput_bps ?? null,
          fast_status: node.fast_status ?? null, fast_latency_ms: node.fast_latency_ms ?? null, fast_checked_at: node.fast_checked_at ?? null,
@@ -49,19 +59,41 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
          stability: Number.isFinite(node.stability) ? node.stability : null,
          proxy_status: node.proxy_status, proxy_latency_ms: node.proxy_latency_ms, proxy_checked_at: node.proxy_checked_at };
       const key = health.checkedAddressKey(node);
-      if (!key) { exclude('unknown_address'); noteNode(node, 'unknown_address'); continue; }
-      if (seenSubscriptionIps.has(key) || sourceIps.has(key)) { exclude('duplicate'); noteNode(node, 'duplicate'); continue; }
+      if (!key) { exclude('unknown_address'); noteNode(node, 'unknown_address', special); continue; }
+      if (seenSubscriptionIps.has(key) || sourceIps.has(key)) { exclude('duplicate'); noteNode(node, 'duplicate', special); continue; }
       sourceIps.add(key);
-      report.available++;
-      const limit = binding.node_limit;
-      if (Number.isFinite(limit) && limit > 0 && selectedCount.used >= limit) { exclude('quota'); noteNode(node, 'quota'); continue; }
+      if (separateSpecial) {
+        if (special) report.available_special++;
+        else report.available++;
+      } else {
+        report.available++;
+        if (special) report.available_special++;
+      }
+      const limit = special && separateSpecial ? specialLimit : binding.node_limit;
+      const used = special && separateSpecial ? selectedCount.special : selectedCount.ordinary;
+      const quotaReached = special && separateSpecial ? used >= limit : Number.isFinite(limit) && limit > 0 && used >= limit;
+      if (quotaReached) {
+        const reason = special && separateSpecial ? 'special_quota' : 'quota';
+        exclude(reason);
+        noteNode(node, reason, special);
+        continue;
+      }
       seenSubscriptionIps.add(key);
-      selectedCount.used++;
-      noteNode(node, 'selected');
-      servers.push(server);
+      if (special && separateSpecial) selectedCount.special++;
+      else selectedCount.ordinary++;
+      noteNode(node, 'selected', special);
+      selectedServers[special ? 'special' : 'ordinary'].push(server);
+      selectedInOrder.push(server);
       report.selected.push({ id: node.id, name: node.name, host: node.host, port: node.port, latency_ms: node.latency_ms,
-        test_target_id: node.test_target_id, last_checked_at: node.last_checked_at });
+        test_target_id: node.test_target_id, last_checked_at: node.last_checked_at, special });
     }
+    // With a separate quota, ordinary and special nodes form separate blocks
+    // in the delivered subscription. Otherwise keep the historical ranked
+    // order across all nodes.
+    servers.push(...(separateSpecial
+      ? [...selectedServers.ordinary, ...selectedServers.special]
+      : selectedInOrder));
+    report.selected_special = selectedServers.special.length;
     diagnostics.push(report);
   }
   return { user, servers, sources: diagnostics, resolved_at: now };
@@ -69,7 +101,7 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
 
 function subscriptionPreview(result) {
   return { user: result.user, sources: result.sources, resolved_at: result.resolved_at, servers: result.servers.map(server => ({
-    id: server.id, name: server.name, origin: server.origin, host: server.host, port: server.port,
+    id: server.id, name: server.name, origin: server.origin, special: Boolean(server.special), host: server.host, port: server.port,
     latency_ms: server.latency_ms ?? null, last_checked_at: server.last_checked_at ?? null,
     proxy_status: server.proxy_status ?? null, proxy_latency_ms: server.proxy_latency_ms ?? null, proxy_checked_at: server.proxy_checked_at ?? null,
     probe_profile: server.probe_profile || 'full', score: server.score ?? null, throughput_bps: server.throughput_bps ?? null,

@@ -205,3 +205,54 @@ test('resolver exposes service gates and persisted stability, and tolerates malf
   db.run('UPDATE subscription_node_health SET service_gates_json = ? WHERE node_id = ?', ['[null,{"passed":true}]', node.id]);
   assert.deepEqual(health.safeNode(health.getNode(node.id), settings, now).service_gates, [{ passed: true }]);
 });
+
+test('resolver applies a separate quota to LTE, base-station and white-list nodes', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config();
+  const now = Date.now();
+  db.run("INSERT INTO users (id, username) VALUES ('special', 'Special')");
+  const source = sources.createSource({ name: 'Mixed', url: 'https://mixed.example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription([
+    link('o1.example.com', '', 'Обычный 1'), link('o2.example.com', '', 'Обычный 2'), link('o3.example.com', '', 'Обычный 3'),
+    link('lte.example.com', '', 'LTE Москва'), link('bs.example.com', '', 'БС-777'), link('white.example.com', '', 'Белые списки')
+  ].join('\n')));
+  const latencies = { 'o1.example.com': 10, 'o2.example.com': 20, 'o3.example.com': 30,
+    'lte.example.com': 40, 'bs.example.com': 50, 'white.example.com': 60 };
+  for (const node of health.getNodes(source.id)) {
+    health.markStarted(node, node.id, now - 200);
+    health.recordResult(node, node.id, { ...successful, latencyMs: latencies[node.host], checkedAddress: node.host }, settings, null, now - 100);
+  }
+
+  // One ordinary node plus a separate quota of two special nodes.
+  saveAssignments('special', { sources: [source.id], source_limits: { [source.id]: '1' }, special_node_limits: { [source.id]: '2' } });
+  const result = resolveUserSubscription('special', now, settings);
+  assert.deepEqual(result.servers.map(server => server.host), ['o1.example.com', 'lte.example.com', 'bs.example.com']);
+  assert.deepEqual(result.servers.map(server => server.special), [false, true, true]);
+  const report = result.sources[0];
+  assert.equal(report.requested, 1);
+  assert.equal(report.requested_special, 2);
+  assert.equal(report.separate_special, true);
+  assert.equal(report.available, 3);
+  assert.equal(report.available_special, 3);
+  assert.equal(report.selected_special, 2);
+  assert.equal(report.excluded.quota, 2);
+  assert.equal(report.excluded.special_quota, 1);
+
+  // Zero disables the separate block without touching the ordinary quota.
+  saveAssignments('special', { sources: [source.id], source_limits: { [source.id]: '1' }, special_node_limits: { [source.id]: '0' } });
+  const disabled = resolveUserSubscription('special', now, settings);
+  assert.deepEqual(disabled.servers.map(server => server.host), ['o1.example.com']);
+  assert.equal(disabled.sources[0].excluded.special_quota, 3);
+
+  // An empty field keeps the historical shared quota and rank order.
+  saveAssignments('special', { sources: [source.id], source_limits: { [source.id]: '2' } });
+  const legacy = resolveUserSubscription('special', now, settings);
+  assert.deepEqual(legacy.servers.map(server => server.host), ['o1.example.com', 'o2.example.com']);
+  assert.equal(legacy.sources[0].requested_special, null);
+  assert.equal(legacy.sources[0].separate_special, false);
+  assert.equal(legacy.sources[0].excluded.quota, 4);
+  assert.equal(legacy.sources[0].excluded.special_quota, undefined);
+  assert.throws(() => saveAssignments('special', { sources: [source.id], special_node_limits: { [source.id]: '-1' } }));
+  assert.throws(() => saveAssignments('special', { sources: [source.id], special_node_limits: { [source.id]: '10001' } }));
+});
