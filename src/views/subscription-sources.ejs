@@ -99,14 +99,20 @@
               <p class="text-xs font-medium text-slate-500"><%= t('История работы') %></p>
               <% const points = source.history || []; const maxLatency = Math.max(1, ...points.map(p => p.average_latency_ms || 0)); %>
               <% if (points.length) { %>
-                <svg viewBox="0 0 300 64" class="mt-2 h-16 w-full" role="img" aria-label="<%= t('История работы') %>">
+                <div class="relative pl-7">
+                  <div class="pointer-events-none absolute inset-y-0 left-0 flex h-16 flex-col justify-between text-[10px] leading-none text-slate-400"><span>100%</span><span>50%</span><span>0%</span></div>
+                  <svg viewBox="0 0 300 64" class="mt-2 h-16 w-full" role="img" aria-label="<%= t('История работы') %>">
+                  <line x1="5" y1="5" x2="295" y2="5" stroke="#e2e8f0" stroke-dasharray="2 2" />
+                  <line x1="5" y1="32" x2="295" y2="32" stroke="#e2e8f0" stroke-dasharray="2 2" />
                   <line x1="5" y1="59" x2="295" y2="59" stroke="#e2e8f0" />
                   <% points.forEach((point, index) => { const x = points.length === 1 ? 150 : 5 + index * 290 / (points.length - 1); %>
-                    <circle cx="<%= x %>" cy="<%= 59 - point.healthy_percent * 0.54 %>" r="3" fill="#10b981"><title><%= time(point.recorded_at) %>: <%= Math.round(point.healthy_percent) %>% · <%= point.average_latency_ms == null ? '—' : Math.round(point.average_latency_ms) + ' мс' %></title></circle>
+                    <circle cx="<%= x %>" cy="<%= 59 - point.healthy_percent * 0.54 %>" r="4" tabindex="0" role="button" fill="#10b981" class="cursor-pointer outline-none focus:ring-2" onclick="showHistoryPoint('<%= source.id %>', '<%= time(point.recorded_at) %>', '<%= Math.round(point.healthy_percent) %>', '<%= point.average_latency_ms == null ? '' : Math.round(point.average_latency_ms) %>')" onkeydown="if(event.key==='Enter'||event.key===' ') showHistoryPoint('<%= source.id %>', '<%= time(point.recorded_at) %>', '<%= Math.round(point.healthy_percent) %>', '<%= point.average_latency_ms == null ? '' : Math.round(point.average_latency_ms) %>')"><title><%= time(point.recorded_at) %>: <%= Math.round(point.healthy_percent) %>% · <%= point.average_latency_ms == null ? '—' : Math.round(point.average_latency_ms) + ' мс' %></title></circle>
                   <% }); %>
                   <polyline fill="none" stroke="#10b981" stroke-width="2" points="<%= points.map((p, i) => `${points.length === 1 ? 150 : 5 + i * 290 / (points.length - 1)},${59 - p.healthy_percent * 0.54}`).join(' ') %>" />
                   <polyline fill="none" stroke="#3b82f6" stroke-width="2" points="<%= points.flatMap((p, i) => p.average_latency_ms == null ? [] : [`${points.length === 1 ? 150 : 5 + i * 290 / (points.length - 1)},${59 - p.average_latency_ms / maxLatency * 54}`]).join(' ') %>" />
-                </svg>
+                  </svg>
+                </div>
+                <div id="history-info-<%= source.id %>" class="mt-2 min-h-5 text-xs text-slate-600"><%= t('Нажмите на точку, чтобы посмотреть данные загрузки.') %></div>
                 <p class="mt-1 text-xs text-slate-500"><span style="color:#10b981"><%= t('Рабочие') %>, %</span> · <span style="color:#3b82f6"><%= t('Ср. задержка') %>, <%= t('мс') %> (0–<%= Math.round(maxLatency) %>)</span></p>
               <% } else { %>
                 <p class="mt-2 text-xs text-slate-500"><%= t('История появится после следующей загрузки подписки.') %></p>
@@ -126,5 +132,11 @@
     <% } %>
   </main>
   <script src="/subscription-actions.js" defer></script>
+  <script>
+    function showHistoryPoint(id, date, healthy, latency) {
+      const target = document.getElementById(`history-info-${id}`);
+      if (target) target.textContent = `${date} · <%= t('Рабочие') %>: ${healthy}% · <%= t('Ср. задержка') %>: ${latency ? `${latency} мс` : '—'}`;
+    }
+  </script>
 </body>
 </html>
