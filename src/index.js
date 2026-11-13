@@ -336,7 +336,8 @@ app.get('/admin', requireAuth, (req, res) => {
         collectionUrl,
         paginationPages,
         totals: { servers: serverTotals, users: userTotals },
-        stats: { totalSources: subscriptionSources.length, healthyNodes, serverCpu }
+        stats: { totalSources: subscriptionSources.length, healthyNodes, serverCpu },
+        assigned: req.query.assigned === '1'
     });
 });
 
@@ -399,6 +400,12 @@ app.post('/admin/servers/:id', requireAuth, requireCsrf, (req, res) => {
         const serverWithInfo = { ...server, ...info, name: name || server.name, link: link || server.link, tag: tag, traffic_limit: traffic_limit, is_active: is_active ? 1 : 0 };
         res.render('server-form', { server: serverWithInfo, error: req.t('Ошибка: ') + err.message, appName: APP_NAME });
     }
+});
+
+app.post('/admin/servers/:id/assign-all', requireAuth, requireCsrf, (req, res) => {
+    if (!dbGet('SELECT id FROM servers WHERE id = ?', [req.params.id])) return res.redirect('/admin');
+    assignServerToAllUsers(req.params.id);
+    res.redirect('/admin?tab=servers&assigned=1');
 });
 
 app.post('/admin/servers/:id/delete', requireAuth, requireCsrf, (req, res) => {

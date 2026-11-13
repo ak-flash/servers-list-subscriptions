@@ -88,6 +88,19 @@ function assignSourceToAllUsers(sourceId, nodeLimit, specialNodeLimit) {
   return db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [sourceId]).n;
 }
 
+function assignServerToAllUsers(serverId) {
+  if (!db.get('SELECT id FROM servers WHERE id = ?', [serverId])) throw new SubscriptionError('not_found', 'Сервер не найден.', 404);
+  const assigned = new Set(db.all('SELECT user_id FROM user_servers WHERE server_id = ?', [serverId]).map(row => row.user_id));
+  const users = db.all('SELECT id FROM users');
+  db.transaction(() => {
+    for (const user of users) {
+      if (assigned.has(user.id)) continue;
+      db.run('INSERT INTO user_servers (user_id, server_id, uuid) VALUES (?, ?, ?)', [user.id, serverId, crypto.randomUUID()]);
+    }
+  });
+  return users.length;
+}
+
 function deleteUser(userId) {
   db.transaction(() => {
     db.run('DELETE FROM user_servers WHERE user_id = ?', [userId]);
@@ -108,4 +121,4 @@ function deleteServer(serverId) {
   });
 }
 
-module.exports = { saveAssignments, assignSourceToAllUsers, deleteUser, deleteServer };
+module.exports = { saveAssignments, assignSourceToAllUsers, assignServerToAllUsers, deleteUser, deleteServer };

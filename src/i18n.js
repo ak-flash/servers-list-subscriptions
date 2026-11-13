@@ -324,6 +324,7 @@ const dictionaries = {
     'Добавьте источник подписки': 'Add a subscription source',
     'Сервис загрузит VLESS-узлы, проверит их через Xray и будет использовать только рабочие.': 'The service will load VLESS nodes, check them through Xray, and use only working ones.',
     'Источник привязан ко всем пользователям.': 'Source assigned to all users.',
+    'Сервер привязан ко всем пользователям.': 'Server assigned to all users.',
     'Название источника': 'Source name',
     'Поддерживаются текстовый список VLESS-ссылок и Base64/Base64URL.': 'Text lists of VLESS links and Base64/Base64URL are supported.',
     'Интервал загрузки, секунды': 'Download interval, seconds',

@@ -47,11 +47,11 @@
             <div class="mt-4 flex flex-wrap items-end gap-3">
               <div>
                 <label for="all-users-node-limit" class="mb-2 block text-sm font-semibold text-slate-700"><%= t('Количество узлов') %></label>
-                <input id="all-users-node-limit" name="node_limit" form="assign-all-form" type="number" min="1" max="10000" step="1" value="3" required class="w-40 rounded-lg border border-slate-300 px-3 py-2">
+                <input id="all-users-node-limit" name="node_limit" form="assign-all-form" type="number" min="1" max="10000" step="1" value="<%= values.node_limit ?? assignAll.node_limit ?? 3 %>" required class="w-40 rounded-lg border border-slate-300 px-3 py-2">
               </div>
               <div>
                 <label for="all-users-special-node-limit" class="mb-2 block text-sm font-semibold text-slate-700"><%= t('Количество особых узлов') %></label>
-                <input id="all-users-special-node-limit" name="special_node_limit" form="assign-all-form" type="number" min="0" max="10000" step="1" value="<%= values.special_node_limit ?? '' %>" placeholder="<%= t('Пусто — общий лимит') %>" class="w-40 rounded-lg border border-slate-300 px-3 py-2" aria-describedby="all-users-special-hint">
+                <input id="all-users-special-node-limit" name="special_node_limit" form="assign-all-form" type="number" min="0" max="10000" step="1" value="<%= values.special_node_limit ?? assignAll.special_node_limit ?? '' %>" placeholder="<%= t('Пусто — общий лимит') %>" class="w-40 rounded-lg border border-slate-300 px-3 py-2" aria-describedby="all-users-special-hint">
                 <p id="all-users-special-hint" class="mt-1 max-w-xs text-xs text-gray-600"><%= t('Узлы с LTE, БС или «Белые списки» в названии.') %></p>
               </div>
               <button type="submit" form="assign-all-form" data-icon="link" class="min-h-[44px] rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800"><%= t('Привязать ко всем') %></button>

@@ -38,6 +38,13 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
     return typeof req.query.job === 'string' ? scheduler.job(req.query.job) : null;
   }
 
+  // The assign-all fields are one-shot inputs, so after saving they would look
+  // empty again. Show the stored value when every linked user shares it.
+  function commonAssignment(sourceId, column) {
+    const rows = db.all('SELECT node_limit, special_node_limit FROM user_subscription_sources WHERE source_id = ?', [sourceId]);
+    return rows.length && rows.every(row => row[column] === rows[0][column]) ? rows[0][column] : null;
+  }
+
   function renderForm(req, res, source, error = null, values = {}) {
     const headers = source ? JSON.parse(source.headers_json) : {};
     res.status(error ? (error.status || 400) : 200).render('subscription-source-form', {
@@ -45,6 +52,10 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       values: { name: source?.name || '', url: source?.url || '', user_agent: headers['user-agent'] || '',
         sync_interval_seconds: source?.sync_interval_seconds || currentConfig().syncIntervalMs / 1000,
         is_active: source ? source.is_active : 1, ...values, ...(error ? { is_active: values.is_active || 0 } : {}) },
+      assignAll: source ? {
+        node_limit: commonAssignment(source.id, 'node_limit'),
+        special_node_limit: commonAssignment(source.id, 'special_node_limit')
+      } : { node_limit: null, special_node_limit: null },
       linkedUsers: source ? db.get('SELECT count(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n : 0,
       saved: req.query.saved === '1',
       error: error instanceof SubscriptionError ? translateError(error, req.t) : error ? req.t('Не удалось сохранить источник. Проверьте данные и повторите попытку.') : null
