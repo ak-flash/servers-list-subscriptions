@@ -239,15 +239,15 @@ function getUserServerAssignments(userId) {
   return rows;
 }
 
-function getServerByTag(tag) {
+function getServersByTag(tag) {
   const stmt = db.prepare('SELECT * FROM servers WHERE tag = ?');
   stmt.bind([tag]);
-  let result = null;
-  if (stmt.step()) {
-    result = stmt.getAsObject();
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
   }
   stmt.free();
-  return result;
+  return rows;
 }
 
 function syncServerTraffic(serverId, uploadBytes, downloadBytes) {
@@ -593,7 +593,7 @@ module.exports = {
   getUserServerUuid,
   getUserServersWithUuid,
   getUserServerAssignments,
-  getServerByTag,
+  getServersByTag,
   updateServerTraffic,
   syncServerTraffic,
   getServerTraffic,

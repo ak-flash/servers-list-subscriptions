@@ -18,8 +18,8 @@ function syncManualServerTraffic(inbounds) {
   for (const inbound of inbounds) {
     const tag = normalizeText(inbound.tag);
     if (!tag) continue;
-    const server = db.getServerByTag(tag);
-    if (server) db.syncServerTraffic(server.id, inbound.up, inbound.down);
+    const servers = db.getServersByTag(tag);
+    for (const server of servers) db.syncServerTraffic(server.id, inbound.up, inbound.down);
   }
 }
 

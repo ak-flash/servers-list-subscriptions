@@ -35,6 +35,13 @@ test('3x-ui panels persist safely and store client/inbound traffic from API resp
   assert.equal(saved.token, 'new-api-token');
 
   db.run("INSERT INTO users (id, username, is_active) VALUES ('u1', 'alice', 1)");
+  db.run("INSERT INTO servers (id, name, link, tag, traffic_limit) VALUES ('server-old', 'Old', 'vless://old@example.com:443', 'shared-tag', 100)");
+  db.run("INSERT INTO servers (id, name, link, tag, traffic_limit) VALUES ('server-new', 'New', 'vless://new@example.com:443', 'shared-tag', 100)");
+  const taggedServers = db.getServersByTag('shared-tag');
+  assert.equal(taggedServers.length, 2);
+  for (const server of taggedServers) db.syncServerTraffic(server.id, 123, 456);
+  assert.equal(db.getServerTraffic('server-old').total_traffic, 579);
+  assert.equal(db.getServerTraffic('server-new').total_traffic, 579);
 
   db.transaction(() => {
     db.upsertThreeXuiInboundTraffic(panel.id, {
