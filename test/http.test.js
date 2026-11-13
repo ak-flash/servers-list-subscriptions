@@ -142,6 +142,15 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   assert.ok(firstManualAssignments.every(row => /^[0-9a-f-]{36}$/.test(row.uuid)));
   await post(`/admin/servers/${manualServer.id}/assign-all`, { _csrf: csrf }, cookie);
   assert.deepEqual(manualAssignments(), firstManualAssignments);
+  const displayForm = await (await request(`/admin/servers/${manualServer.id}/edit`, { headers: { cookie } })).text();
+  assert.match(displayForm, /name="traffic_display"/);
+  const displayUpdate = await post(`/admin/servers/${manualServer.id}`, { _csrf: csrf, traffic_limit: '10', traffic_display: 'remaining', is_active: '1' }, cookie);
+  assert.equal(displayUpdate.status, 302);
+  assert.equal(db.get('SELECT traffic_display FROM servers WHERE id = ?', [manualServer.id]).traffic_display, 'remaining');
+  const displayEdit = await (await request(`/admin/servers/${manualServer.id}/edit`, { headers: { cookie } })).text();
+  assert.match(displayEdit, /<option value="remaining" selected>/);
+  await post(`/admin/servers/${manualServer.id}`, { _csrf: csrf, traffic_display: 'invalid', is_active: '1' }, cookie);
+  assert.equal(db.get('SELECT traffic_display FROM servers WHERE id = ?', [manualServer.id]).traffic_display, 'full');
   db.run("UPDATE users SET is_active = 0 WHERE id = 'u'");
   for (const suffix of ['', '/json', '/qr', '/qr-img']) assert.equal((await request(`/join/u${suffix}`)).status, 404);
 });

@@ -127,7 +127,10 @@ function effectiveLink(server) {
     let remark = server.name;
     if (server.traffic_limit > 0) {
         const usedGB = (server.total_traffic || 0) / (1024 * 1024 * 1024);
-        remark = `${server.name} | ${usedGB.toFixed(1)}/${server.traffic_limit} GB`;
+        const remainingGB = Math.max(0, server.traffic_limit - usedGB);
+        remark = server.traffic_display === 'remaining'
+            ? `${server.name} | ${remainingGB.toFixed(1)} GB`
+            : `${server.name} | ${remainingGB.toFixed(1)}/${server.traffic_limit} GB`;
     }
     let link = updateLinkRemark(server.link, remark);
     const credentialMode = server.credential_mode || 'user_override';

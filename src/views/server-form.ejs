@@ -41,6 +41,15 @@
                     <label class="mb-2 block text-sm font-semibold text-slate-700" for="traffic-limit"><%= t('Лимит трафика') %> <span class="font-normal text-slate-500">(<%= t('ГБ, 0 — без лимита') %>)</span></label>
                     <input id="traffic-limit" type="number" name="traffic_limit" value="<%= server ? (server.traffic_limit || 0) : 0 %>" placeholder="0" min="0" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
                 </div>
+
+                <div class="mb-4">
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="traffic-display"><%= t('Отображение трафика') %></label>
+                    <% const trafficDisplay = server && server.traffic_display === 'remaining' ? 'remaining' : 'full'; %>
+                    <select id="traffic-display" name="traffic_display" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                        <option value="full" <%= trafficDisplay === 'full' ? 'selected' : '' %>><%= t('Осталось / общий лимит') %></option>
+                        <option value="remaining" <%= trafficDisplay === 'remaining' ? 'selected' : '' %>><%= t('Только осталось, ГБ') %></option>
+                    </select>
+                </div>
                 <% } %>
 
                 <div class="mb-6">

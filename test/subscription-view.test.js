@@ -44,10 +44,11 @@ function renderSources({ locale = 'ru', job = null, metrics = {}, sources = [] }
   });
 }
 
-test('source cards render remaining days and escaped contact links', async () => {
+test('source cards render remaining days, traffic and escaped contact links', async () => {
   const html = await renderSources({ sources: [{ id: 'notice', name: 'Notice', masked_url: 'https://example.com', is_active: true,
-    sync_status: 'success', count: 1, healthy: 0, users: 0, remaining_days: 0, contact_url: 'https://example.com/?a=1&b=2' }] });
+    sync_status: 'success', count: 1, healthy: 0, users: 0, remaining_days: 0, remaining_traffic_label: '50 GB', contact_url: 'https://example.com/?a=1&b=2' }] });
   assert.match(html, /Осталось дней: 0/);
+  assert.match(html, /Осталось трафика: 50 GB/);
   assert.match(html, /href="https:\/\/example.com\/\?a=1&amp;b=2"/);
   assert.match(html, /rel="noopener noreferrer"/);
 });

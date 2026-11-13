@@ -3,6 +3,7 @@ const db = require('../db/database');
 const { parseSubscription, parseSubscriptionNode } = require('../utils/subscriptionParser');
 const { downloadSource, validateSourceUrl, maskSourceUrl } = require('../utils/safeHttp');
 const { SubscriptionError, safeError } = require('../utils/subscriptionErrors');
+const { remainingTrafficBytes, formatTraffic } = require('../utils/traffic');
 
 function getSource(id) {
   return db.get('SELECT * FROM subscription_sources WHERE id = ?', [id]);
@@ -20,7 +21,9 @@ function publicSource(source) {
     const contact = new URL(metadata.contact_url);
     if (['http:', 'https:'].includes(contact.protocol) && !contact.username && !contact.password) contactUrl = contact.href;
   } catch { /* No safe contact URL. */ }
-  return { ...safe, remaining_days: remainingDays, contact_url: contactUrl, masked_url: maskSourceUrl(url), has_authorization: !!headers.authorization,
+  const remainingTraffic = remainingTrafficBytes(metadata);
+  return { ...safe, remaining_days: remainingDays, remaining_traffic: remainingTraffic,
+    remaining_traffic_label: formatTraffic(remainingTraffic), contact_url: contactUrl, masked_url: maskSourceUrl(url), has_authorization: !!headers.authorization,
     suspect: safe.sync_status === 'suspect', suspect_candidate: safe.candidate_json ? JSON.parse(safe.candidate_json) : null };
 }
 
@@ -105,6 +108,7 @@ function setNodeEnabled(id, enabled) {
 function sourceMetadata(headers, metadata = {}, now = Date.now()) {
   const values = {};
   if (Number.isInteger(metadata.remaining_days) && metadata.remaining_days >= 0) values.notice_expires_at = now + metadata.remaining_days * 86400000;
+  if (Number.isFinite(metadata.remaining_traffic) && metadata.remaining_traffic >= 0) values.remaining_traffic = Math.round(metadata.remaining_traffic);
   if (metadata.contact_url) values.contact_url = metadata.contact_url;
   for (const part of String(headers['subscription-userinfo'] || '').split(';')) {
     const match = /^\s*(upload|download|total|expire)=(\d+)\s*$/.exec(part);

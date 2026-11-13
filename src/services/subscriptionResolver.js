@@ -2,6 +2,7 @@ const db = require('../db/database');
 const health = require('./subscriptionHealth');
 const { effectiveLink } = require('../utils/linkBuilder');
 const { isSpecialNodeName } = require('../utils/specialNodes');
+const { remainingTrafficLabel } = require('../utils/traffic');
 const { loadConfig } = require('../config/subscriptions');
 
 function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()) {
@@ -14,7 +15,7 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     server.link = effectiveLink(server);
     servers.push(server);
   }
-  const bindings = db.all(`SELECT us.*, s.name, s.is_active AS source_active FROM user_subscription_sources us
+  const bindings = db.all(`SELECT us.*, s.name, s.is_active AS source_active, s.metadata_json FROM user_subscription_sources us
     JOIN subscription_sources s ON s.id = us.source_id WHERE us.user_id = ? ORDER BY us.priority, us.source_id`, [userId]);
   const diagnostics = [];
   for (const binding of bindings) {
@@ -48,9 +49,15 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     const selectedCount = { ordinary: 0, special: 0 };
     const selectedServers = { ordinary: [], special: [] };
     const selectedInOrder = [];
+    let sourceMetadata = {};
+    try { sourceMetadata = JSON.parse(binding.metadata_json || '{}') || {}; } catch { /* Tolerate legacy malformed metadata. */ }
+    const trafficLabel = remainingTrafficLabel(sourceMetadata);
     for (const node of pool) {
       const special = isSpecialNodeName(node.name);
-      const server = { id: node.id, name: `${binding.name} - ${node.name}`, remark: node.name, link: node.raw_link, credential_mode: 'original',
+      // The provider quota is most useful on the special LTE / base-station /
+      // white-list nodes, so append it to their delivered names.
+      const name = special && trafficLabel ? `${binding.name} - ${node.name} | Осталось трафика: ${trafficLabel}` : `${binding.name} - ${node.name}`;
+      const server = { id: node.id, name, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', special, host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, checked_address: node.checked_address, latency_ms: node.latency_ms, test_target_id: node.test_target_id,
         probe_profile: node.probe_profile || 'full', score: node.score ?? null, throughput_bps: node.throughput_bps ?? null,

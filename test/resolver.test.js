@@ -256,3 +256,25 @@ test('resolver applies a separate quota to LTE, base-station and white-list node
   assert.throws(() => saveAssignments('special', { sources: [source.id], special_node_limits: { [source.id]: '-1' } }));
   assert.throws(() => saveAssignments('special', { sources: [source.id], special_node_limits: { [source.id]: '10001' } }));
 });
+
+test('special source node names include the provider remaining traffic', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config();
+  const now = Date.now();
+  db.run("INSERT INTO users (id, username) VALUES ('traffic', 'Traffic')");
+  const source = sources.createSource({ name: 'Provider', url: 'https://provider.example.com', is_active: true }, settings);
+  sources.applySnapshot(source, parseSubscription([
+    link('lte.example.com', '', 'LTE Москва'), link('plain.example.com', '', 'Обычный')
+  ].join('\n')), { 'subscription-userinfo': `total=${20 * 1024 ** 3}; upload=${4 * 1024 ** 3}; download=${6 * 1024 ** 3}` });
+  for (const node of health.getNodes(source.id)) {
+    health.markStarted(node, node.id, now - 200);
+    health.recordResult(node, node.id, { ...successful, latencyMs: 20, checkedAddress: node.host }, settings, null, now - 100);
+  }
+  saveAssignments('traffic', { sources: [source.id] });
+  const result = resolveUserSubscription('traffic', now, settings);
+  const lte = result.servers.find(server => server.host === 'lte.example.com');
+  const plain = result.servers.find(server => server.host === 'plain.example.com');
+  assert.equal(lte.name, 'Provider - LTE Москва | Осталось трафика: 10 GB');
+  assert.equal(plain.name, 'Provider - Обычный');
+});

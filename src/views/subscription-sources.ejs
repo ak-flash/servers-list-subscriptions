@@ -61,6 +61,9 @@
                   <% if (source.remaining_days != null) { %>
                     <span class="shrink-0"><%= t('Осталось дней') %>: <%= source.remaining_days %></span>
                   <% } %>
+                  <% if (source.remaining_traffic_label) { %>
+                    <span class="shrink-0"><%= t('Осталось трафика') %>: <%= source.remaining_traffic_label %></span>
+                  <% } %>
                   <% if (source.contact_url) { %>
                     <a href="<%= source.contact_url %>" target="_blank" rel="noopener noreferrer" class="truncate text-blue-600 underline"><%= source.contact_url %></a>
                   <% } %>

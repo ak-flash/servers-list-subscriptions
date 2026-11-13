@@ -11,7 +11,7 @@ const { parseVless } = require('./utils/protocolParsers');
 const { loadConfig } = require('./config/subscriptions');
 const { ProbeScheduler } = require('./services/probeScheduler');
 const { ThreeXuiScheduler } = require('./services/threeXuiScheduler');
-const { deleteUser, deleteServer } = require('./services/subscriptionAssignments');
+const { assignServerToAllUsers, deleteUser, deleteServer } = require('./services/subscriptionAssignments');
 const subscriptionRoutes = require('./routes/subscriptions');
 const subscriptionSourceRoutes = require('./routes/subscriptionSources');
 const threeXuiRoutes = require('./routes/threexui');
@@ -378,7 +378,7 @@ app.get('/admin/servers/:id/edit', requireAuth, (req, res) => {
 });
 
 app.post('/admin/servers/:id', requireAuth, requireCsrf, (req, res) => {
-    const { name, link, tag, traffic_limit, is_active } = req.body;
+    const { name, link, tag, traffic_limit, traffic_display, is_active } = req.body;
 
     try {
         const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
@@ -388,16 +388,17 @@ app.post('/admin/servers/:id', requireAuth, requireCsrf, (req, res) => {
         const updatedLink = (link && link.trim()) ? link.trim() : server.link;
         const newTag = tag && tag.trim() ? tag.trim() : null;
         const newTrafficLimit = parseInt(traffic_limit) || 0;
+        const newTrafficDisplay = traffic_display === 'remaining' ? 'remaining' : 'full';
 
-        dbRun(`UPDATE servers SET name = ?, link = ?, tag = ?, traffic_limit = ?, is_active = ? WHERE id = ?`,
-            [newName, updatedLink, newTag, newTrafficLimit, is_active ? 1 : 0, req.params.id]);
+        dbRun(`UPDATE servers SET name = ?, link = ?, tag = ?, traffic_limit = ?, traffic_display = ?, is_active = ? WHERE id = ?`,
+            [newName, updatedLink, newTag, newTrafficLimit, newTrafficDisplay, is_active ? 1 : 0, req.params.id]);
 
         res.redirect('/admin');
     } catch (err) {
         const server = dbGet('SELECT * FROM servers WHERE id = ?', [req.params.id]);
         if (!server) return res.redirect('/admin');
         const info = extractHostPortFromLink(server.link);
-        const serverWithInfo = { ...server, ...info, name: name || server.name, link: link || server.link, tag: tag, traffic_limit: traffic_limit, is_active: is_active ? 1 : 0 };
+        const serverWithInfo = { ...server, ...info, name: name || server.name, link: link || server.link, tag: tag, traffic_limit: traffic_limit, traffic_display: traffic_display === 'remaining' ? 'remaining' : 'full', is_active: is_active ? 1 : 0 };
         res.render('server-form', { server: serverWithInfo, error: req.t('Ошибка: ') + err.message, appName: APP_NAME });
     }
 });

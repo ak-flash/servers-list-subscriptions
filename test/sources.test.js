@@ -25,6 +25,22 @@ test('provider notices persist as source metadata, expire and disappear with a f
   assert.equal(publicSource.contact_url, null);
 });
 
+test('provider remaining traffic persists on the source and falls back to userinfo counters', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const source = sources.createSource({ name: 'Traffic', url: 'https://example.com/traffic', is_active: true }, config());
+  const snapshot = parseSubscription(`${link()}\nvless://xxxxxxxxxx3@localhost:8443?...#${encodeURIComponent('Осталось трафика: 100 GB')}`);
+  sources.applySnapshot(source, snapshot, {}, 1000);
+  let publicSource = sources.publicSource(sources.getSource(source.id));
+  assert.equal(publicSource.remaining_traffic, 100 * 1024 ** 3);
+  assert.equal(publicSource.remaining_traffic_label, '100 GB');
+  assert.equal(JSON.parse(publicSource.metadata_json).remaining_traffic, 100 * 1024 ** 3);
+  sources.applySnapshot(source, parseSubscription(link()), { 'subscription-userinfo': `total=${10 * 1024 ** 3}; upload=${2 * 1024 ** 3}; download=${3 * 1024 ** 3}` }, 2000);
+  publicSource = sources.publicSource(sources.getSource(source.id));
+  assert.equal(publicSource.remaining_traffic, 5 * 1024 ** 3);
+  assert.equal(publicSource.remaining_traffic_label, '5 GB');
+});
+
 test('snapshot node cap applies to union of retained and incoming nodes', async t => {
   await db.initDb({ filePath: ':memory:' });
   t.after(db.closeDb);

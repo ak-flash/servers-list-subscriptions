@@ -451,6 +451,16 @@ test('provider account placeholders are not imported as unsupported nodes', () =
   assert.equal(actualLocalNode.nodes.length, 2, 'non-placeholder links must not be silently discarded');
 });
 
+test('provider traffic notices become remaining traffic metadata', () => {
+  const placeholder = parseSubscription(`${link()}\nvless://xxxxxxxxxx3@localhost:8443?...#${encodeURIComponent('Осталось трафика: 12.5 ГБ')}`);
+  assert.equal(placeholder.metadata.remaining_traffic, Math.round(12.5 * 1024 ** 3));
+  const named = parseSubscription([link('one.example.com'), link('two.example.com', '', 'Traffic left: 2 GB')].join('\n'));
+  assert.equal(named.metadata.remaining_traffic, 2 * 1024 ** 3);
+  const notice = parseSubscription(`${link()}\n➡️ Осталось: 23 дня\n👉 Осталось трафика: 1,5 TB`);
+  assert.equal(notice.metadata.remaining_days, 23);
+  assert.equal(notice.metadata.remaining_traffic, Math.round(1.5 * 1024 ** 4));
+});
+
 test('metadata lines between subscription links are ignored', () => {
   const raw = `${link()}\n➡️ t.me/example\n${link('other.example.com')}`;
   const parsed = parseSubscription(raw);

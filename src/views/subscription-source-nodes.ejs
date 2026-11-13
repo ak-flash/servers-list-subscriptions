@@ -21,6 +21,7 @@
               <dl class="mt-2 space-y-1">
                 <div><dt class="inline"><%= t('Передано:') %> </dt><dd class="inline"><%= (((metadata.upload || 0) + (metadata.download || 0)) / 1073741824).toFixed(2) %> GiB</dd></div>
                 <div><dt class="inline"><%= t('Лимит:') %> </dt><dd class="inline"><%= metadata.total ? `${(metadata.total / 1073741824).toFixed(2)} GiB` : t('Не указан') %></dd></div>
+                <div><dt class="inline"><%= t('Осталось трафика:') %> </dt><dd class="inline"><%= source.remaining_traffic_label || t('Не указан') %></dd></div>
                 <div><dt class="inline"><%= t('Срок действия:') %> </dt><dd class="inline"><%= metadata.expire ? time(metadata.expire * 1000) : t('Не указан') %></dd></div>
               </dl>
             </details>

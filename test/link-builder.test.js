@@ -101,3 +101,15 @@ test('manual UUID overrides still apply without leaking into original source cre
   assert.equal(new URL(effectiveLink(original)).username, UUID.toUpperCase());
   assert.equal(new URL(effectiveLink(manual)).username, original.user_server_uuid);
 });
+
+test('traffic remark shows remaining over the total limit or remaining only', () => {
+  const base = { ...sourceServer(uriLinks[0]), name: 'Node', origin: 'manual', credential_mode: 'user_override',
+    traffic_limit: 10, total_traffic: 4 * 1024 ** 3 };
+  const remark = server => decodeURIComponent(new URL(effectiveLink(server)).hash.slice(1));
+  assert.equal(remark({ ...base, traffic_display: 'full' }), 'Node | 6.0/10 GB');
+  assert.equal(remark(base), 'Node | 6.0/10 GB');
+  assert.equal(remark({ ...base, traffic_display: 'remaining' }), 'Node | 6.0 GB');
+  assert.equal(remark({ ...base, traffic_display: 'remaining', total_traffic: 12 * 1024 ** 3 }), 'Node | 0.0 GB');
+  assert.equal(remark({ ...base, traffic_display: 'remaining', traffic_limit: 0 }), 'Node');
+});
+

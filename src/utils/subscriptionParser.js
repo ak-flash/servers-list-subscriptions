@@ -1,6 +1,7 @@
 const { TextDecoder } = require('util');
 const { parseVless, parseHysteria2, parseVmess, parseTrojan, fingerprint } = require('./protocolParsers');
 const { SubscriptionError, safeError } = require('./subscriptionErrors');
+const { parseTrafficNotice } = require('./traffic');
 
 function decodeBase64Strict(text) {
   const compact = text.replace(/\s/g, '');
@@ -74,6 +75,8 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   if (!records.length) throw new SubscriptionError('empty_source');
   const metadata = {};
   function readNotice(notice) {
+    const remainingTraffic = parseTrafficNotice(notice);
+    if (remainingTraffic !== null) metadata.remaining_traffic = remainingTraffic;
     const days = /(?:осталось\s*:?\s*|remaining\s*:?\s*)(\d+)\s*(?:дн|день|дня|days?)/iu.exec(notice);
     if (days && Number(days[1]) <= 36500) metadata.remaining_days = Number(days[1]);
     const contact = /https?:\/\/[^\s<>"']+|(?:t\.me|telegram\.me)\/[a-z\d_/?=&%-]+/iu.exec(notice);
@@ -85,7 +88,15 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
     }
   }
   for (const line of lines) {
-    if (!/^[a-z][a-z\d+.-]*:\/\//i.test(line) && /^[^\w]*(?:➡️|👉|📣|📆)/u.test(line)) readNotice(line);
+    if (!/^[a-z][a-z\d+.-]*:\/\//i.test(line)) {
+      if (/^[^\w]*(?:➡️|👉|📣|📆)/u.test(line)) readNotice(line);
+      continue;
+    }
+    // Providers may expose the account quota as an informational node name.
+    try {
+      const hash = new URL(line).hash;
+      if (hash) readNotice(decodeURIComponent(hash.slice(1)));
+    } catch { /* Malformed links are handled by the node parser. */ }
   }
   const sourceLines = (metadataOnly ? records : lines).filter(line => {
     // Some providers encode account notices as deliberately non-connectable
