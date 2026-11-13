@@ -105,6 +105,7 @@ const dictionaries = {
     'Повторите пароль': 'Confirm password',
     'Сохранить пароль': 'Save password',
     'Сервер активен': 'Server is active',
+    'Неактивные серверы не выдаются пользователям.': 'Inactive servers are not issued to users.',
     'Доступ пользователям': 'User access',
     'Добавьте этот сервер всем активным пользователям с их персональными данными доступа.': 'Add this server to all active users with their personal access data.',
     'Привязать ко всем': 'Assign to all',
