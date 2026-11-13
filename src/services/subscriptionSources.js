@@ -251,6 +251,22 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
   });
 }
 
+function recordSourceHistory(sourceId, recordedAt = Date.now()) {
+  const row = db.get(`SELECT COUNT(*) AS total_nodes,
+    SUM(CASE WHEN h.status = 'healthy' THEN 1 ELSE 0 END) AS healthy_nodes,
+    AVG(CASE WHEN h.status = 'healthy' THEN h.latency_ms END) AS average_latency_ms,
+    SUM(COALESCE(h.successful_attempts, 0)) AS successful_attempts,
+    SUM(COALESCE(h.total_attempts, 0)) AS total_attempts
+    FROM subscription_nodes n LEFT JOIN subscription_node_health h ON h.node_id = n.id
+    WHERE n.source_id = ? AND n.is_present = 1`, [sourceId]);
+  const total = row.total_nodes || 0;
+  db.run(`INSERT INTO subscription_source_history
+    (source_id, recorded_at, total_nodes, healthy_nodes, healthy_percent, average_latency_ms, successful_attempts, total_attempts)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [sourceId, recordedAt, total, row.healthy_nodes || 0,
+    total ? ((row.healthy_nodes || 0) / total) * 100 : 0, row.average_latency_ms,
+    row.successful_attempts || 0, row.total_attempts || 0]);
+}
+
 async function syncSource(id, config, { signal, download = downloadSource, now = Date.now } = {}) {
   const source = getSource(id);
   if (!source) throw new SubscriptionError('superseded');
@@ -297,6 +313,7 @@ async function syncSource(id, config, { signal, download = downloadSource, now =
     return db.transaction(() => {
       const report = applySnapshot(source, parsed, response.headers, observedAt);
       db.run('UPDATE subscription_sources SET candidate_json = NULL WHERE id = ?', [id]);
+      recordSourceHistory(id, observedAt);
       return report;
     });
   } catch (error) {

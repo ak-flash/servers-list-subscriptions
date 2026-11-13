@@ -38,7 +38,8 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       const averageScore = null;
       const stability = present.filter(node => node.stability != null).map(node => node.stability);
       const averageStability = stability.length ? Math.round(stability.reduce((sum, value) => sum + value, 0) / stability.length) : null;
-      return { ...sources.publicSource(source), count: present.length,
+      const chartHistory = db.all('SELECT * FROM subscription_source_history WHERE source_id = ? ORDER BY recorded_at DESC LIMIT 30', [source.id]).reverse();
+      return { ...sources.publicSource(source), history: chartHistory, count: present.length,
         healthy: healthy.length, failedPercent, averageLatency: history.latency == null ? null : Math.round(history.latency), reliabilityPercent, averageScore, averageStability,
         selected: null };
     });
