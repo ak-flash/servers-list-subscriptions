@@ -34,6 +34,11 @@
 
         <p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-gray-600"><%= t('Параллельность и размер очереди применяются сразу после сохранения. Таймауты и интервал источников требуют перезапуска сервиса.') %></p>
         <div>
+          <label class="block text-sm font-medium mb-1" for="historyDays"><%= t('Срок хранения статистики подписок, дней') %></label>
+          <input id="historyDays" name="historyDays" type="number" min="1" max="365" step="1" value="<%= historyDays %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
+          <p class="mt-1 text-xs text-gray-500"><%= t('История успешных и неуспешных проверок, задержки и стабильности источников.') %></p>
+        </div>
+        <div>
           <label class="block text-sm font-medium mb-1" for="probeConcurrency"><%= t('Параллельные VPN-проверки') %></label>
           <input id="probeConcurrency" name="probeConcurrency" type="number" min="1" max="64" step="1" value="<%= probeConcurrency %>" required class="w-full rounded-lg border border-slate-300 px-3 py-2">
           <p class="mt-1 text-xs text-gray-500"><%= t('Количество узлов, проверяемых одновременно.') %></p>

@@ -11,7 +11,8 @@ const EDITABLE_SETTINGS = [
   ['attemptTimeoutSeconds', 'probe_attempt_timeout_seconds', 1, 30, 'Таймаут попытки VPN-проверки'],
   ['probeConcurrency', 'probe_concurrency', 1, 64, 'Параллельные VPN-проверки'],
   ['syncConcurrency', 'source_sync_concurrency', 1, 8, 'Параллельные загрузки источников'],
-  ['maxQueued', 'probe_max_queued', 1, 20000, 'Максимум задач в очереди']
+  ['maxQueued', 'probe_max_queued', 1, 20000, 'Максимум задач в очереди'],
+  ['historyDays', 'probe_history_days', 1, 365, 'Срок хранения статистики подписок, дней']
 ];
 
 function parseInteger(value, min, max, label) {
@@ -49,7 +50,8 @@ function loadSettings(config = {}) {
     attemptTimeoutSeconds: config.attemptTimeoutMs === undefined ? undefined : config.attemptTimeoutMs / 1000,
     probeConcurrency: config.concurrency,
     syncConcurrency: config.syncConcurrency,
-    maxQueued: config.maxQueued
+    maxQueued: config.maxQueued,
+    historyDays: config.historyDays
   };
   const values = {};
   for (const [property, key, min, max, label] of EDITABLE_SETTINGS) {
@@ -73,7 +75,8 @@ function saveSettings(values, config = {}) {
     attemptTimeoutSeconds: config.attemptTimeoutMs / 1000,
     probeConcurrency: config.concurrency,
     syncConcurrency: config.syncConcurrency,
-    maxQueued: config.maxQueued
+    maxQueued: config.maxQueued,
+    historyDays: config.historyDays
   };
   for (const [property, , min, max, label] of EDITABLE_SETTINGS) parsed[property] = parseInteger(values[property] ?? defaults[property], min, max, label);
   if (!proxy && proxyMode === 'only') throw new Error('PROBE_HTTP_PROXY_MODE=only требует заданный PROBE_HTTP_PROXY');

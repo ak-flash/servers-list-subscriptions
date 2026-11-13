@@ -43,7 +43,8 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
         probeConcurrency: settings.probeConcurrency ?? config.concurrency,
         syncConcurrency: settings.syncConcurrency ?? config.syncConcurrency,
         maxQueued: settings.maxQueued ?? config.maxQueued,
-        probeBudget: budget,
+        historyDays: config.historyDays,
+        probeBudget: require('../utils/probeBudget').probeBudget(config),
          deadlineMode: config.deadlineMode,
          runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
         error: null, success: req.query.saved === '1', recheckJobs: null
@@ -54,9 +55,9 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
     const previousState = dbAll('SELECT key, value FROM app_state');
     try {
       const { proxyUrl, proxyMode, checkIntervalSeconds, readyTimeoutSeconds, attemptTimeoutSeconds, sourceTimeoutSeconds,
-        probeConcurrency, syncConcurrency, maxQueued } = req.body;
+        probeConcurrency, syncConcurrency, maxQueued, historyDays } = req.body;
       const candidate = proxySettings.saveSettings({ proxyUrl, mode: proxyMode, checkIntervalSeconds,
-        readyTimeoutSeconds, attemptTimeoutSeconds, sourceTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued }, scheduler.config);
+        readyTimeoutSeconds, attemptTimeoutSeconds, sourceTimeoutSeconds, probeConcurrency, syncConcurrency, maxQueued, historyDays }, scheduler.config);
       // Refresh before reporting success; candidate validation already happened before durable writes.
       try {
         refreshProxyConfig(candidate);
@@ -80,7 +81,8 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
         probeConcurrency: config.concurrency,
         syncConcurrency: config.syncConcurrency,
         maxQueued: config.maxQueued,
-        probeBudget: budget,
+        historyDays: config.historyDays,
+        probeBudget: require('../utils/probeBudget').probeBudget(config),
          deadlineMode: config.deadlineMode,
          runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
         error: error.message, success: false, recheckJobs: null
@@ -104,7 +106,8 @@ module.exports = function createAdminRoutes({ requireAuth, dbGet, dbAll, dbRun, 
       probeConcurrency: settings.probeConcurrency ?? config.concurrency,
       syncConcurrency: settings.syncConcurrency ?? config.syncConcurrency,
       maxQueued: settings.maxQueued ?? config.maxQueued,
-      probeBudget: budget,
+      historyDays: config.historyDays,
+        probeBudget: require('../utils/probeBudget').probeBudget(config),
          deadlineMode: config.deadlineMode,
          runner: scheduler.checker.status, proxyStats: proxyStats({ ...config, httpProxy: proxy, httpProxyMode: mode }),
       error: null, success: false, recheckJobs: jobs.length

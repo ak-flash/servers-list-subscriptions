@@ -71,7 +71,7 @@
               </div>
               <a href="/admin/subscription-sources/<%= source.id %>/edit" class="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" aria-label="<%= t('Настроить источник: {name}', { name: source.name }) %>"><%= t('Настроить') %></a>
             </div>
-            <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-6">
               <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
                 <p class="text-xs font-medium text-slate-500"><%= t('Рабочие') %></p>
                 <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.healthy %></p>
@@ -87,6 +87,14 @@
               <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
                 <p class="text-xs font-medium text-slate-500"><%= t('Ср. задержка') %></p>
                 <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.averageLatency === null ? '—' : `${source.averageLatency} мс` %></p>
+              </div>
+              <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
+                <p class="text-xs font-medium text-slate-500"><%= t('Успешность') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.reliabilityPercent === null ? '—' : `${source.reliabilityPercent}%` %></p>
+              </div>
+              <div class="rounded-xl border border-slate-200 px-3 py-3 text-center">
+                <p class="text-xs font-medium text-slate-500"><%= t('Стабильность') %></p>
+                <p class="mt-1 text-2xl font-bold leading-none tabular-nums text-slate-800"><%= source.averageStability === null ? '—' : `${source.averageStability}%` %></p>
               </div>
             </div>
             <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">

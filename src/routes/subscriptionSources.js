@@ -28,8 +28,18 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       const failedPercent = present.length ? Math.round((failed / present.length) * 100) : 0;
       const latencies = healthy.map(node => Number(node.latency_ms)).filter(Number.isFinite);
       const averageLatency = latencies.length ? Math.round(latencies.reduce((sum, value) => sum + value, 0) / latencies.length) : null;
+      const history = db.get(`SELECT COUNT(*) AS attempts,
+        SUM(CASE WHEN c.outcome = 'success' THEN 1 ELSE 0 END) AS successes,
+        AVG(CASE WHEN c.outcome = 'success' THEN c.latency_ms END) AS latency
+        FROM subscription_node_checks c JOIN subscription_nodes n ON n.id = c.node_id
+        WHERE n.source_id = ? AND c.profile = 'full' AND c.outcome IN ('success', 'failure') AND c.checked_at >= ?`,
+      [source.id, Date.now() - config.historyDays * 86400000]);
+      const reliabilityPercent = history.attempts ? Math.round(100 * history.successes / history.attempts) : null;
+      const averageScore = null;
+      const stability = present.filter(node => node.stability != null).map(node => node.stability);
+      const averageStability = stability.length ? Math.round(stability.reduce((sum, value) => sum + value, 0) / stability.length) : null;
       return { ...sources.publicSource(source), count: present.length,
-        healthy: healthy.length, failedPercent, averageLatency,
+        healthy: healthy.length, failedPercent, averageLatency: history.latency == null ? null : Math.round(history.latency), reliabilityPercent, averageScore, averageStability,
         selected: null };
     });
   }
