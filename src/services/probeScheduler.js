@@ -402,6 +402,10 @@ class ProbeScheduler {
         }
       });
       const finishedAt = Date.now();
+      const completedSources = new Set(batch.filter(({ task, result }) => task.kind === 'check' && result.status && !['runner_error', 'cancelled'].includes(result.status)).map(({ task }) => task.sourceId));
+      for (const sourceId of completedSources) {
+        sources.recordSourceHistory(sourceId, finishedAt);
+      }
       for (const { task, result } of batch) {
         if (this.tasks.delete(task.key)) this.queueProgress.completed++;
         if (task.kind === 'check' && task.startedAt) {

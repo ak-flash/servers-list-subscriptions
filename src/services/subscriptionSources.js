@@ -313,7 +313,6 @@ async function syncSource(id, config, { signal, download = downloadSource, now =
     return db.transaction(() => {
       const report = applySnapshot(source, parsed, response.headers, observedAt);
       db.run('UPDATE subscription_sources SET candidate_json = NULL WHERE id = ?', [id]);
-      recordSourceHistory(id, observedAt);
       return report;
     });
   } catch (error) {
@@ -327,4 +326,4 @@ async function syncSource(id, config, { signal, download = downloadSource, now =
   }
 }
 
-module.exports = { getSource, publicSource, createSource, updateSource, deleteSource, setSourceEnabled, setNodeEnabled, applySnapshot, syncSource, reparseStoredNodes };
+module.exports = { getSource, publicSource, createSource, updateSource, deleteSource, setSourceEnabled, setNodeEnabled, applySnapshot, syncSource, reparseStoredNodes, recordSourceHistory };
