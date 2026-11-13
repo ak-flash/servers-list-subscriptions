@@ -53,8 +53,8 @@
                       <span class="source-toggle-thumb"></span>
                     </label>
                   </form>
-                  <span class="h-2.5 w-2.5 rounded-full <%= source.is_active ? (source.healthy ? 'bg-emerald-500' : 'bg-amber-400') : 'bg-slate-400' %>" aria-hidden="true"></span>
                   <h3 class="min-w-0 break-words text-lg font-semibold"><a href="/admin/subscription-sources/<%= source.id %>/nodes" class="underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><%= source.name %></a></h3>
+                  <span class="h-2.5 w-2.5 rounded-full <%= source.is_active ? (source.healthy ? 'bg-emerald-500' : 'bg-amber-400') : 'bg-slate-400' %>" aria-hidden="true"></span>
                 </div>
                 <p class="mt-2 truncate text-sm text-slate-500" title="<%= source.masked_url %>"><%= source.masked_url %></p>
                 <div class="mt-2 flex min-w-0 flex-col gap-1 text-sm text-slate-600 sm:flex-row sm:items-center sm:gap-3">
