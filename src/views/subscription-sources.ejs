@@ -112,8 +112,8 @@
                   <polyline fill="none" stroke="#3b82f6" stroke-width="2" points="<%= points.flatMap((p, i) => p.average_latency_ms == null ? [] : [`${points.length === 1 ? 150 : 5 + i * 290 / (points.length - 1)},${59 - p.average_latency_ms / maxLatency * 54}`]).join(' ') %>" />
                   </svg>
                 </div>
-                <div id="history-info-<%= source.id %>" class="mt-2 min-h-5 text-xs text-slate-600"><%= t('Нажмите на точку, чтобы посмотреть данные загрузки.') %></div>
-                <p class="mt-1 text-xs text-slate-500"><span style="color:#10b981"><%= t('Рабочие') %>, %</span> · <span style="color:#3b82f6"><%= t('Ср. задержка') %>, <%= t('мс') %> (0–<%= Math.round(maxLatency) %>)</span></p>
+                <div id="history-info-<%= source.id %>" class="mt-2 min-h-5 text-xs text-slate-600" aria-live="polite"></div>
+                <p class="mt-1 text-xs text-slate-500"><span style="color:#10b981" title="<%= t('Рабочие') %>">✓ %</span> · <span style="color:#3b82f6" title="<%= t('Ср. задержка') %>">⏱ <%= t('мс') %> (0–<%= Math.round(maxLatency) %>)</span></p>
               <% } else { %>
                 <p class="mt-2 text-xs text-slate-500"><%= t('История появится после следующей загрузки подписки.') %></p>
               <% } %>
@@ -135,7 +135,17 @@
   <script>
     function showHistoryPoint(id, date, healthy, latency) {
       const target = document.getElementById(`history-info-${id}`);
-      if (target) target.textContent = `${date} · <%= t('Рабочие') %>: ${healthy}% · <%= t('Ср. задержка') %>: ${latency ? `${latency} мс` : '—'}`;
+      if (!target) return;
+      target.replaceChildren(document.createTextNode(`${date} · `));
+      const check = document.createElement('span');
+      check.style.color = '#10b981';
+      check.textContent = '✓';
+      check.title = '<%= t('Рабочие') %>';
+      const clock = document.createElement('span');
+      clock.textContent = '⏱';
+      clock.title = '<%= t('Ср. задержка') %>';
+      target.append(check, document.createTextNode(` ${healthy}% · `), clock,
+        document.createTextNode(` ${latency ? `${latency} мс` : '—'}`));
     }
   </script>
 </body>
