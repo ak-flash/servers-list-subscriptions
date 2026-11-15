@@ -291,6 +291,7 @@ function pruneHistory(now = Date.now(), config = {}) {
   const before = db.get('SELECT count(*) AS n FROM subscription_node_checks').n;
   db.transaction(() => {
     db.run('DELETE FROM subscription_node_checks WHERE checked_at < ?', [now - historyDays * 86400000]);
+    db.run('DELETE FROM subscription_source_history WHERE recorded_at < ?', [now - historyDays * 86400000]);
     db.run(`DELETE FROM subscription_node_checks WHERE id < COALESCE(
       (SELECT id FROM subscription_node_checks ORDER BY id DESC LIMIT 1 OFFSET ?), 0)`, [Math.max(0, maxHistoryRows - 1)]);
     db.run(`DELETE FROM background_jobs WHERE state NOT IN ('queued', 'running') AND id NOT IN (

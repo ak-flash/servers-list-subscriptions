@@ -38,7 +38,27 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
       const averageScore = null;
       const stability = present.filter(node => node.stability != null).map(node => node.stability);
       const averageStability = stability.length ? Math.round(stability.reduce((sum, value) => sum + value, 0) / stability.length) : null;
-      const chartHistory = db.all('SELECT * FROM subscription_source_history WHERE source_id = ? ORDER BY recorded_at DESC LIMIT 30', [source.id]).reverse();
+      const historyRows = db.all('SELECT * FROM subscription_source_history WHERE source_id = ? ORDER BY recorded_at ASC', [source.id]);
+      const median = values => {
+        const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+        if (!sorted.length) return null;
+        const middle = Math.floor(sorted.length / 2);
+        return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+      };
+      const byDay = new Map();
+      for (const row of historyRows) {
+        const day = new Date(row.recorded_at).toISOString().slice(0, 10);
+        const group = byDay.get(day) || { recorded_at: row.recorded_at, healthy: [], latency: [] };
+        group.healthy.push(Number(row.healthy_percent));
+        if (row.average_latency_ms != null) group.latency.push(Number(row.average_latency_ms));
+        group.recorded_at = row.recorded_at;
+        byDay.set(day, group);
+      }
+      const chartHistory = [...byDay.values()].slice(-30).map(group => ({
+        recorded_at: group.recorded_at,
+        healthy_percent: median(group.healthy),
+        average_latency_ms: median(group.latency)
+      }));
       return { ...sources.publicSource(source), history: chartHistory, count: present.length,
         healthy: healthy.length, failedPercent, averageLatency: history.latency == null ? null : Math.round(history.latency), reliabilityPercent, averageScore, averageStability,
         selected: null };
