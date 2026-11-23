@@ -52,6 +52,74 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 const snapshot = (completed = 7, overrides = {}) => ({ queued: 2, running: { check: 1 }, oldest_wait_ms: 61000, progress: { total: 10, completed }, ...overrides });
 const ok = metrics => ({ ok: true, status: 200, json: async () => metrics });
 
+test('source toggle submits in the background and restores state on failure', async () => {
+  const notification = element(true);
+  const checkbox = { checked: true, setAttribute() {} };
+  const label = {};
+  const sections = [element(), element()];
+  const stat = { textContent: '125', dataset: { emptyValue: '0' } };
+  const temporary = { removed: false, remove() { this.removed = true; } };
+  const card = { dataset: { sourceActive: '1', sourceOrder: '0' }, querySelector: () => null,
+    querySelectorAll: selector => ({ '[data-source-active-only]': sections, '[data-source-stat]': [stat], '[data-source-temporary]': [temporary] }[selector] || []) };
+  const other = { dataset: { sourceActive: '1', sourceOrder: '1' } };
+  const inactive = { dataset: { sourceActive: '0', sourceOrder: '2' } };
+  let cards = [card, other, inactive];
+  card.parentElement = {
+    querySelectorAll: () => cards,
+    appendChild: item => { cards = cards.filter(existing => existing !== item); cards.push(item); }
+  };
+  let submit;
+  const form = {
+    action: '/api/subscription-sources/source/settings',
+    dataset: { enabledMessage: 'Источник включён', disabledMessage: 'Источник отключён', enableLabel: 'Включить', disableLabel: 'Отключить' },
+    elements: { is_active: { value: '1' } },
+    querySelector: selector => selector === 'label' ? label : checkbox,
+    closest: () => card,
+    setAttribute() {}, removeAttribute() {},
+    addEventListener: (name, callback) => { submit = callback; }
+  };
+  let response = ok({ is_active: 0 });
+  const requests = [];
+  vm.runInNewContext(script, {
+    document: {
+      querySelector: selector => selector === '[data-source-notification]' ? notification : null,
+      querySelectorAll: selector => selector === '[data-source-setting]' ? [form] : []
+    },
+    window: { addEventListener() {} }, AbortController,
+    URLSearchParams, FormData: class { constructor() { return [['is_active', form.elements.is_active.value]]; } },
+    fetch: async (url, options) => { requests.push({ url, options }); return response; }
+  });
+  checkbox.checked = false;
+  form.elements.is_active.value = '0';
+  let prevented = false;
+  await submit({ preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(requests[0].options.body.toString(), 'is_active=0');
+  assert.equal(notification.textContent, 'Источник отключён');
+  assert.equal(notification.classList.contains('hidden'), false);
+  assert.equal(checkbox.checked, false);
+  assert.deepEqual(cards, [other, card, inactive]);
+  assert.ok(sections.every(section => section.classList.contains('hidden')));
+  assert.equal(stat.textContent, '0');
+  assert.equal(temporary.removed, true);
+  response = { ok: false, json: async () => ({ error: 'Ошибка' }) };
+  checkbox.checked = true;
+  form.elements.is_active.value = '1';
+  await submit({ preventDefault() {} });
+  assert.equal(checkbox.checked, false);
+  assert.equal(form.elements.is_active.value, '0');
+  assert.equal(checkbox.disabled, false);
+  assert.equal(notification.textContent, 'Ошибка');
+  assert.deepEqual(cards, [other, card, inactive]);
+  response = ok({ is_active: 1 });
+  checkbox.checked = true;
+  form.elements.is_active.value = '1';
+  await submit({ preventDefault() {} });
+  assert.deepEqual(cards, [card, other, inactive]);
+  assert.equal(notification.textContent, 'Источник включён');
+  assert.ok(sections.every(section => !section.classList.contains('hidden')));
+});
+
 async function nextPoll(state, delay) {
   const [id, timer] = [...state.timers][0];
   assert.equal(timer.delay, delay);

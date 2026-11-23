@@ -6,6 +6,81 @@ const { parseSubscription } = require('../src/utils/subscriptionParser');
 const { getNodes, markStarted, recordResult } = require('../src/services/subscriptionHealth');
 const { link, config } = require('./fixtures');
 
+test('disabling clears temporary data through both settings paths and preserves history and assignments', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const settings = config();
+  db.run("INSERT INTO users (id, username) VALUES ('cleanup-user', 'cleanup-user')");
+  for (const mode of ['toggle', 'edit']) {
+    const source = sources.createSource({ name: mode, url: 'https://example.com/sub', authorization: 'Bearer keep' }, settings);
+    sources.applySnapshot(source, parseSubscription(link()), { etag: 'old', 'last-modified': 'old', 'subscription-userinfo': 'total=100' }, 1000);
+    const node = getNodes(source.id)[0];
+    db.run(`INSERT INTO subscription_node_checks (cycle_id, node_id, config_fingerprint, generation, probe_profile_version, outcome, checked_at)
+      VALUES ('cycle', ?, ?, ?, 'test', 'success', 1000)`, [node.id, node.fingerprint, node.generation]);
+    db.run(`INSERT INTO background_jobs (id, type, dedupe_key, source_id, node_id, reason, created_at)
+      VALUES (?, 'check', ?, ?, ?, 'test', 1000)`, [mode, mode, source.id, node.id]);
+    db.run(`INSERT INTO user_subscription_sources (user_id, source_id, created_at, updated_at)
+      VALUES ('cleanup-user', ?, 1000, 1000)`, [source.id]);
+    sources.recordSourceHistory(source.id, 1000);
+    const history = db.all('SELECT * FROM subscription_source_history WHERE source_id = ?', [source.id]);
+    db.run("UPDATE subscription_sources SET candidate_json = '{}', last_error = 'error', failure_count = 3 WHERE id = ?", [source.id]);
+    const disabled = mode === 'toggle' ? sources.setSourceEnabled(source.id, false) :
+      sources.updateSource(source.id, { name: mode, is_active: '0' }, settings);
+    assert.equal(disabled.is_active, 0);
+    assert.equal(disabled.sync_status, 'pending');
+    assert.equal(disabled.failure_count, 0);
+    for (const field of ['etag', 'last_modified', 'last_attempt_at', 'last_success_at', 'metadata_json', 'report_json', 'candidate_json', 'last_error']) assert.equal(disabled[field], null, field);
+    assert.equal(disabled.url, source.url);
+    assert.equal(disabled.headers_json, source.headers_json);
+    assert.deepEqual(getNodes(source.id), []);
+    assert.equal(db.get('SELECT COUNT(*) AS n FROM subscription_node_health WHERE node_id = ?', [node.id]).n, 0);
+    assert.equal(db.get('SELECT COUNT(*) AS n FROM subscription_node_checks WHERE node_id = ?', [node.id]).n, 0);
+    assert.equal(db.get('SELECT COUNT(*) AS n FROM background_jobs WHERE source_id = ?', [source.id]).n, 0);
+    assert.equal(db.get('SELECT COUNT(*) AS n FROM user_subscription_sources WHERE source_id = ?', [source.id]).n, 1);
+    sources.recordSourceHistory(source.id, 2000);
+    assert.deepEqual(db.all('SELECT * FROM subscription_source_history WHERE source_id = ?', [source.id]), history);
+    assert.throws(() => sources.applySnapshot(source, parseSubscription(link()), {}, 2000), { code: 'superseded' });
+    sources.setSourceEnabled(source.id, true);
+    await sources.syncSource(source.id, settings, { download: async current => {
+      assert.equal(current.etag, null);
+      assert.equal(current.last_modified, null);
+      return { status: 200, body: link(), headers: {} };
+    } });
+    assert.equal(getNodes(source.id).length, 1);
+    assert.notEqual(getNodes(source.id)[0].id, node.id);
+  }
+});
+
+test('disable cleanup rolls back atomically if deleting nodes fails', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const source = sources.createSource({ name: 'Rollback', url: 'https://example.com/sub' }, config());
+  sources.applySnapshot(source, parseSubscription(link()), { etag: 'keep' }, 1000);
+  const before = sources.getSource(source.id);
+  const nodes = getNodes(source.id);
+  db.run("CREATE TRIGGER reject_node_delete BEFORE DELETE ON subscription_nodes BEGIN SELECT RAISE(ABORT, 'cleanup failure'); END");
+  assert.throws(() => sources.setSourceEnabled(source.id, false), /cleanup failure/);
+  assert.deepEqual(sources.getSource(source.id), before);
+  assert.deepEqual(getNodes(source.id), nodes);
+});
+
+test('a download finishing after disabling cannot restore deleted nodes or temporary metadata', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  t.after(db.closeDb);
+  const source = sources.createSource({ name: 'Late download', url: 'https://example.com/sub' }, config());
+  sources.applySnapshot(source, parseSubscription(link()), {}, 1000);
+  let finish;
+  const request = sources.syncSource(source.id, config(), { download: () => new Promise(resolve => { finish = resolve; }) });
+  sources.setSourceEnabled(source.id, false);
+  finish({ status: 200, body: link(), headers: { etag: 'stale' } });
+  await assert.rejects(request, { code: 'superseded' });
+  assert.deepEqual(getNodes(source.id), []);
+  assert.equal(sources.getSource(source.id).etag, null);
+  assert.equal(sources.getSource(source.id).sync_status, 'pending');
+  await assert.rejects(sources.syncSource(source.id, config()), { code: 'superseded' });
+  assert.equal(sources.getSource(source.id).last_attempt_at, null);
+});
+
 test('provider notices persist as source metadata, expire and disappear with a fresh snapshot', async t => {
   await db.initDb({ filePath: ':memory:' });
   t.after(db.closeDb);

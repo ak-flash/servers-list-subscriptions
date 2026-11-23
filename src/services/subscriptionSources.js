@@ -53,14 +53,27 @@ function createSource(input, config, now = Date.now()) {
   return getSource(source.id);
 }
 
+function clearSourceTemporaryData(id) {
+  // Preserve source settings, user assignments and chart history.
+  db.run('DELETE FROM background_jobs WHERE source_id = ?', [id]);
+  db.run('DELETE FROM subscription_nodes WHERE source_id = ?', [id]);
+  db.run(`UPDATE subscription_sources SET etag = NULL, last_modified = NULL,
+    last_attempt_at = NULL, last_success_at = NULL, metadata_json = NULL,
+    report_json = NULL, candidate_json = NULL, last_error = NULL,
+    sync_status = 'pending', failure_count = 0, next_sync_at = 0 WHERE id = ?`, [id]);
+}
+
 function setSourceEnabled(id, enabled, now = Date.now()) {
   const source = getSource(id);
   if (!source) throw new SubscriptionError('not_found', 'Источник не найден.', 404);
   const value = enabled ? 1 : 0;
-  if (source.is_active !== value) {
-    db.run(`UPDATE subscription_sources SET is_active = ?, revision = revision + 1,
-      next_sync_at = 0, updated_at = ? WHERE id = ?`, [value, now, id]);
-  }
+  db.transaction(() => {
+    if (source.is_active !== value) {
+      db.run(`UPDATE subscription_sources SET is_active = ?, revision = revision + 1,
+        next_sync_at = 0, updated_at = ? WHERE id = ?`, [value, now, id]);
+    }
+    if (!value) clearSourceTemporaryData(id);
+  });
   return getSource(id);
 }
 
@@ -78,7 +91,9 @@ function updateSource(id, input, config, now = Date.now()) {
     db.run(`UPDATE subscription_sources SET name = ?, url = ?, headers_json = ?, sync_interval_seconds = ?,
       is_active = ?, revision = revision + 1, updated_at = ?, next_sync_at = 0 WHERE id = ?`,
     [source.name, source.url, source.headers_json, source.sync_interval_seconds, source.is_active, now, id]);
-    if (reset) {
+    if (!source.is_active) {
+      clearSourceTemporaryData(id);
+    } else if (reset) {
       db.run(`UPDATE subscription_sources SET etag = NULL, last_modified = NULL, last_success_at = NULL,
         metadata_json = NULL, report_json = NULL, candidate_json = NULL, last_error = NULL, sync_status = 'pending', failure_count = 0 WHERE id = ?`, [id]);
       // URL and Authorization can select a different account/catalog: hide the
@@ -252,6 +267,7 @@ function applySnapshot(source, snapshot, headers = {}, now = Date.now()) {
 }
 
 function recordSourceHistory(sourceId, recordedAt = Date.now()) {
+  if (!getSource(sourceId)?.is_active) return;
   const row = db.get(`SELECT COUNT(*) AS total_nodes,
     SUM(CASE WHEN h.status = 'healthy' THEN 1 ELSE 0 END) AS healthy_nodes,
     AVG(CASE WHEN h.status = 'healthy' THEN h.latency_ms END) AS average_latency_ms,
@@ -269,7 +285,7 @@ function recordSourceHistory(sourceId, recordedAt = Date.now()) {
 
 async function syncSource(id, config, { signal, download = downloadSource, now = Date.now } = {}) {
   const source = getSource(id);
-  if (!source) throw new SubscriptionError('superseded');
+  if (!source || !source.is_active) throw new SubscriptionError('superseded');
   reparseStoredNodes(id);
   db.run("UPDATE subscription_sources SET last_attempt_at = ?, sync_status = 'running' WHERE id = ?", [now(), id]);
   try {

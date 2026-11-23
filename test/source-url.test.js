@@ -1,0 +1,41 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { once } = require('node:events');
+const db = require('../src/db/database');
+const sources = require('../src/services/subscriptionSources');
+const { hashPassword } = require('../src/utils/passwords');
+const { app, scheduler, subscriptionConfig } = require('../src/index');
+
+test('source URL opens the original address only for authenticated admins', async t => {
+  await db.initDb({ filePath: ':memory:' });
+  db.run("INSERT INTO users (id, username, password, must_change_password) VALUES ('url-admin', 'url-admin', ?, 0)", [hashPassword('test-password')]);
+  const source = sources.createSource({ name: 'URL source', url: 'https://example.com/sub/private?token=secret-url-token&format=raw', is_active: '0' }, subscriptionConfig);
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => {
+    await scheduler.stop();
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+    db.closeDb();
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const request = (url, options = {}) => fetch(base + url, { redirect: 'manual', ...options });
+  const path = `/admin/subscription-sources/${source.id}/open`;
+  const unauthenticated = await request(path);
+  assert.equal(unauthenticated.status, 302);
+  assert.equal(unauthenticated.headers.get('location'), '/admin/login');
+  const login = await request('/admin/login', { method: 'POST', body: new URLSearchParams({ username: 'url-admin', password: 'test-password' }) });
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  const options = { headers: { cookie } };
+  const opened = await request(path, options);
+  assert.equal(opened.status, 302);
+  assert.equal(opened.headers.get('location'), source.url);
+  assert.equal(opened.headers.get('referrer-policy'), 'no-referrer');
+  assert.equal(opened.headers.get('cache-control'), 'no-store');
+  const listing = await (await request('/admin/subscription-sources', options)).text();
+  assert.ok(listing.includes(`href="${path}"`));
+  assert.ok(!listing.includes('secret-url-token'));
+  assert.equal((await request('/admin/subscription-sources/missing/open', options)).status, 404);
+  db.run("UPDATE subscription_sources SET url = 'javascript:alert(1)' WHERE id = ?", [source.id]);
+  assert.equal((await request(path, options)).status, 400);
+});

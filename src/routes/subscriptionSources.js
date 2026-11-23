@@ -7,6 +7,7 @@ const { resolveUserSubscription, subscriptionPreview } = require('../services/su
 const { extractHostPortFromLink } = require('../utils/linkBuilder');
 const { SubscriptionError, translateError } = require('../utils/subscriptionErrors');
 const { csrfToken, requireCsrf } = require('../middleware/csrf');
+const { validateSourceUrl } = require('../utils/safeHttp');
 const view = require('../utils/subscriptionView');
 
 module.exports = function subscriptionSourceRoutes({ config, getConfig, scheduler, requireAuth, appName }) {
@@ -97,6 +98,14 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
     res.render('subscription-sources', { sources: sourceList(), metrics: scheduler.metrics(), job: currentJob(req) });
   });
   router.get('/admin/subscription-sources/new', ...auth, (req, res) => renderForm(req, res, null));
+  router.get('/admin/subscription-sources/:id/open', ...auth, (req, res) => {
+    const source = sources.getSource(req.params.id);
+    if (!source) return res.status(404).send(req.t('Источник не найден'));
+    try { validateSourceUrl(source.url); }
+    catch (error) { return res.status(400).send(translateError(error, req.t)); }
+    res.set('Referrer-Policy', 'no-referrer');
+    res.redirect(source.url);
+  });
   router.post('/admin/subscription-sources', ...auth, requireCsrf, (req, res) => {
     let source;
     try { source = sources.createSource(req.body, currentConfig()); }
@@ -169,6 +178,7 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   router.post('/api/subscription-sources/:id/settings', ...auth, requireCsrf, action((req, res) => {
     if (!['0', '1', 0, 1, true, false, 'true', 'false'].includes(req.body.is_active)) throw new SubscriptionError('validation', req.t('Укажите состояние источника.'));
     const source = sources.setSourceEnabled(req.params.id, ['1', 1, true, 'true'].includes(req.body.is_active));
+    scheduler.invalidateSource(source.id);
     res.json({ id: source.id, is_active: source.is_active });
   }));
   router.post('/api/subscription-sources/:id/sync', ...auth, requireCsrf, action((req, res) => {

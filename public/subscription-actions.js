@@ -134,6 +134,57 @@
     }
   }
 
+  for (const form of document.querySelectorAll('[data-source-setting]')) {
+    const checkbox = form.querySelector('input[type="checkbox"]');
+    let enabled = checkbox.checked;
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (checkbox.disabled) return;
+      checkbox.disabled = true;
+      form.setAttribute('aria-busy', 'true');
+      const notification = document.querySelector('[data-source-notification]');
+      try {
+        const response = await fetch(form.action, { method: 'POST', headers: { 'x-csrf-token': token },
+          body: new URLSearchParams(new FormData(form)), signal: controller.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || translations.actionFailed || 'Could not complete the action. Try again.');
+        enabled = Boolean(data.is_active);
+        const label = enabled ? form.dataset.disableLabel : form.dataset.enableLabel;
+        checkbox.setAttribute('aria-label', label);
+        form.querySelector('label').title = label;
+        const card = form.closest('article');
+        const status = card?.querySelector('[data-source-status]');
+        if (status) status.textContent = enabled ? status.dataset.enabledStatus : form.dataset.disabledMessage;
+        for (const button of card?.querySelectorAll('[data-background-action] button') || []) button.disabled = !enabled;
+        if (card) {
+          for (const section of card.querySelectorAll('[data-source-active-only]')) section.classList.toggle('hidden', !enabled);
+          if (!enabled) {
+            for (const info of card.querySelectorAll('[data-source-temporary]')) info.remove();
+            for (const stat of card.querySelectorAll('[data-source-stat]')) stat.textContent = stat.dataset.emptyValue;
+            const updated = card.querySelector('[data-source-updated]');
+            if (updated) updated.textContent = '—';
+            if (status) status.dataset.enabledStatus = form.querySelector('[data-source-pending-label]')?.textContent || status.dataset.enabledStatus;
+          }
+          card.dataset.sourceActive = enabled ? '1' : '0';
+          const list = card.parentElement;
+          const cards = [...list.querySelectorAll('[data-source-card]')];
+          cards.sort((a, b) => Number(b.dataset.sourceActive) - Number(a.dataset.sourceActive) ||
+            Number(a.dataset.sourceOrder) - Number(b.dataset.sourceOrder));
+          for (const item of cards) list.appendChild(item);
+        }
+        if (notification) notification.textContent = enabled ? form.dataset.enabledMessage : form.dataset.disabledMessage;
+      } catch (error) {
+        if (!controller.signal.aborted && notification) notification.textContent = error.message;
+      } finally {
+        checkbox.checked = enabled;
+        form.elements.is_active.value = enabled ? '1' : '0';
+        checkbox.disabled = false;
+        form.removeAttribute('aria-busy');
+        notification?.classList.remove('hidden');
+      }
+    });
+  }
+
   for (const form of document.querySelectorAll('[data-background-action], [data-node-setting]')) {
     form.addEventListener('submit', async event => {
       event.preventDefault();

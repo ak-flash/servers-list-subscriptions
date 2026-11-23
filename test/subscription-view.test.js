@@ -44,6 +44,30 @@ function renderSources({ locale = 'ru', job = null, metrics = {}, sources = [] }
   });
 }
 
+test('source cards put inactive sources last while preserving order within each group', async () => {
+  const sources = [0, 1, 0, 1].map((is_active, index) => ({
+    id: `ordered-${index}`, name: `Source ${index}`, masked_url: 'https://example.com',
+    is_active, sync_status: 'success', count: 0, healthy: 0
+  }));
+  const html = await renderSources({ sources });
+  const cards = [...html.matchAll(/<article data-source-card data-source-active="([01])" data-source-order="(\d+)"/g)];
+  assert.deepEqual(cards.map(match => [match[1], match[2]]), [['1', '1'], ['1', '3'], ['0', '0'], ['0', '2']]);
+  assert.deepEqual(sources.map(source => source.id), ['ordered-0', 'ordered-1', 'ordered-2', 'ordered-3']);
+});
+
+test('source URL links use the full card width and wrap instead of truncating', async () => {
+  const html = await renderSources({ sources: [{ id: 'url-source', name: 'Source',
+    masked_url: 'https://long-subscription-host.example.com/…', is_active: true,
+    sync_status: 'success', count: 0, healthy: 0 }] });
+  const link = html.match(/<a data-source-url\b[^>]*>[\s\S]*?<\/a>/)?.[0];
+  assert.ok(link);
+  assert.match(link, /href="\/admin\/subscription-sources\/url-source\/open"/);
+  assert.match(link, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(link, /block break-all/);
+  assert.doesNotMatch(link, /truncate/);
+  assert.match(html, /\/edit[\s\S]*?<\/div>\s*<a data-source-url/);
+});
+
 test('source cards render remaining days, traffic and escaped contact links', async () => {
   const html = await renderSources({ sources: [{ id: 'notice', name: 'Notice', masked_url: 'https://example.com', is_active: true,
     sync_status: 'success', count: 1, healthy: 0, users: 0, remaining_days: 0, remaining_traffic_label: '50 GB', contact_url: 'https://example.com/?a=1&b=2' }] });
@@ -125,6 +149,13 @@ test('source cards have larger actions and hide background actions for disabled 
       const html = await renderSources({ locale, sources: [source] });
       const card = html.match(/<article\b[^>]*>[\s\S]*?<\/article>/)?.[0];
       assert.ok(card);
+      const activeSections = [...card.matchAll(/<div data-source-active-only class="([^"]*)"/g)];
+      assert.equal(activeSections.length, 2);
+      for (const section of activeSections) assert.equal(section[1].includes('hidden'), !active);
+      assert.match(activeSections[0][1], /\bgrid-cols-2\b/);
+      assert.match(activeSections[0][1], /\bsm:grid-cols-4\b/);
+      assert.doesNotMatch(activeSections[0][1], /sm:grid-cols-6/);
+      assert.equal((card.match(/data-source-stat\b/g) || []).length, 4);
       const actions = [...card.matchAll(/<(?:a|button)\b[^>]*class="([^"]*min-h-\[48px\][^"]*)"[^>]*>/g)];
       assert.equal(actions.length, active ? 4 : 2);
       for (const [, classes] of actions) {
@@ -136,9 +167,19 @@ test('source cards have larger actions and hide background actions for disabled 
       assert.ok(card.includes(createTranslator(locale)('Настроить')));
       assert.match(card, /class="[^"]*\bh-full\b[^"]*\bflex-col\b[^"]*"/);
       assert.match(card, /<div class="flex items-center gap-2">[\s\S]*?<span class="h-2\.5 w-2\.5 rounded-full/);
-      assert.match(card, /<div class="flex-1" aria-hidden="true"><\/div>\s*<div class="mt-4 grid[^"]*border-t[^"]*pt-3/);
+      assert.match(card, /<div class="flex-1" aria-hidden="true"><\/div>\s*<div data-source-active-only class="(?:hidden )?mt-4 grid[^"]*border-t[^"]*pt-3/);
     }
   }
+});
+
+test('disabled source keeps its chart outside hidden statistics and actions', async () => {
+  const html = await renderSources({ sources: [{ id: 'chart', name: 'Chart', masked_url: 'https://example.com',
+    is_active: false, sync_status: 'pending', count: 0, healthy: 0, averageLatency: null,
+    history: [{ recorded_at: 1000, healthy_percent: 80, average_latency_ms: 42 }] }] });
+  const card = html.match(/<article\b[^>]*>[\s\S]*?<\/article>/)[0];
+  assert.match(card, /<svg[^>]*role="img"/);
+  assert.match(card, /<polyline/);
+  assert.equal((card.match(/data-source-active-only class="hidden /g) || []).length, 2);
 });
 
 test('queue progress stays visible without a selected job and handles empty and finished queues', async () => {
