@@ -56,7 +56,8 @@
 <h2 class="text-lg font-semibold"><%= t('Внешние источники') %></h2>
          <p class="text-sm text-gray-600 mt-2 mb-2"><%= t('UUID берётся из источника. Выдаются только узлы со свежей успешной VPN-проверкой.') %></p>
          <p class="text-sm text-amber-800 mb-4"><%= t('Ограничения трафика применяются только к LTE-узлам.') %></p>
-        <% if (!sources.length) { %><p><%= t('Источников пока нет.') %> <a href="/admin/subscription-sources/new" class="text-blue-700 underline underline-offset-4"><%= t('Добавить источник') %></a>.</p><% } %>
+        <% if (disabledSourceCount) { %><p class="text-sm text-gray-600 mb-4"><%= t('Отключённые источники скрыты.') %></p><% } %>
+        <% if (!sources.length) { %><p><%= disabledSourceCount ? t('Активных источников нет.') : t('Источников пока нет.') %> <a href="/admin/subscription-sources/new" class="text-blue-700 underline underline-offset-4"><%= t('Добавить источник') %></a>.</p><% } %>
         <div class="space-y-4">
           <% sources.forEach(source => {
             const binding = bindings.find(item => item.source_id === source.id);
@@ -94,7 +95,8 @@
       </div>
       <p class="text-sm text-gray-600 mb-4"><%= t('Состояние на {date}. Изменения формы учитываются после сохранения.', { date: time(preview.resolved_at) }) %></p>
       <% if (!preview.servers.length) { %><p class="mb-4"><%= t('Пока нет доступных узлов. Назначьте серверы или дождитесь успешной проверки источников.') %></p><% } %>
-      <% preview.sources.forEach(source => { %>
+      <% const activeSourceIds = new Set(sources.map(source => source.id)); %>
+      <% preview.sources.filter(source => activeSourceIds.has(source.source_id)).forEach(source => { %>
         <div class="border-b border-gray-200 pb-4 mb-4">
           <h3 class="font-medium break-all"><%= source.name %></h3>
           <p class="mt-1"><%= t('Запрошено {requested}, доступно {available}, выбрано {selected}.', { requested: source.requested, available: source.available, selected: source.separate_special ? source.selected.length - source.selected_special : source.selected.length }) %></p>

@@ -18,8 +18,11 @@ function fieldNumber(value, fallback, min, max, label) {
   return number;
 }
 
-function saveAssignments(userId, input) {
+function saveAssignments(userId, input, options = {}) {
   if (!db.get('SELECT id FROM users WHERE id = ?', [userId])) throw new SubscriptionError('not_found', 'Пользователь не найден.', 404);
+  // Sources that the form does not render (for example disabled ones) cannot be
+  // submitted, so their existing bindings must survive a save.
+  const preserveSourceIds = new Set(Array.isArray(options.preserveSourceIds) ? options.preserveSourceIds : []);
   for (const field of ['uuids', 'source_limits', 'special_node_limits', 'max_latency', 'priorities']) {
     if (input[field] !== undefined && (!input[field] || typeof input[field] !== 'object' || Array.isArray(input[field]))) {
       throw new SubscriptionError('validation', 'Проверьте параметры назначений.');
@@ -66,7 +69,9 @@ function saveAssignments(userId, input) {
       [userId, binding.id, binding.limit, binding.specialLimit, binding.latency, binding.priority, now, now]);
     }
     for (const old of db.all('SELECT source_id FROM user_subscription_sources WHERE user_id = ?', [userId])) {
-      if (!sourceIds.includes(old.source_id)) db.run('DELETE FROM user_subscription_sources WHERE user_id = ? AND source_id = ?', [userId, old.source_id]);
+      if (!sourceIds.includes(old.source_id) && !preserveSourceIds.has(old.source_id)) {
+        db.run('DELETE FROM user_subscription_sources WHERE user_id = ? AND source_id = ?', [userId, old.source_id]);
+      }
     }
   });
 }

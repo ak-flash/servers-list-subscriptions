@@ -216,11 +216,14 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
     if (!user) return res.status(404).send(req.t('Пользователь не найден'));
     const assigned = db.getUserServerAssignments(user.id);
     const selected = input => typeof input === 'string' ? [input] : Array.isArray(input) ? input : [];
+    // Disabled sources cannot deliver nodes, so the assignment form hides them.
+    const allSources = sourceList();
+    const sources = allSources.filter(source => source.is_active);
     res.status(error ? 400 : 200).render('user-servers', {
       user, servers: db.all('SELECT * FROM servers WHERE is_active = 1 ORDER BY name, id').map(server => ({ ...server, ...extractHostPortFromLink(server.link) })),
       assignedIds: values ? selected(values.servers) : assigned.map(server => server.server_id),
       uuidMap: values?.uuids || Object.fromEntries(assigned.map(server => [server.server_id, server.uuid])),
-      sources: sourceList(), bindings: db.all('SELECT * FROM user_subscription_sources WHERE user_id = ?', [user.id]),
+      sources, disabledSourceCount: allSources.length - sources.length, bindings: db.all('SELECT * FROM user_subscription_sources WHERE user_id = ?', [user.id]),
       values, selectedSources: values ? selected(values.sources) : null,
       preview: subscriptionPreview(resolveUserSubscription(user.id, Date.now(), currentConfig())),
       saved: req.query.saved === '1', error: error instanceof SubscriptionError ? translateError(error, req.t) : error ? req.t('Не удалось сохранить назначения. Повторите попытку.') : null
@@ -228,7 +231,8 @@ module.exports = function subscriptionSourceRoutes({ config, getConfig, schedule
   }
   router.get('/admin/users/:id/servers', ...auth, (req, res) => renderAssignments(req, res));
   router.post('/admin/users/:id/servers', ...auth, requireCsrf, (req, res) => {
-    try { saveAssignments(req.params.id, req.body); }
+    const disabledSourceIds = db.all('SELECT id FROM subscription_sources WHERE is_active = 0').map(row => row.id);
+    try { saveAssignments(req.params.id, req.body, { preserveSourceIds: disabledSourceIds }); }
     catch (error) { return renderAssignments(req, res, error, req.body); }
     res.redirect(`/admin/users/${encodeURIComponent(req.params.id)}/servers?saved=1`);
   });

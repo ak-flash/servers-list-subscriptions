@@ -31,7 +31,9 @@ const dictionaries = {
     'relative.no_data': 'нет данных',
     'relative.just_now': 'только что',
     'unit.ms': 'мс',
-     'Ограничения трафика применяются только к LTE-узлам.': 'Ограничения трафика применяются только к LTE-узлам.'
+     'Ограничения трафика применяются только к LTE-узлам.': 'Ограничения трафика применяются только к LTE-узлам.',
+     'Отключённые источники скрыты.': 'Отключённые источники скрыты.',
+     'Активных источников нет.': 'Активных источников нет.'
   },
   en: {
     'Вход': 'Sign in',
@@ -639,6 +641,8 @@ const dictionaries = {
      'Открыть QR-код': 'Open QR code',
      'Настройте ручные назначения и автоматический отбор рабочих узлов из источников.': 'Configure manual assignments and automatically select working nodes from sources.',
      'Ручных серверов нет. Можно назначить только источники ниже.': 'No manual servers. Only the sources below can be assigned.',
+     'Отключённые источники скрыты.': 'Disabled sources are hidden.',
+     'Активных источников нет.': 'No active sources.',
      'Выбрать все ручные серверы': 'Select all manual servers',
      'Скопировать UUID': 'Copy UUID',
      'Проверка через VPN': 'VPN check',
