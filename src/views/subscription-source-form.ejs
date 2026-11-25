@@ -76,6 +76,6 @@
       </details>
     <% } %>
   </main>
-  <% if (error) { %><script>document.getElementById('form-error').focus();</script><% } %>
+  <% if (error) { %><script nonce="<%= cspNonce %>">document.getElementById('form-error').focus();</script><% } %>
 </body>
 </html>

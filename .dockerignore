@@ -1,9 +1,15 @@
 node_modules
-.env
 data
+*.db
+*.db.lock
 *.log
 .git
 .github
-coverage
+.env
+.deploy.env
+test
+screenshots
 tools/xray
+coverage
+.playwright-mcp
 public/app.css

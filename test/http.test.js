@@ -25,6 +25,8 @@ test('HTTP end-to-end: admin CRUD/jobs/CSRF, source-only assignments, Base64/JSO
   assert.equal((await healthcheck.json()).status, 'ok');
   assert.equal((await request('/api/users/u/subscription-preview')).status, 401);
   assert.equal((await request('/api/background-queue')).status, 401);
+  const oversized = await request('/admin/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'x'.repeat(300 * 1024) }) });
+  assert.equal(oversized.status, 413);
   const login = await post('/admin/login', { username: 'test-admin', password: 'test-password' });
   assert.equal(login.status, 302);
   const cookie = login.headers.get('set-cookie').split(';')[0];

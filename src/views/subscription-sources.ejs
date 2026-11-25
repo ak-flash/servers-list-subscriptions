@@ -132,7 +132,7 @@
     <% } %>
   </main>
   <script src="/subscription-actions.js" defer></script>
-  <script>
+  <script nonce="<%= cspNonce %>">
     function showHistoryPoint(id, date, healthy, latency) {
       const target = document.getElementById(`history-info-${id}`);
       if (!target) return;

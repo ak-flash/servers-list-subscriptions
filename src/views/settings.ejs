@@ -78,7 +78,7 @@
       </div>
     </section>
   </main>
-  <script>
+  <script nonce="<%= cspNonce %>">
     document.getElementById('checkProxyBtn').addEventListener('click', async () => {
       const out = document.getElementById('proxyResult');
       out.className = 'mt-4 rounded-lg border p-3 text-sm bg-slate-50 text-slate-700';

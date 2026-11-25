@@ -37,6 +37,7 @@ function renderSources({ locale = 'ru', job = null, metrics = {}, sources = [] }
     ...createView(locale),
     appName: 'Subscriptions',
     csrfToken: 'test-token',
+    cspNonce: 'test-nonce',
     languageUrl: language => `/admin/subscription-sources?lang=${language}`,
     sources,
     job,
@@ -71,8 +72,8 @@ test('source URL links use the full card width and wrap instead of truncating', 
 test('source cards render remaining days, traffic and escaped contact links', async () => {
   const html = await renderSources({ sources: [{ id: 'notice', name: 'Notice', masked_url: 'https://example.com', is_active: true,
     sync_status: 'success', count: 1, healthy: 0, users: 0, remaining_days: 0, remaining_traffic_label: '50 GB', contact_url: 'https://example.com/?a=1&b=2' }] });
-  assert.match(html, /Осталось дней: 0/);
-  assert.match(html, /Осталось трафика: 50 GB/);
+  assert.match(html, /Осталось: 0 дн\./);
+  assert.match(html, /Осталось: 50 GB/);
   assert.match(html, /href="https:\/\/example.com\/\?a=1&amp;b=2"/);
   assert.match(html, /rel="noopener noreferrer"/);
 });
@@ -233,7 +234,7 @@ test('node catalog explains ranking and proxy mode without claiming direct avail
     const t = createTranslator(locale);
     for (const proxyMode of ['extra', 'only']) {
       const html = await ejs.renderFile(path.join(__dirname, '../src/views/subscription-source-nodes.ejs'), {
-        locale, t, ...createView(locale), appName: 'Subscriptions', csrfToken: 'token', languageUrl: () => '#',
+        locale, t, ...createView(locale), appName: 'Subscriptions', csrfToken: 'token', cspNonce: 'test-nonce', languageUrl: () => '#',
         source, healthy: 1, report: null, proxyConfigured: true, proxyMode,
         job: null, metrics: {}, nodes: [], filter: '', showRemoved: false, page: 1, pages: 1, total: 0
       });

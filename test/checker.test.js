@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('events');
 const https = require('https');
 const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const childProcess = require('child_process');
 const net = require('net');
 const { VpnChecker, evaluateTargets } = require('../src/services/vpnChecker');
@@ -326,16 +328,17 @@ test('address matrix preserves outbound provenance for no-proxy, only and extra'
   }
 });
 
-test('verification failure invalidates cache and recovery restores runner status', async () => {
+test('verification failure invalidates cache and recovery restores runner status', async t => {
   const checker = new VpnChecker(config({ xrayPath: '/missing/xray' }));
   await assert.rejects(checker.verifyBinary(), { code: 'xray_missing' });
   assert.equal(checker.verified, null);
   assert.equal(checker.status.available, false);
-  checker.config.xrayPath = process.execPath;
-  checker.config.xrayVersion = process.version.replace(/^v/, '').split('.').slice(0, 3).join('.');
-  checker.config.xraySha256 = '';
-  checker.config.tempDir = '/tmp/opencode';
-  checker.config = { ...checker.config, xrayPath: '/tmp/opencode/xray-26.10.21/xray', xrayVersion: '26.10.21' };
+  // Use a fake runner that reports the expected version so the test never
+  // depends on a locally installed Xray binary.
+  const fixture = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xray-fixture-')), 'xray');
+  fs.writeFileSync(fixture, `#!${process.execPath}\nconsole.log('Xray 26.10.21 (Xray, Penetrates Everything.)');\n`, { mode: 0o755 });
+  t.after(() => fs.rmSync(path.dirname(fixture), { recursive: true, force: true }));
+  checker.config = { ...checker.config, xrayPath: fixture, xrayVersion: '26.10.21', xraySha256: '', tempDir: os.tmpdir() };
   await checker.verifyBinary();
   assert.equal(checker.status.available, true);
 });

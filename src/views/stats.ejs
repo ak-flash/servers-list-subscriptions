@@ -289,7 +289,7 @@
         </section>
     </main>
 
-    <script>
+    <script nonce="<%= cspNonce %>">
         const csrfToken = '<%= csrfToken %>';
         async function clearStatistics() {
             const ok = await uiConfirm({

@@ -5,6 +5,7 @@ class ThreeXuiScheduler {
   constructor(options = {}) {
     this.disabled = Boolean(options.disabled);
     this.intervalMs = Math.max(5000, options.intervalMs || Number(process.env.THREEXUI_POLL_INTERVAL_MS) || 30000);
+    this.concurrency = Math.max(1, options.concurrency || Number(process.env.THREEXUI_SYNC_CONCURRENCY) || 3);
     this.timer = null;
     this.running = false;
   }
@@ -25,17 +26,28 @@ class ThreeXuiScheduler {
     try {
       const panels = this.due(options.now ?? Date.now());
       const results = [];
-      for (const panel of panels) {
-        try {
-          await threeXui.syncPanel(panel.id, { timeoutMs: options.timeoutMs });
-          results.push({ panelId: panel.id, status: 'ok' });
-        } catch (error) {
-          results.push({ panelId: panel.id, status: 'error', error: error.message });
-        }
+      // Sync a bounded number of panels at once so one slow panel cannot hold
+      // up the rest, while still avoiding an unbounded burst of requests.
+      const concurrency = Math.max(1, Number(options.concurrency) || this.concurrency);
+      for (let index = 0; index < panels.length; index += concurrency) {
+        const batch = panels.slice(index, index + concurrency);
+        const settled = await Promise.all(batch.map(panel => this.syncOne(panel, options)));
+        results.push(...settled);
       }
       return results;
     } finally {
       this.running = false;
+    }
+  }
+
+  async syncOne(panel, options) {
+    const startedAt = Date.now();
+    try {
+      await threeXui.syncPanel(panel.id, { timeoutMs: options.timeoutMs });
+      return { panelId: panel.id, status: 'ok', durationMs: Date.now() - startedAt };
+    } catch (error) {
+      logger.warn('threexui_panel_sync_failed', { panelId: panel.id, error: error.message, durationMs: Date.now() - startedAt });
+      return { panelId: panel.id, status: 'error', error: error.message, durationMs: Date.now() - startedAt };
     }
   }
 

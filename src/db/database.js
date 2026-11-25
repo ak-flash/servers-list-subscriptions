@@ -49,9 +49,12 @@ function getUserTraffic(userId, serverId = null) {
 function updateUserTraffic(userId, serverId, uploadBytes, downloadBytes) {
   const totalBytes = uploadBytes + downloadBytes;
 
-  // Update current traffic record
+  // Update current traffic record. A half-open range on recorded_at keeps the
+  // composite (user_id, recorded_at) index usable, unlike date(recorded_at).
+  const startOfDay = "date('now')";
+  const nextDay = "date('now', '+1 day')";
   const existingStmt = db.prepare(
-    'SELECT id FROM user_traffic WHERE user_id = ? AND server_id = ? AND date(recorded_at) = date(\'now\')'
+    `SELECT id FROM user_traffic WHERE user_id = ? AND server_id = ? AND recorded_at >= ${startOfDay} AND recorded_at < ${nextDay}`
   );
   existingStmt.bind([userId, serverId]);
   const existing = existingStmt.step() ? existingStmt.getAsObject() : null;
@@ -71,7 +74,7 @@ function updateUserTraffic(userId, serverId, uploadBytes, downloadBytes) {
     insertStmt.free();
   }
 
-  saveDb();
+  // The coalesced scheduler in connection.js persists this write shortly.
 }
 
 function getTrafficSnapshots(userId, days = 30) {
@@ -256,7 +259,7 @@ function syncServerTraffic(serverId, uploadBytes, downloadBytes) {
   const down = normalizeTrafficValue(downloadBytes);
 
   const existingStmt = db.prepare(
-    "SELECT id FROM server_traffic WHERE server_id = ? AND date(recorded_at) = date('now')"
+    "SELECT id FROM server_traffic WHERE server_id = ? AND recorded_at >= date('now') AND recorded_at < date('now', '+1 day')"
   );
   existingStmt.bind([serverId]);
   const existing = existingStmt.step() ? existingStmt.getAsObject() : null;
@@ -275,14 +278,12 @@ function syncServerTraffic(serverId, uploadBytes, downloadBytes) {
     insertStmt.run([serverId, up, down, up + down]);
     insertStmt.free();
   }
-  saveDb();
+  // Persisted by the coalesced save scheduler in connection.js.
 }
 
 function updateServerTraffic(serverId, uploadBytes, downloadBytes) {
-  const today = new Date().toISOString().split('T')[0];
-
   const existingStmt = db.prepare(
-    "SELECT id, upload_bytes, download_bytes FROM server_traffic WHERE server_id = ? AND date(recorded_at) = date('now')"
+    "SELECT id, upload_bytes, download_bytes FROM server_traffic WHERE server_id = ? AND recorded_at >= date('now') AND recorded_at < date('now', '+1 day')"
   );
   existingStmt.bind([serverId]);
   const existing = existingStmt.step() ? existingStmt.getAsObject() : null;
@@ -304,8 +305,7 @@ function updateServerTraffic(serverId, uploadBytes, downloadBytes) {
     insertStmt.run([serverId, uploadBytes, downloadBytes, uploadBytes + downloadBytes]);
     insertStmt.free();
   }
-
-  saveDb();
+  // Persisted by the coalesced save scheduler in connection.js.
 }
 
 function getServerTraffic(serverId) {

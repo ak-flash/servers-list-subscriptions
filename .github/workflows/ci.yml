@@ -26,6 +26,56 @@ jobs:
       - name: Build CSS
         run: npm run build:css
       - name: Check JavaScript syntax
-        run: node --check src/index.js
-      - name: Run tests
+        run: |
+          find src test -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Run unit tests
         run: npm test
+      - name: Migration smoke test on a fresh database
+        run: node --test test/migrations.test.js test/database.test.js
+      - name: Dependency audit (production)
+        run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t vpn-subscription-service:ci .
+      - name: Smoke test health endpoint
+        run: |
+          docker run -d --name vpn-subscriptions-ci -p 2096:2096 \
+            -e SESSION_SECRET=ci-secret -e ADMIN_USERNAME=ci-admin -e ADMIN_PASSWORD=ci-password \
+            vpn-subscription-service:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:2096/healthz; then exit 0; fi
+            sleep 2
+          done
+          docker logs vpn-subscriptions-ci
+          exit 1
+      - name: Stop container
+        if: always()
+        run: docker rm -f vpn-subscriptions-ci || true
+
+  integration:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Xray
+        run: |
+          curl -fsSL https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip
+          unzip -o xray.zip -d tools/xray
+          chmod +x tools/xray/xray
+      - name: Run Xray integration tests
+        env:
+          XRAY_PATH: ${{ github.workspace }}/tools/xray/xray
+        run: npm run test:vpn

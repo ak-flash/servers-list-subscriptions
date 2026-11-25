@@ -79,6 +79,11 @@ cp .env.example .env
 | `SOURCE_CONFIRMATION_INTERVAL_SECONDS` | Минимальный интервал независимых наблюдений | `60` |
 | `SOURCE_CONFIRMATIONS` | Число наблюдений для принятия сокращения | `2` |
 | `PROFILE_UPDATE_INTERVAL_HOURS` | Интервал обновления профиля для клиента | `1` |
+| `SESSION_STORE_DIR` | Каталог файлового хранилища сессий; сессии переживают перезапуск и очищаются по TTL | Пусто — сессии в памяти процесса |
+| `SESSION_TTL_MS` | Время жизни сессии | `86400000` (24 ч) |
+| `HTTP_BODY_LIMIT` | Максимальный размер JSON/form-запроса | `256kb` |
+| `RATE_LIMIT_MAX_KEYS` | Максимум отслеживаемых ключей rate limit | `10000` |
+| `THREEXUI_SYNC_CONCURRENCY` | Одновременные синхронизации панелей 3x-ui | `3` |
 
 Перед первым запуском задайте `SESSION_SECRET` и временный `ADMIN_PASSWORD`. При первом входе приложение потребует сменить его на новый пароль. После создания администратора `ADMIN_PASSWORD` можно удалить из `.env`. Статистика 3x-ui собирается через API после добавления панели в админке. Полный набор настроек с ограничениями приведён в `.env.example` и [документации](docs/EXTERNAL_SUBSCRIPTIONS.md).
 
@@ -281,7 +286,7 @@ RESTART_COMMAND="sudo systemctl restart vpn-subscriptions.service"
 RESTART_COMMAND="docker compose up -d --build"
 ```
 
-Скрипт использует `git pull --ff-only`, останавливается при первой ошибке и не перезапускает приложение, если `RESTART_COMMAND` пустой.
+Скрипт использует `git pull --ff-only`, останавливается при первой ошибке и требует настроенный `RESTART_COMMAND` (для не-production деплоя без перезапуска задайте `ALLOW_NO_RESTART=1`). Если задан `HEALTHCHECK_URL` (например, `http://127.0.0.1:2096/healthz`), после перезапуска скрипт ждёт успешного ответа и при неудаче откатывается на предыдущий commit.
 
 Создайте конфигурацию, например `/etc/supervisor/conf.d/subcsriptions.conf`:
 

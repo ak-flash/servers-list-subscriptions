@@ -112,6 +112,10 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
                                     </td>
                                     <td class="py-3 text-right">
                                         <div class="flex gap-2 items-center justify-end">
+<form method="POST" action="/admin/servers/<%= server.id %>/assign-all" class="inline">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" data-icon="users" class="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-emerald-200 px-3 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50"><%= t('Привязать ко всем') %></button>
+</form>
 <button type="button" onclick="checkServer('<%= server.id %>')"
                                                  class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700" aria-label="<%= t('Проверить VPN: {name}', { name: server.name }) %>" title="<%= t('Проверить VPN') %>">
                                                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h3l2-7 4 14 2-7h7"/></svg>
@@ -397,7 +401,7 @@ class="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-
         </div>
     </div>
 
-    <script>
+    <script nonce="<%= cspNonce %>">
         const csrfToken = '<%= csrfToken %>';
 
         async function showQrModal(userId, username) {
@@ -542,7 +546,7 @@ if (result.status === 'healthy') {
             }
         }
     </script>
-    <script>
+    <script nonce="<%= cspNonce %>">
         document.getElementById('refresh-server-load')?.addEventListener('click', () => window.location.reload());
     </script>
 

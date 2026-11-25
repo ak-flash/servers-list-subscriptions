@@ -192,7 +192,7 @@ function scheduleSave() {
     saveTimer = null;
     if (!savePending) return;
     savePending = false;
-    try { saveDb(); } catch (error) { console.error('database_save_failed', error); }
+    try { saveDb(); } catch (error) { require('../utils/logger').error('database_save_failed', { error: error.message }); }
   }, 100);
   saveTimer.unref?.();
 }

@@ -74,7 +74,7 @@
     </section>
   </main>
 
-  <script>
+  <script nonce="<%= cspNonce %>">
     const csrfToken = '<%= csrfToken %>';
     const syncAll = document.getElementById('syncAll');
     const syncButtons = [...document.querySelectorAll('[data-sync-panel]')];

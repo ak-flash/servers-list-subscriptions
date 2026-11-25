@@ -21,6 +21,8 @@ const health = require('./services/subscriptionHealth');
 const { hashPassword, verifyPassword } = require('./utils/passwords');
 const { csrfToken, requireCsrf } = require('./middleware/csrf');
 const logger = require('./utils/logger');
+const { RateLimiter } = require('./utils/rateLimiter');
+const { FileSessionStore } = require('./utils/fileSessionStore');
 const { i18n } = require('./i18n');
 
 // 'auto' включает Secure-флаг только на реальном HTTPS (учитывая TRUST_PROXY),
@@ -39,19 +41,11 @@ const APP_NAME = process.env.APP_NAME || 'VPN Подписки';
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) throw new Error('SESSION_SECRET не задан');
 
-const loginAttempts = new Map();
 const LOGIN_RATE_WINDOW_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 10;
+const loginLimiter = new RateLimiter({ maxKeys: Number(process.env.RATE_LIMIT_MAX_KEYS) || 10000 }).start();
 function rateLimit(key, windowMs, max) {
-    const now = Date.now();
-    const entry = loginAttempts.get(key);
-    if (!entry || entry.resetAt <= now) {
-        loginAttempts.set(key, { count: 1, resetAt: now + windowMs });
-        return true;
-    }
-    if (entry.count >= max) return false;
-    entry.count++;
-    return true;
+    return loginLimiter.hit(key, windowMs, max);
 }
 const { effectiveHttpProxy, applySettingsToConfig, applyProxyToConfig } = require('./services/proxySettings');
 let subscriptionConfig = loadConfig();
@@ -70,15 +64,25 @@ const manualVpnChecker = scheduler.checker;
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Explicit body limits keep large or malicious payloads from exhausting memory.
+const BODY_LIMIT = process.env.HTTP_BODY_LIMIT || '256kb';
+app.use(express.json({ limit: BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
+app.use((error, req, res, next) => {
+    if (!error || error.type !== 'entity.too.large') return next(error);
+    res.status(413).send(req.t ? req.t('Слишком большой запрос.') : 'Payload Too Large');
+});
 app.use(i18n);
+// Inline scripts carry a per-request nonce, so scripts stay restricted to our
+// own files and nonce-tagged blocks instead of relying on 'unsafe-inline'.
 app.use((req, res, next) => {
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
     res.set({
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'no-referrer',
-        'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+        'Content-Security-Policy': `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'nonce-${nonce}'`
     });
     next();
 });
@@ -88,17 +92,24 @@ app.use((req, res, next) => {
 });
 if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 
-app.use(session({
+// Sessions live in memory by default. In production set SESSION_STORE_DIR so
+// sessions survive restarts and stay bounded by a TTL sweep.
+const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS) || 24 * 60 * 60 * 1000;
+const sessionOptions = {
      secret: SESSION_SECRET,
      resave: false,
      saveUninitialized: false,
      cookie: {
-         maxAge: 24 * 60 * 60 * 1000,
+         maxAge: SESSION_TTL_MS,
          httpOnly: true,
          sameSite: 'lax',
          secure: sessionCookieSecure
      }
-}));
+};
+if (process.env.SESSION_STORE_DIR) {
+     sessionOptions.store = new FileSessionStore({ directory: process.env.SESSION_STORE_DIR, ttlMs: SESSION_TTL_MS });
+}
+app.use(session(sessionOptions));
 app.use(csrfToken);
 
 function requireAuth(req, res, next) {

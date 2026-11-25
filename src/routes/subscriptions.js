@@ -3,19 +3,18 @@ const QRCode = require('qrcode');
 const { resolveUserSubscription } = require('../services/subscriptionResolver');
 const { buildFullSubscription, publicServer } = require('../utils/linkBuilder');
 const { getUserTraffic } = require('../db/database');
+const { RateLimiter } = require('../utils/rateLimiter');
 
 module.exports = function subscriptionRoutes({ config, getConfig, recordRequest }) {
   const router = express.Router();
   const currentConfig = () => getConfig ? getConfig() : config;
-  router.rateLimits = new Map();
+  const limiter = new RateLimiter({ maxKeys: Number(process.env.RATE_LIMIT_MAX_KEYS) || 10000 }).start();
+  router.rateLimits = limiter.entries;
+  router.stopRateLimiter = () => limiter.stop();
   router.use('/join/:id', (req, res, next) => {
     const t = req.t || (value => value);
     const key = `join:${req.ip || req.socket.remoteAddress || 'unknown'}`;
-    const now = Date.now();
-    const entry = router.rateLimits.get(key);
-    if (!entry || entry.resetAt <= now) router.rateLimits.set(key, { count: 1, resetAt: now + 60 * 1000 });
-    else if (entry.count >= 120) return res.status(429).send(t('Слишком много запросов. Повторите позже.'));
-    else entry.count++;
+    if (!limiter.hit(key, 60 * 1000, 120)) return res.status(429).send(t('Слишком много запросов. Повторите позже.'));
     res.set('Cache-Control', 'no-store');
     const result = resolveUserSubscription(req.params.id, Date.now(), currentConfig());
     if (!result.user) return res.status(404).send(t('Пользователь не найден или отключён'));

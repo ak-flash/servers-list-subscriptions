@@ -142,7 +142,7 @@
       </div>
     </section>
   </main>
-  <script>
+  <script nonce="<%= cspNonce %>">
     document.getElementById('select-all')?.addEventListener('change', event => {
       document.querySelectorAll('input[name="servers"]').forEach(input => { input.checked = event.target.checked; });
     });

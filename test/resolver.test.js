@@ -275,6 +275,6 @@ test('special source node names include the provider remaining traffic', async t
   const result = resolveUserSubscription('traffic', now, settings);
   const lte = result.servers.find(server => server.host === 'lte.example.com');
   const plain = result.servers.find(server => server.host === 'plain.example.com');
-  assert.equal(lte.name, 'Provider - LTE Москва | Осталось трафика: 10 GB');
+  assert.equal(lte.name, 'Provider - LTE Москва | Осталось: 10 GB');
   assert.equal(plain.name, 'Provider - Обычный');
 });
