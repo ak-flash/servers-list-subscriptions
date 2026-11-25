@@ -2,10 +2,15 @@
 // can be selected with their own quota instead of consuming ordinary nodes.
 // The lookahead accepts a trailing digit (for example "БС1"), while the
 // leading boundary avoids matching these fragments inside other words.
+const LTE_NODE_PATTERN = /(?:^|[^a-zа-яё])lte(?=$|[^a-zа-яё])/iu;
 const SPECIAL_NODE_PATTERN = /(?:^|[^a-zа-яё])(?:lte|бс)(?=$|[^a-zа-яё])|бел(?:ые|ый|ых|ым|ыми|ого|ому)?[\s_-]+спис(?:ок|к[а-яё]*)/iu;
+
+function isLteNodeName(name) {
+  return LTE_NODE_PATTERN.test(String(name || ''));
+}
 
 function isSpecialNodeName(name) {
   return SPECIAL_NODE_PATTERN.test(String(name || ''));
 }
 
-module.exports = { isSpecialNodeName, SPECIAL_NODE_PATTERN };
+module.exports = { isSpecialNodeName, isLteNodeName, SPECIAL_NODE_PATTERN, LTE_NODE_PATTERN };

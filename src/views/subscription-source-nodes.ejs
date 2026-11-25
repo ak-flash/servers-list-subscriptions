@@ -13,6 +13,7 @@
           <p class="text-sm text-gray-600 mt-2"><%= t('Задержка измеряется от хоста проверки через VPN до HTTPS-цели. На устройстве пользователя она может отличаться.') %></p>
           <% if (proxyConfigured) { %><p class="text-sm text-gray-600 mt-2"><%= proxyMode === 'only' ? t('Проверки выполняются через HTTP-прокси. Это не подтверждает прямую доступность узла с устройства пользователя.') : t('Свежая успешная проверка через HTTP-прокси даёт узлу приоритет. Остальные узлы отбираются по прямой VPN-проверке.') %></p><% } %>
           <p class="text-sm text-gray-600 mt-2"><%= t('Сначала показаны узлы, подходящие для выдачи, в порядке отбора. Итоговый состав зависит от лимита, порога задержки и других назначений пользователя.') %></p>
+           <p class="text-sm text-amber-800 mt-2"><%= t('Ограничения трафика применяются только к LTE-узлам.') %></p>
           <% if (source.last_error) { %><p class="text-red-700 mt-2"><%= source.last_error %></p><% } %>
           <% if (report) { %><p class="text-sm text-gray-600 mt-2"><%= t('Последний импорт: новых — {added}, существующих — {existing}, дублей — {duplicates}, неподдерживаемых — {unsupported}, некорректных — {invalid}.', report) %></p><% } %>
           <% if (source.metadata_json) { const metadata = JSON.parse(source.metadata_json); %>

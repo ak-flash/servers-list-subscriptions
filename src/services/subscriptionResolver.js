@@ -1,7 +1,7 @@
 const db = require('../db/database');
 const health = require('./subscriptionHealth');
 const { effectiveLink } = require('../utils/linkBuilder');
-const { isSpecialNodeName } = require('../utils/specialNodes');
+const { isSpecialNodeName, isLteNodeName } = require('../utils/specialNodes');
 const { remainingTrafficLabel } = require('../utils/traffic');
 const { loadConfig } = require('../config/subscriptions');
 
@@ -54,9 +54,8 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     const trafficLabel = remainingTrafficLabel(sourceMetadata);
     for (const node of pool) {
       const special = isSpecialNodeName(node.name);
-      // The provider quota is most useful on the special LTE / base-station /
-      // white-list nodes, so append it to their delivered names.
-      const name = special && trafficLabel ? `${binding.name} - ${node.name} | Осталось трафика: ${trafficLabel}` : `${binding.name} - ${node.name}`;
+      // The provider traffic restriction applies only to LTE nodes.
+      const name = isLteNodeName(node.name) && trafficLabel ? `${binding.name} - ${node.name} | Осталось трафика: ${trafficLabel}` : `${binding.name} - ${node.name}`;
       const server = { id: node.id, name, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', special, host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, checked_address: node.checked_address, latency_ms: node.latency_ms, test_target_id: node.test_target_id,

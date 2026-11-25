@@ -30,7 +30,8 @@ const dictionaries = {
     'status.error': 'Ошибка загрузки',
     'relative.no_data': 'нет данных',
     'relative.just_now': 'только что',
-    'unit.ms': 'мс'
+    'unit.ms': 'мс',
+     'Ограничения трафика применяются только к LTE-узлам.': 'Ограничения трафика применяются только к LTE-узлам.'
   },
   en: {
     'Вход': 'Sign in',
@@ -430,6 +431,7 @@ const dictionaries = {
     'relative.no_data': 'No data',
     'relative.just_now': 'just now',
     'unit.ms': 'ms',
+     'Ограничения трафика применяются только к LTE-узлам.': 'Traffic limits apply only to LTE nodes.',
     'error.hysteria_unsupported': 'The link contains unsupported Hysteria2 parameters.',
     'error.vmess_unsupported': 'VMess TCP/WebSocket with or without TLS is supported.',
     'error.websocket_unsupported': 'Unsupported WebSocket parameters.',
