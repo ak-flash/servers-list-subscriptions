@@ -54,8 +54,9 @@ function resolveUserSubscription(userId, now = Date.now(), config = loadConfig()
     const trafficLabel = remainingTrafficLabel(sourceMetadata);
     for (const node of pool) {
       const special = isSpecialNodeName(node.name);
-      // The provider traffic restriction applies only to LTE nodes.
-      const name = isLteNodeName(node.name) && trafficLabel ? `${binding.name} - ${node.name} | Осталось трафика: ${trafficLabel}` : `${binding.name} - ${node.name}`;
+      // The provider traffic restriction applies only to LTE, base-station and
+      // white-list nodes, so append the remaining traffic to their names.
+      const name = special && trafficLabel ? `${binding.name} - ${node.name} | Осталось трафика: ${trafficLabel}` : `${binding.name} - ${node.name}`;
       const server = { id: node.id, name, remark: node.name, link: node.raw_link, credential_mode: 'original',
         origin: 'source', special, host: node.host, port: node.port, protocol: node.protocol,
         last_checked_at: node.last_checked_at, checked_address: node.checked_address, latency_ms: node.latency_ms, test_target_id: node.test_target_id,

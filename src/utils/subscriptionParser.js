@@ -71,7 +71,8 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   // import, which would retain stale nodes forever.
   const records = lines.filter(line => /^[a-z][a-z\d+.-]*:\/\//i.test(line));
   const metadataOnly = lines.length > 0 && records.length < lines.length &&
-    lines.filter(line => !/^[a-z][a-z\d+.-]*:\/\//i.test(line)).every(line => /^[^\w]*(?:➡️|👉|📣|📆|剩余|剩余流量)/u.test(line));
+    lines.filter(line => !/^[a-z][a-z\d+.-]*:\/\//i.test(line)).every(line =>
+      /^[^\w]*(?:➡️|👉|📣|📆|剩余|剩余流量)/u.test(line) || parseTrafficNotice(line) !== null);
   if (!records.length) throw new SubscriptionError('empty_source');
   const metadata = {};
   function readNotice(notice) {
@@ -89,7 +90,9 @@ function parseSubscription(body, { maxNodes = 1000 } = {}) {
   }
   for (const line of lines) {
     if (!/^[a-z][a-z\d+.-]*:\/\//i.test(line)) {
-      if (/^[^\w]*(?:➡️|👉|📣|📆)/u.test(line)) readNotice(line);
+      // Account notices may carry an emoji prefix or be a bare traffic line
+      // such as "🟢 Остаток трафика LTE: 74.6/80GB".
+      if (/^[^\w]*(?:➡️|👉|📣|📆)/u.test(line) || parseTrafficNotice(line) !== null) readNotice(line);
       continue;
     }
     // Providers may expose the account quota as an informational node name.

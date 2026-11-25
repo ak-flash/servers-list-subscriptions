@@ -9,7 +9,7 @@ const TRAFFIC_UNITS = {
   tb: 1024 ** 4, tib: 1024 ** 4, 'тб': 1024 ** 4
 };
 
-const TRAFFIC_NOTICE_PATTERN = /(?:осталось(?:\s+трафика)?|остаток\s+трафика|remaining(?:\s+traffic)?|traffic\s+left|剩余流量|剩余)\s*[:：=\-]?\s*(\d+(?:[.,]\d+)?)\s*(tib|tb|gib|gb|mib|mb|kib|kb|тб|гб|мб|кб|b|б)(?![a-zа-яё])/iu;
+const TRAFFIC_NOTICE_PATTERN = /(?:осталось(?:\s+трафика)?|остаток\s+трафика|remaining(?:\s+traffic)?|traffic\s+left|剩余流量|剩余)(?:\s+lte)?\s*[:：=\-]?\s*(\d+(?:[.,]\d+)?)\s*(?:\/\s*\d+(?:[.,]\d+)?\s*)?(tib|tb|gib|gb|mib|mb|kib|kb|тб|гб|мб|кб|b|б)(?![a-zа-яё])/iu;
 
 function parseTrafficNotice(text) {
   const match = TRAFFIC_NOTICE_PATTERN.exec(String(text || ''));
